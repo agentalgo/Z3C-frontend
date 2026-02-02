@@ -1,16 +1,49 @@
-# React + Vite
+# SPA ZATCA Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An admin dashboard built with React for ZATCA (Zakat, Tax and Customs Authority) compliance and management.
 
-Currently, two official plugins are available:
+### Installation:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+   yarn install
+```
 
-## React Compiler
+### Run Application:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+   yarn dev
+```
 
-## Expanding the ESLint configuration
+### Production Build:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+   yarn run build
+```
+
+### Resources Used:
+
+ - **React (ver 19.2)**
+
+ - **React Router Dom (ver 7.13)**
+
+ - **React Google Charts (ver 5.2)**
+
+ - **React Select (ver 5.10)**
+
+ - **React Simple Toasts (ver 6.1)**
+
+ - **TanStack React Table (ver 8.21)**
+
+ - **Jotai (ver 2.16)**
+
+ - **Material Symbols (ver 0.40)**
+
+ - **Vite (ver 7.2)**
+
+ - **Tailwind CSS (ver 4.1)**
+
+ - **PostCSS (ver 8.5)**
+
+ - **Fontsource Inter (ver 5.2)**
+
+ - **ESLint (ver 9.39)**
