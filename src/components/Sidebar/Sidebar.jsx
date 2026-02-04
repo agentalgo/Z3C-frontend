@@ -1,5 +1,9 @@
 // Packages
 import { NavLink } from 'react-router-dom';
+import { useSetAtom } from 'jotai';
+
+// Atoms
+import { auth } from '../../atoms';
 
 const navigation = [
   { label: 'Dashboard', icon: 'dashboard', path: '/' },
@@ -10,6 +14,13 @@ const navigation = [
 ]
 
 function Sidebar() {
+  const setAuth = useSetAtom(auth);
+
+  const handleLogout = () => {
+    // Clear authentication state; Screens will redirect to login based on auth atom
+    setAuth(null);
+  };
+
   const LOGO_SECTION = () => (
     <div className="flex items-center gap-3 mb-8">
       <div className="bg-primary p-2 rounded-lg text-white">
@@ -23,7 +34,7 @@ function Sidebar() {
   );
 
   const NAVIGATION_SECTION = () => (
-    <nav className="flex flex-col gap-1 flex-1">
+    <nav className="flex flex-col gap-1">
       {navigation.map((item) => (
         <NavLink
           key={item.label}
@@ -41,12 +52,24 @@ function Sidebar() {
         </NavLink>
       ))}
     </nav>
-  )
+  );
+
+  const LOGOUT_SECTION = () => (
+    <button
+      type="button"
+      onClick={handleLogout}
+      className="mt-6 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/30 transition-colors"
+    >
+      <span className="material-symbols-outlined">logout</span>
+      <span>Logout</span>
+    </button>
+  );
 
   const SIDEBAR_CONTENT = () => (
     <div className="p-6 flex flex-col h-full">
       {LOGO_SECTION()}
-      {NAVIGATION_SECTION()}      
+      {NAVIGATION_SECTION()}
+      {LOGOUT_SECTION()}
     </div>
   );
 
