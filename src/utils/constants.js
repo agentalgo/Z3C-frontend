@@ -1,3 +1,6 @@
+// export const BASE_URL = 'https://api.zatca.com/api/v1';
+export const BASE_URL = 'http://localhost:5000/api/v1';
+
 // Pagination page size options for listing views (React Table)
 export const PAGINATION_PAGE_SIZES = [20, 50, 100];
 

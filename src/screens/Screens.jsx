@@ -1,6 +1,10 @@
 // Packages
-import { Fragment } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAtomValue } from 'jotai';
+
+// Atoms
+import { auth } from '../atoms';
 
 // Utils
 import '../utils/helpers.jsx';
@@ -23,9 +27,13 @@ import {
 import { Login, ResetPassword } from './unauthenticated-screens';
 
 function Screens() {
-  // TODO: Replace with actual authentication state (e.g. from context/API)
-  // const isAuthenticated = false;
-  const isAuthenticated = false;
+  const authValue = useAtomValue(auth);
+  const [hasMounted, setHasMounted] = useState(false);
+  const isAuthenticated = Boolean(authValue);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const AUTHENTICATED_LAYOUT = () => (
     <div className="min-h-screen bg-[#f5f6f8] dark:bg-[#0f1323] text-[#0d121b] dark:text-[#f8f9fc]">
@@ -59,11 +67,24 @@ function Screens() {
     </div>
   );
 
-  const CONTENT = () => (
-    <Fragment>
-      {isAuthenticated ? AUTHENTICATED_LAYOUT() : UNAUTHENTICATED_LAYOUT()}
-    </Fragment>
-  );
+  const CONTENT = () => {
+    if (!hasMounted) {
+      // Avoid flashing the login screen briefly on initial render
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#f5f6f8] dark:bg-[#0f1323] text-[#0d121b] dark:text-[#f8f9fc]">
+          <span className="text-sm text-slate-600 dark:text-slate-300">
+            Loading your workspace...
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <Fragment>
+        {isAuthenticated ? AUTHENTICATED_LAYOUT() : UNAUTHENTICATED_LAYOUT()}
+      </Fragment>
+    );
+  };
 
   return CONTENT();
 }
