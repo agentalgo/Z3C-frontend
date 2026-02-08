@@ -7,7 +7,7 @@ import { useAtomValue } from 'jotai';
 import { auth } from '../atoms';
 
 // Utils
-import '../utils/helpers.jsx';
+import '../utils';
 import { Sidebar, Header } from '../components';
 
 // Authenticated Screens
@@ -43,8 +43,8 @@ function Screens() {
           <Header />
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/company-profile" element={<CompanyProfileList />} />
-            <Route path="/company-profile/new" element={<CompanyProfileForm />} />
+            {/* <Route path="/company-profile" element={<CompanyProfileList />} /> */}
+            {/* <Route path="/company-profile/new" element={<CompanyProfileForm />} /> */}
             <Route path="/invoices" element={<InvoicesList />} />
             <Route path="/invoices/new" element={<InvoiceForm />} />
             <Route path="/customer" element={<CustomersList />} />

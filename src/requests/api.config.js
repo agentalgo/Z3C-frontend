@@ -1,5 +1,4 @@
-import { BASE_URL } from '../utils/constants';
-import { showToast } from '../utils';
+import { BASE_URL, showToast } from '../utils';
 
 /**
  * Default headers for all API requests.

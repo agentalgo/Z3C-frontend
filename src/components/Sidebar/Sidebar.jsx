@@ -7,7 +7,7 @@ import { auth } from '../../atoms';
 
 const navigation = [
   { label: 'Dashboard', icon: 'dashboard', path: '/' },
-  { label: 'Company Profile', icon: 'business', path: '/company-profile' },
+  // { label: 'Company Profile', icon: 'business', path: '/company-profile' },
   { label: 'Invoices', icon: 'description', path: '/invoices' },
   { label: 'Customer', icon: 'people', path: '/customer' },
   { label: 'User Management', icon: 'manage_accounts', path: '/user-management' },
@@ -40,10 +40,9 @@ function Sidebar() {
           key={item.label}
           to={item.path}
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm cursor-pointer ${
-              isActive
-                ? 'bg-primary/10 text-primary font-semibold'
-                : 'text-[#4c669a] dark:text-[#a0aec0] font-medium hover:bg-gray-100 dark:hover:bg-gray-800'
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm cursor-pointer ${isActive
+              ? 'bg-primary/10 text-primary font-semibold'
+              : 'text-[#4c669a] dark:text-[#a0aec0] font-medium hover:bg-gray-100 dark:hover:bg-gray-800'
             }`
           }
         >

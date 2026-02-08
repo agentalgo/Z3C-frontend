@@ -1,6 +1,6 @@
 import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
 
-const UsersListRequest = () => {
+const UserListRequest = () => {
   return fetch(getApiUrl('/users'), {
     method: 'GET',
     headers: defaultHeaders,
@@ -18,4 +18,4 @@ const UsersListRequest = () => {
     });
 };
 
-export default UsersListRequest;
+export default UserListRequest;

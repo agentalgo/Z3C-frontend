@@ -1,6 +1,6 @@
 import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
 
-const InvoicesListRequest = () => {
+const InvoiceListRequest = () => {
   return fetch(getApiUrl('/invoices'), {
     method: 'GET',
     headers: defaultHeaders,
@@ -18,4 +18,4 @@ const InvoicesListRequest = () => {
     });
 };
 
-export default InvoicesListRequest;
+export default InvoiceListRequest;
