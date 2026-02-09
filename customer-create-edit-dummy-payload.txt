@@ -1,0 +1,18 @@
+{
+  "streetName": "Prince Sultan Street",
+  "streetNameAr": "شارع الأمير سلطان",
+  "address": "Building 1234, Prince Sultan Street, Riyadh",
+  "addressAr": "مبنى 1234، شارع الأمير سلطان، الرياض",
+  "buildingNumber": "1234",
+  "citySubdivisionName": "District 5",
+  "citySubdivisionNameAr": "الحي الخامس",
+  "cityName": "Riyadh",
+  "cityNameAr": "الرياض",
+  "postalZone": "12345",
+  "countryCode": "SA",
+  "customerVAT": "300000000000003",
+  "registrationName": "Acme Corporation",
+  "registrationNameAr": "شركة أكمي",
+  "email": "customer@example.com",
+  "phone": "+966501234567"
+}

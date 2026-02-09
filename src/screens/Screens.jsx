@@ -41,15 +41,18 @@ function Screens() {
           <Header />
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            {/* <Route path="/company-profile" element={<CompanyProfileList />} /> */}
-            {/* <Route path="/company-profile/new" element={<CompanyProfileForm />} /> */}
+            <Route path="/company-profile" element={<CompanyProfileList />} />
+            <Route path="/company-profile/new" element={<CompanyProfileForm />} />
+            <Route path="/company-profile/:id" element={<CompanyProfileForm />} />
             <Route path="/invoices" element={<InvoicesList />} />
             <Route path="/invoices/new" element={<InvoiceForm />} />
+            <Route path="/invoices/:id" element={<InvoiceForm />} />
             <Route path="/customer" element={<CustomerList />} />
             <Route path="/customer/new" element={<CustomerForm />} />
             <Route path="/customer/:id" element={<CustomerForm />} />
             <Route path="/user-management" element={<UserManagementList />} />
             <Route path="/user-management/new" element={<UserManagementForm />} />
+            <Route path="/user-management/:id" element={<UserManagementForm />} />
           </Routes>
         </main>
       </div>

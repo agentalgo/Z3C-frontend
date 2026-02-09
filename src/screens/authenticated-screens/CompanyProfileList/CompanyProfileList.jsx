@@ -2,7 +2,8 @@
 import { Fragment, useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
-import { Footer } from '../../../components';
+import { ErrorBoundary } from 'react-error-boundary';
+import { Footer, ErrorFallback } from '../../../components';
 import { fetchPaginatedData } from '../../../requests';
 import { PAGINATION_PAGE_SIZES } from '../../../utils';
 
@@ -184,8 +185,22 @@ function CompanyProfileList() {
           <span className="text-xs max-w-[200px] truncate block" title={getValue()}>{getValue()}</span>
         ),
       },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: ({ row }) => (
+          <button
+            onClick={() => navigate(`/company-profile/${row.original.id || row.original.profileNumber}`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+          >
+            <span className="material-symbols-outlined text-[16px]">edit</span>
+            Edit
+          </button>
+        ),
+        enableSorting: false,
+      },
     ],
-    []
+    [navigate]
   );
 
   const table = useReactTable({
@@ -400,8 +415,8 @@ function CompanyProfileList() {
                 onClick={() => table.setPageIndex(pageNum - 1)}
                 disabled={isLoading}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${pagination.pageIndex + 1 === pageNum
-                    ? 'bg-primary text-white'
-                    : 'border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
+                  ? 'bg-primary text-white'
+                  : 'border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {pageNum}

@@ -2,13 +2,14 @@
 import { Fragment, useMemo, useState, Suspense, use } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
+import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
 import { CustomerListRequest } from '../../../requests';
 
 // Utils
-import { Footer } from '../../../components';
+import { Footer, ErrorFallback } from '../../../components';
 import { auth } from '../../../atoms';
 import { PAGINATION_PAGE_SIZES, decodeString } from '../../../utils';
 
@@ -108,17 +109,19 @@ function CustomerList() {
           </div>
         </div>
 
-        <Suspense fallback={<TableLoadingSkeleton />}>
-          <CustomersTableContent
-            customersPromise={customersPromise}
-            pagination={pagination}
-            _pagination={_pagination}
-            sorting={sorting}
-            _sorting={_sorting}
-            rowSelection={rowSelection}
-            _rowSelection={_rowSelection}
-          />
-        </Suspense>
+        <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
+          <Suspense fallback={<TableLoadingSkeleton />}>
+            <CustomersTableContent
+              customersPromise={customersPromise}
+              pagination={pagination}
+              _pagination={_pagination}
+              sorting={sorting}
+              _sorting={_sorting}
+              rowSelection={rowSelection}
+              _rowSelection={_rowSelection}
+            />
+          </Suspense>
+        </ErrorBoundary>
       </div>
       <Footer />
     </Fragment>
@@ -177,14 +180,6 @@ function CustomersTableContent({
         accessorKey: 'registrationName',
         header: 'Registered Name',
         enableSorting: true,
-      },
-      {
-        accessorKey: 'companyProfile',
-        header: 'Company Profile',
-        enableSorting: true,
-        cell: ({ getValue }) => (
-          <span className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{getValue()}</span>
-        ),
       },
       {
         accessorKey: 'streetName',

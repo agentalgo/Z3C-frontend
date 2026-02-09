@@ -1,38 +1,126 @@
-// Packages
-import { Fragment, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Fragment, useState, useMemo, Suspense, use, useEffect } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { useNavigate, useParams } from 'react-router-dom';
 import Select from 'react-select';
+import { useAtomValue } from 'jotai';
 
 // Utils
-import { Footer } from '../../../components';
-import { showToast, validateSubmissionData } from '../../../utils';
+import { Footer, ErrorFallback } from '../../../components';
+import { showToast, validateSubmissionData, decodeString } from '../../../utils';
+
+// APIs
+import {
+  UserCreateRequest,
+  UserDetailRequest,
+  UserUpdateRequest,
+} from '../../../requests';
+
+// Atoms
+import { auth } from '../../../atoms';
+
+const INITIAL_FORM_DATA = {
+  data: {
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    assignedRoles: [],
+    isActive: true,
+  },
+  validations: {
+    firstName: { isRequired: true, label: "First Name" },
+    lastName: { isRequired: true, label: "Last Name" },
+    assignedRoles: { isRequired: true, isArray: true, label: "Roles" },
+    email: { isRequired: true, regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/ },
+  },
+  errors: {},
+};
 
 function UserManagementForm() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  
-  const INITIAL_FORM_DATA = {
-    data: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      assignedRoles: [],
-      isActive: true,
-    },
-    validations: {
-      firstName: { isRequired: true, label: "First Name" },
-      lastName: { isRequired: true, label: "Last Name" },
-      password: { isRequired: true, label: "Password" },
-      confirmPassword: { isRequired: true, label: "Password" },
-      assignedRoles: { isRequired: true, isArray: true, label: "Roles" },
-      email: { isRequired: true, regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/ },
-    },
-    errors: {},
-  };
+  const authValue = useAtomValue(auth);
+  const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
+
+  const userPromise = useMemo(() => {
+    if (id) {
+      return UserDetailRequest(decodedToken, id).catch((err) => {
+        console.error('Failed to fetch user details:', err);
+        return { data: null, isError: true };
+      });
+    }
+    return null;
+  }, [id, decodedToken]);
+
+  return (
+    <Fragment>
+      <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
+        <Suspense fallback={
+          <div className="p-8 flex items-center justify-center">
+            <div className="flex items-center gap-2 text-[#4c669a]">
+              <span className="material-symbols-outlined animate-spin">sync</span>
+              Loading user details...
+            </div>
+          </div>
+        }>
+          <UserManagementFormContent
+            id={id}
+            userPromise={userPromise}
+            decodedToken={decodedToken}
+            navigate={navigate}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    </Fragment >
+  );
+}
+
+function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) {
+  const userData = userPromise ? use(userPromise) : null;
+  const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
+  const [isLoading, _isLoading] = useState(false);
   const [isShowPassword, _isShowPassword] = useState(false);
   const [isShowConfirmPassword, _isShowConfirmPassword] = useState(false);
-  const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
+
+  useEffect(() => {
+    if (userData?.data) {
+      const apiData = userData.data;
+      _formData(old => ({
+        ...old,
+        data: {
+          ...old.data,
+          firstName: apiData.firstName || '',
+          lastName: apiData.lastName || '',
+          email: apiData.email || '',
+          assignedRoles: apiData.roles || apiData.assignedRoles || [],
+          isActive: typeof apiData.isActive === 'string'
+            ? apiData.isActive === 'Yes'
+            : !!apiData.isActive,
+          password: '', // Don't pre-fill password for security
+          confirmPassword: '',
+        },
+        validations: {
+          ...old.validations,
+          // Password not required in edit mode unless user wants to change it
+          password: { isRequired: false, label: "Password" },
+          confirmPassword: { isRequired: false, label: "Confirm Password" },
+        }
+      }));
+    } else if (userData?.isError) {
+      _formData({ ...INITIAL_FORM_DATA });
+    } else if (!id) {
+      // Create mode - ensure password is required
+      _formData(old => ({
+        ...old,
+        validations: {
+          ...old.validations,
+          password: { isRequired: true, label: "Password" },
+          confirmPassword: { isRequired: true, label: "Confirm Password" },
+        }
+      }));
+    }
+  }, [userData, id]);
 
   /********  handlers  ********/
   const handleChangeFormData = (e) => {
@@ -62,9 +150,44 @@ function UserManagementForm() {
   };
 
   const handleSubmitForm = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+
+    // Check password match if provided
+    if (formData.data.password && formData.data.password !== formData.data.confirmPassword) {
+      showToast('Passwords do not match', 'error');
+      return;
+    }
+
     if (handleValidateForm()) {
-      console.log('Form is valid');
+      _isLoading(true);
+
+      const payload = {
+        firstName: formData.data.firstName,
+        lastName: formData.data.lastName,
+        email: formData.data.email,
+        roles: formData.data.assignedRoles,
+        isActive: formData.data.isActive ? 'Yes' : 'No', // Mapping back to API format if needed
+      };
+
+      if (formData.data.password) {
+        payload.password = formData.data.password;
+      }
+
+      const request = id
+        ? UserUpdateRequest(decodedToken, id, JSON.stringify(payload))
+        : UserCreateRequest(decodedToken, JSON.stringify(payload));
+
+      request
+        .then(() => {
+          showToast(id ? 'User updated successfully!' : 'User created successfully!', 'success');
+          navigate('/user-management');
+        })
+        .catch((err) => {
+          showToast(err?.message || (id ? 'Failed to update user' : 'Failed to create user'), 'error');
+        })
+        .finally(() => {
+          _isLoading(false);
+        });
     } else {
       showToast('Please fill in all required fields', 'error');
     }
@@ -74,7 +197,9 @@ function UserManagementForm() {
   const PAGE_HEADER = () => (
     <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-[#0d121b] dark:text-white text-3xl font-black leading-tight">Create User</h1>
+        <h1 className="text-[#0d121b] dark:text-white text-3xl font-black leading-tight">
+          {id ? 'Edit User' : 'Create User'}
+        </h1>
       </div>
     </div>
   );
@@ -246,10 +371,11 @@ function UserManagementForm() {
     <div className="flex gap-3 pt-6">
       <button
         type="submit"
+        disabled={isLoading || userData?.isError}
         onClick={handleSubmitForm}
-        className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20"
+        className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        SAVE
+        {isLoading ? 'SAVING...' : 'SAVE'}
       </button>
       <button
         type="button"
