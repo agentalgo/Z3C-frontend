@@ -17,6 +17,7 @@ function InvoicesList() {
   const [sorting, _sorting] = useState([]);
   const [rowSelection, _rowSelection] = useState({});
   const [searchQuery, _searchQuery] = useState('');
+  const [appliedSearchQuery, _appliedSearchQuery] = useState('');
   const [isFilterOpen, _isFilterOpen] = useState(false);
   const [isActionsOpen, _isActionsOpen] = useState(false);
   const [paginationInfo, _paginationInfo] = useState({
@@ -34,7 +35,8 @@ function InvoicesList() {
         const response = await fetchPaginatedData(
           '/api/invoices',
           pagination.pageIndex + 1,
-          pagination.pageSize
+          pagination.pageSize,
+          { search: appliedSearchQuery || undefined }
         );
         _data(response.data);
         _paginationInfo(response.pagination);
@@ -46,81 +48,81 @@ function InvoicesList() {
     };
 
     loadData();
-  }, [pagination.pageIndex, pagination.pageSize]);
+  }, [pagination.pageIndex, pagination.pageSize, appliedSearchQuery]);
 
   // Sample data fallback (for initial render)
   const sampleInvoices = [
-  {
-    invoiceNo: 'INV-2023-8842',
-    referenceNo: 'REF-001',
-    zatcaStatus: 'CLEARED',
-    paymentTerm: 'Net 30',
-    emailSendStatus: 'Sent',
-    invoicePaid: 'Yes',
-    zatcaComplianceStatus: 'Compliant',
-    type: 'B2B',
-    customer: 'Al-Futtaim Logistics',
-    companyProfile: 'Company A',
-    grossAmount: '12,450.00',
-    paymentType: 'Bank Transfer',
-  },
-  {
-    invoiceNo: 'INV-2023-8841',
-    referenceNo: 'REF-002',
-    zatcaStatus: 'REPORTED',
-    paymentTerm: 'Net 15',
-    emailSendStatus: 'Pending',
-    invoicePaid: 'No',
-    zatcaComplianceStatus: 'Compliant',
-    type: 'B2C',
-    customer: 'Jeddah Retail Co.',
-    companyProfile: 'Company B',
-    grossAmount: '3,120.50',
-    paymentType: 'Credit Card',
-  },
-  {
-    invoiceNo: 'INV-2023-8840',
-    referenceNo: 'REF-003',
-    zatcaStatus: 'REJECTED',
-    paymentTerm: 'Net 45',
-    emailSendStatus: 'Failed',
-    invoicePaid: 'No',
-    zatcaComplianceStatus: 'Non-Compliant',
-    type: 'B2B',
-    customer: 'Saudi Trading Ltd',
-    companyProfile: 'Company C',
-    grossAmount: '45,000.00',
-    paymentType: 'Cash',
-  },
-  {
-    invoiceNo: 'INV-2023-8839',
-    referenceNo: 'REF-004',
-    zatcaStatus: 'CLEARED',
-    paymentTerm: 'Net 30',
-    emailSendStatus: 'Sent',
-    invoicePaid: 'Yes',
-    zatcaComplianceStatus: 'Compliant',
-    type: 'B2B',
-    customer: 'Aramco Support Div',
-    companyProfile: 'Company D',
-    grossAmount: '8,200.00',
-    paymentType: 'Bank Transfer',
-  },
-  {
-    invoiceNo: 'INV-2023-8838',
-    referenceNo: 'REF-005',
-    zatcaStatus: 'PENDING',
-    paymentTerm: 'Net 30',
-    emailSendStatus: 'Sent',
-    invoicePaid: 'No',
-    zatcaComplianceStatus: 'Compliant',
-    type: 'B2C',
-    customer: 'Riyadh Trading',
-    companyProfile: 'Company E',
-    grossAmount: '15,750.00',
-    paymentType: 'Credit Card',
-  },
-];
+    {
+      invoiceNo: 'INV-2023-8842',
+      referenceNo: 'REF-001',
+      zatcaStatus: 'CLEARED',
+      paymentTerm: 'Net 30',
+      emailSendStatus: 'Sent',
+      invoicePaid: 'Yes',
+      zatcaComplianceStatus: 'Compliant',
+      type: 'B2B',
+      customer: 'Al-Futtaim Logistics',
+      companyProfile: 'Company A',
+      grossAmount: '12,450.00',
+      paymentType: 'Bank Transfer',
+    },
+    {
+      invoiceNo: 'INV-2023-8841',
+      referenceNo: 'REF-002',
+      zatcaStatus: 'REPORTED',
+      paymentTerm: 'Net 15',
+      emailSendStatus: 'Pending',
+      invoicePaid: 'No',
+      zatcaComplianceStatus: 'Compliant',
+      type: 'B2C',
+      customer: 'Jeddah Retail Co.',
+      companyProfile: 'Company B',
+      grossAmount: '3,120.50',
+      paymentType: 'Credit Card',
+    },
+    {
+      invoiceNo: 'INV-2023-8840',
+      referenceNo: 'REF-003',
+      zatcaStatus: 'REJECTED',
+      paymentTerm: 'Net 45',
+      emailSendStatus: 'Failed',
+      invoicePaid: 'No',
+      zatcaComplianceStatus: 'Non-Compliant',
+      type: 'B2B',
+      customer: 'Saudi Trading Ltd',
+      companyProfile: 'Company C',
+      grossAmount: '45,000.00',
+      paymentType: 'Cash',
+    },
+    {
+      invoiceNo: 'INV-2023-8839',
+      referenceNo: 'REF-004',
+      zatcaStatus: 'CLEARED',
+      paymentTerm: 'Net 30',
+      emailSendStatus: 'Sent',
+      invoicePaid: 'Yes',
+      zatcaComplianceStatus: 'Compliant',
+      type: 'B2B',
+      customer: 'Aramco Support Div',
+      companyProfile: 'Company D',
+      grossAmount: '8,200.00',
+      paymentType: 'Bank Transfer',
+    },
+    {
+      invoiceNo: 'INV-2023-8838',
+      referenceNo: 'REF-005',
+      zatcaStatus: 'PENDING',
+      paymentTerm: 'Net 30',
+      emailSendStatus: 'Sent',
+      invoicePaid: 'No',
+      zatcaComplianceStatus: 'Compliant',
+      type: 'B2C',
+      customer: 'Riyadh Trading',
+      companyProfile: 'Company E',
+      grossAmount: '15,750.00',
+      paymentType: 'Credit Card',
+    },
+  ];
 
   const columns = useMemo(
     () => [
@@ -299,6 +301,12 @@ function InvoicesList() {
             placeholder="Search invoices..."
             value={searchQuery}
             onChange={(e) => _searchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                _appliedSearchQuery(searchQuery);
+                _pagination((prev) => ({ ...prev, pageIndex: 0 }));
+              }
+            }}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white placeholder:text-[#4c669a] focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
           />
         </div>
@@ -319,7 +327,7 @@ function InvoicesList() {
                 {isActionsOpen ? 'expand_less' : 'expand_more'}
               </span>
             </button>
-            
+
             {/* Actions Dropdown Menu */}
             {isActionsOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
@@ -363,7 +371,7 @@ function InvoicesList() {
               {isFilterOpen ? 'expand_less' : 'expand_more'}
             </span>
           </button>
-          
+
           {/* Dropdown Menu */}
           {isFilterOpen && (
             <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
@@ -466,8 +474,8 @@ function InvoicesList() {
               </tr>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <tr 
-                  key={row.id} 
+                <tr
+                  key={row.id}
                   className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${row.getIsSelected() ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
                 >
                   {row.getVisibleCells().map((cell) => (
@@ -519,7 +527,7 @@ function InvoicesList() {
         >
           <span className="material-symbols-outlined text-[18px]">chevron_left</span>
         </button>
-        
+
         <div className="flex items-center gap-1">
           {Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
             let pageNum;
@@ -532,17 +540,16 @@ function InvoicesList() {
             } else {
               pageNum = pagination.pageIndex - 1 + i;
             }
-            
+
             return (
               <button
                 key={pageNum}
                 onClick={() => table.setPageIndex(pageNum - 1)}
                 disabled={isLoading}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  pagination.pageIndex + 1 === pageNum
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${pagination.pageIndex + 1 === pageNum
                     ? 'bg-primary text-white'
                     : 'border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {pageNum}
               </button>

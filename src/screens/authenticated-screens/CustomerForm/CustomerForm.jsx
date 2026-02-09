@@ -1,22 +1,18 @@
 // Packages
-import { Fragment, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Fragment, useState, use, useMemo, useEffect, Suspense } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 
-// Atoms
-import { auth } from '../../../atoms';
-
 // APIs
-import { CustomerCreateRequest } from '../../../requests';
+import { CustomerCreateRequest, CustomerDetailRequest, CustomerUpdateRequest } from '../../../requests';
 
 // Utils
+import { auth } from '../../../atoms';
 import { Footer } from '../../../components';
 import { showToast, validateSubmissionData, decodeString } from '../../../utils';
 
 const INITIAL_FORM_DATA = {
   data: {
-    firstName: '',
-    lastName: '',
     arabicName: '',
     registrationName: '',
     email: '',
@@ -40,8 +36,6 @@ const INITIAL_FORM_DATA = {
   },
   validations: {
     postalZone: { isRequired: true, min: 5, label: 'Postal Zone' },
-    firstName: { isRequired: true, label: 'First Name' },
-    lastName: { isRequired: true, label: 'Last Name' },
     registrationName: { isRequired: true, label: 'Registered Name' },
     companyProfile: { isRequired: true, label: 'Company Profile' },
     city: { isRequired: true, label: 'City' },
@@ -53,10 +47,62 @@ const INITIAL_FORM_DATA = {
 };
 
 function CustomerForm() {
+  const { id } = useParams();
   const navigate = useNavigate();
+  const authValue = useAtomValue(auth);
+  const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
+
+  const customerPromise = useMemo(() => {
+    if (id) {
+      return CustomerDetailRequest(decodedToken, id).catch((err) => {
+        console.error('Failed to fetch customer details:', err);
+        return { data: null, isError: true };
+      });
+    }
+    return null;
+  }, [id, decodedToken]);
+
+  return (
+    <Fragment>
+      <Suspense fallback={
+        <div className="p-8 flex items-center justify-center">
+          <div className="flex items-center gap-2 text-[#4c669a]">
+            <span className="material-symbols-outlined animate-spin">sync</span>
+            Loading customer details...
+          </div>
+        </div>
+      }>
+        <CustomerFormContent
+          id={id}
+          customerPromise={customerPromise}
+          decodedToken={decodedToken}
+          navigate={navigate}
+        />
+      </Suspense>
+    </Fragment>
+  );
+}
+
+function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
+  const customerData = customerPromise ? use(customerPromise) : null;
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
   const [isLoading, _isLoading] = useState(false);
-  const authValue = useAtomValue(auth);
+
+  useEffect(() => {
+    if (customerData?.data) {
+      const { firstName, lastName, ...rest } = customerData.data; // Cleaning up just in case, though they should be gone from payload
+      _formData(old => ({
+        ...old,
+        data: {
+          ...old.data,
+          ...customerData.data,
+          city: customerData.data.cityName || '', // Map cityName to city if needed
+        },
+      }));
+    } else if (customerData?.isError) {
+      _formData({ ...INITIAL_FORM_DATA });
+    }
+  }, [customerData]);
 
   /********  handlers  ********/
   const handleChangeFormData = (e) => {
@@ -89,7 +135,6 @@ function CustomerForm() {
     e.preventDefault();
     if (handleValidateForm()) {
       _isLoading(true);
-      const decodedToken = decodeString(authValue);
 
       const payloadData = {
         streetName: formData.data.streetName,
@@ -104,13 +149,17 @@ function CustomerForm() {
         phone: formData.data.phone
       };
 
-      CustomerCreateRequest(decodedToken, JSON.stringify(payloadData))
+      const request = id
+        ? CustomerUpdateRequest(decodedToken, id, JSON.stringify(payloadData))
+        : CustomerCreateRequest(decodedToken, JSON.stringify(payloadData));
+
+      request
         .then(() => {
-          showToast('Customer created successfully!', 'success');
+          showToast(id ? 'Customer updated successfully!' : 'Customer created successfully!', 'success');
           navigate('/customer');
         })
         .catch((err) => {
-          showToast(err?.message || 'Failed to create customer', 'error');
+          showToast(err?.message || (id ? 'Failed to update customer' : 'Failed to create customer'), 'error');
         })
         .finally(() => {
           _isLoading(false);
@@ -124,41 +173,30 @@ function CustomerForm() {
   const PAGE_HEADER = () => (
     <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-[#0d121b] dark:text-white text-3xl font-black leading-tight">Create Customer</h1>
+        <h1 className="text-[#0d121b] dark:text-white text-3xl font-black leading-tight">
+          {id ? 'Edit Customer' : 'Create Customer'}
+        </h1>
       </div>
     </div>
   );
 
   const BASIC_INFO_SECTION = () => (
     <section className="space-y-6">
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">First Name *</label>
-          <input
-            type="text"
-            name="firstName"
-            value={formData.data.firstName || ''}
-            onChange={handleChangeFormData}
-            placeholder="Ahmed"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.firstName && (
-            <span className="text-xs text-tomato">{formData.errors.firstName}</span>
-          )}
-        </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Last Name *</label>
+          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Registered Name *</label>
           <input
             type="text"
-            name="lastName"
-            value={formData.data.lastName || ''}
+            name="registrationName"
+            value={formData.data.registrationName || ''}
             onChange={handleChangeFormData}
-            placeholder="Al-Saud"
+            placeholder="Ahmed Al-Saud Trading Co."
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
           />
-          {formData.errors.lastName && (
-            <span className="text-xs text-tomato">{formData.errors.lastName}</span>
+          {formData.errors.registrationName && (
+            <span className="text-xs text-tomato">{formData.errors.registrationName}</span>
           )}
         </div>
 
@@ -175,21 +213,6 @@ function CustomerForm() {
           />
           {formData.errors.arabicName && (
             <span className="text-xs text-tomato">{formData.errors.arabicName}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Registered Name *</label>
-          <input
-            type="text"
-            name="registrationName"
-            value={formData.data.registrationName || ''}
-            onChange={handleChangeFormData}
-            placeholder="Ahmed Al-Saud Trading Co."
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.registrationName && (
-            <span className="text-xs text-tomato">{formData.errors.registrationName}</span>
           )}
         </div>
 
@@ -297,7 +320,7 @@ function CustomerForm() {
           )}
         </div>
       </div>
-    </section>
+    </section >
   );
 
   const ADDRESS_DETAILS_SECTION = () => (
@@ -514,7 +537,7 @@ function CustomerForm() {
     <div className="flex gap-3 pt-6">
       <button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || customerData?.isError}
         onClick={handleSubmitForm}
         className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed min-w-[100px]"
       >

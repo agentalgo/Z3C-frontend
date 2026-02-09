@@ -66,6 +66,7 @@ function UserManagementList() {
   const [sorting, _sorting] = useState([]);
   const [rowSelection, _rowSelection] = useState({});
   const [searchQuery, _searchQuery] = useState('');
+  const [appliedSearchQuery, _appliedSearchQuery] = useState('');
   const [isFilterOpen, _isFilterOpen] = useState(false);
   const [isActionsOpen, _isActionsOpen] = useState(false);
   const [paginationInfo, _paginationInfo] = useState({
@@ -83,7 +84,8 @@ function UserManagementList() {
         const response = await fetchPaginatedData(
           '/api/users',
           pagination.pageIndex + 1,
-          pagination.pageSize
+          pagination.pageSize,
+          { search: appliedSearchQuery || undefined }
         );
         _data(response.data);
         _paginationInfo(response.pagination);
@@ -95,7 +97,7 @@ function UserManagementList() {
     };
 
     loadData();
-  }, [pagination.pageIndex, pagination.pageSize]);
+  }, [pagination.pageIndex, pagination.pageSize, appliedSearchQuery]);
 
   const columns = useMemo(
     () => [
@@ -234,6 +236,12 @@ function UserManagementList() {
             placeholder="Search users..."
             value={searchQuery}
             onChange={(e) => _searchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                _appliedSearchQuery(searchQuery);
+                _pagination((prev) => ({ ...prev, pageIndex: 0 }));
+              }
+            }}
             className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white placeholder:text-[#4c669a] focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
           />
         </div>
@@ -254,7 +262,7 @@ function UserManagementList() {
                 {isActionsOpen ? 'expand_less' : 'expand_more'}
               </span>
             </button>
-            
+
             {/* Actions Dropdown Menu */}
             {isActionsOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
@@ -294,7 +302,7 @@ function UserManagementList() {
               {isFilterOpen ? 'expand_less' : 'expand_more'}
             </span>
           </button>
-          
+
           {/* Dropdown Menu */}
           {isFilterOpen && (
             <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
@@ -374,7 +382,7 @@ function UserManagementList() {
         >
           <span className="material-symbols-outlined text-[18px]">chevron_left</span>
         </button>
-        
+
         <div className="flex items-center gap-1">
           {Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
             let pageNum;
@@ -387,17 +395,16 @@ function UserManagementList() {
             } else {
               pageNum = pagination.pageIndex - 1 + i;
             }
-            
+
             return (
               <button
                 key={pageNum}
                 onClick={() => table.setPageIndex(pageNum - 1)}
                 disabled={isLoading}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  pagination.pageIndex + 1 === pageNum
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${pagination.pageIndex + 1 === pageNum
                     ? 'bg-primary text-white'
                     : 'border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {pageNum}
               </button>
@@ -470,8 +477,8 @@ function UserManagementList() {
               </tr>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <tr 
-                  key={row.id} 
+                <tr
+                  key={row.id}
                   className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${row.getIsSelected() ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
                 >
                   {row.getVisibleCells().map((cell) => (
