@@ -56,13 +56,23 @@ const INITIAL_FORM_DATA = {
     invoiceType: { isRequired: true, label: 'Invoice Type' },
     paymentType: { isRequired: true, label: 'Payment Type' },
     paymentTerms: { isRequired: true, label: 'Payment Terms' },
-    dueDate: { isRequired: true, label: 'Due Date' },
+    deliveryDate: { isRequired: true, label: 'Delivery Date' },
     registrationName: { isRequired: true, label: 'Registered Name' },
+    registrationNameAr: { isRequired: true, label: 'Registered Name (Arabic)' },
     email: {
       isRequired: true,
       label: 'Email',
       regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
     },
+    customerVAT: { isRequired: true, label: 'Customer VAT' },
+    streetName: { isRequired: true, label: 'Street Name' },
+    streetNameAr: { isRequired: true, label: 'Street Name (Arabic)' },
+    address: { isRequired: true, label: 'Address' },
+    addressAr: { isRequired: true, label: 'Address (Arabic)' },
+    buildingNumber: { isRequired: true, label: 'Building Number' },
+    cityName: { isRequired: true, label: 'City' },
+    cityNameAr: { isRequired: true, label: 'City (Arabic)' },
+    postalZone: { isRequired: true, exact: 5, label: 'Postal Zone' },
   },
   errors: {},
 };
@@ -286,7 +296,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
       const payloadData = {
         referenceNumber: formData.data.referenceNumber,
-        customer: formData.data.customerId || {
+        customer: {
           streetName: formData.data.streetName,
           streetNameAr: formData.data.streetNameAr,
           address: formData.data.address,
@@ -304,18 +314,18 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           email: formData.data.email,
           phone: formData.data.phone,
         },
-        paymentType: formData.data.paymentType?.toUpperCase(),
+        paymentType: formData.data.paymentType || 'CASH',
         paymentTerms: formData.data.paymentTerms,
         deliveryDate: formData.data.deliveryDate || formData.data.dueDate,
         currency: 'SAR',
-        lineItems: lineItems.map(item => ({
+        lineItems: lineItems.map((item) => ({
           description: item.description,
           productCode: item.productCode,
-          quantity: item.quantity,
-          price: item.price,
-          discount_amount: item.discount_amount,
-          discount_percentage: item.discount_percentage,
-          taxExempt: item.taxExempt,
+          quantity: Number(item.quantity) || 0,
+          price: Number(item.price) || 0,
+          discount_amount: Number(item.discount_amount) || 0,
+          discount_percentage: Number(item.discount_percentage) || 0,
+          taxExempt: !!item.taxExempt,
           taxExemptReason: item.taxExemptReason || '',
         })),
         vat: 15,
@@ -767,16 +777,20 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     </section>
   );
 
+  const getItemNetTotal = (item) => {
+    const qty = Number(item.quantity) || 0;
+    const price = Number(item.price) || 0;
+    const discountAmt = Number(item.discount_amount) || 0;
+    const discountPct = Number(item.discount_percentage) || 0;
+    let total = qty * price;
+    if (discountPct > 0) total -= total * (discountPct / 100);
+    if (discountAmt > 0) total -= discountAmt;
+    return Math.max(0, total);
+  };
+
   const LINE_ITEMS_SECTION = () => {
     const calculateTotal = (item) => {
-      const qty = Number(item.quantity) || 0;
-      const price = Number(item.price) || 0;
-      const discountAmt = Number(item.discount_amount) || 0;
-      const discountPct = Number(item.discount_percentage) || 0;
-      let total = qty * price;
-      if (discountPct > 0) total -= total * (discountPct / 100);
-      if (discountAmt > 0) total -= discountAmt;
-      return Math.max(0, total).toFixed(2);
+      return getItemNetTotal(item).toFixed(2);
     };
 
     return (
@@ -947,15 +961,15 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
   const FOOTER_ACTION_BAR = () => {
     const calculateTotal = () => {
-      const total = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+      const total = lineItems.reduce((acc, item) => acc + getItemNetTotal(item), 0);
       return total.toFixed(2);
     };
     const calculateVat = () => {
-      const total = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+      const total = lineItems.reduce((acc, item) => acc + getItemNetTotal(item), 0);
       return (total * 0.15).toFixed(2);
     };
     const calculateGrandTotal = () => {
-      const total = lineItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+      const total = lineItems.reduce((acc, item) => acc + getItemNetTotal(item), 0);
       return (total * 1.15).toFixed(2);
     };
     return (
