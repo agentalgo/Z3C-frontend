@@ -1,5 +1,7 @@
 // Packages
 import { Fragment } from 'react';
+
+// Utils
 import {
   PageHeader,
   KpiStats,
@@ -18,7 +20,7 @@ function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-1 gap-8">
         <div className="xl:col-span-2">
           <TrendChart />
-        </div>      
+        </div>
       </div>
       <RecentActivity />
     </div>

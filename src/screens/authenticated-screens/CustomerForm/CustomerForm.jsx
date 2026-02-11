@@ -199,7 +199,6 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
 
   const BASIC_INFO_SECTION = () => (
     <section className="space-y-6">
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
         <div className="flex flex-col gap-2">

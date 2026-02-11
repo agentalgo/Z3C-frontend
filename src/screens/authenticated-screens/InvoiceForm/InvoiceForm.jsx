@@ -28,28 +28,39 @@ const INITIAL_FORM_DATA = {
     referenceNumber: '',
     paymentType: '',
     paymentTerms: '',
-    companyProfile: '',
+    customerCategory: 'corporate',
     dueDate: '',
-    createdDate: '',
-    supplyDate: '',
-    registeredName: '',
-    customerEmail: '',
-    customerPhone: '',
-    customerVat: '',
-    customerAddress: '',
-    customerCode: '',
+    deliveryDate: '',
+    // Customer fields (matched with registration fields)
+    registrationName: '',
+    registrationNameAr: '',
+    email: '',
+    phone: '',
+    customerVAT: '',
+    streetName: '',
+    streetNameAr: '',
+    address: '',
+    addressAr: '',
+    buildingNumber: '',
+    citySubdivisionName: '',
+    citySubdivisionNameAr: '',
+    cityName: '',
+    cityNameAr: '',
+    postalZone: '',
+    countryCode: 'SA',
+    // Note
+    note: '',
   },
   validations: {
     invoiceNumber: { isRequired: true, label: 'Invoice Number' },
     invoiceType: { isRequired: true, label: 'Invoice Type' },
     paymentType: { isRequired: true, label: 'Payment Type' },
     paymentTerms: { isRequired: true, label: 'Payment Terms' },
-    companyProfile: { isRequired: true, label: 'Company Profile' },
     dueDate: { isRequired: true, label: 'Due Date' },
-    registeredName: { isRequired: true, label: 'Registered Name' },
-    customerEmail: {
+    registrationName: { isRequired: true, label: 'Registered Name' },
+    email: {
       isRequired: true,
-      label: 'Customer Email',
+      label: 'Email',
       regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
     },
   },
@@ -58,9 +69,13 @@ const INITIAL_FORM_DATA = {
 
 const INITIAL_LINE_ITEM = {
   description: '',
+  productCode: '',
   quantity: 1,
   price: '',
+  discount_amount: 0,
+  discount_percentage: 0,
   taxExempt: false,
+  taxExemptReason: '',
 };
 
 function InvoiceForm() {
@@ -110,33 +125,52 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
   useEffect(() => {
     if (invoiceData?.data) {
-      // Mapping API data to UI state
       const apiData = invoiceData.data;
+      const customer = apiData.customerId || {};
+
       _formData(old => ({
         ...old,
         data: {
           ...old.data,
-          invoiceNumber: apiData.invoiceNo || '',
-          invoiceType: apiData.type?.toLowerCase() || '',
-          referenceNumber: apiData.referenceNo || '',
-          paymentType: apiData.paymentType?.toLowerCase() || '',
-          paymentTerms: apiData.paymentTerm || '',
-          companyProfile: apiData.companyProfile || '',
-          dueDate: apiData.dueDate || '',
-          createdDate: apiData.createdDate ? new Date(apiData.createdDate).toISOString().split('T')[0] : '',
-          supplyDate: apiData.supplyDate || '',
-          registeredName: apiData.customer || '',
-          // Some fields might be missing in mock but required in UI
-          customerEmail: apiData.email || '',
+          invoiceNumber: apiData.invoiceNumber || '',
+          invoiceType: apiData.invoiceType?.toLowerCase() || '',
+          referenceNumber: apiData.referenceNumber || '',
+          paymentType: apiData.paymentType || '',
+          paymentTerms: apiData.paymentTerms || '',
+          dueDate: apiData.dueDate ? new Date(apiData.dueDate).toISOString().split('T')[0] : '',
+          deliveryDate: apiData.deliveryDate ? new Date(apiData.deliveryDate).toISOString().split('T')[0] : '',
+          // Customer fields from nested customerId object
+          customerId: customer._id || null,
+          registrationName: customer.registrationName || '',
+          registrationNameAr: customer.registrationNameAr || '',
+          email: customer.email || '',
+          phone: customer.phone || '',
+          customerVAT: customer.customerVAT || '',
+          address: customer.address || '',
+          addressAr: customer.addressAr || '',
+          streetName: customer.streetName || '',
+          streetNameAr: customer.streetNameAr || '',
+          buildingNumber: customer.buildingNumber || '',
+          citySubdivisionName: customer.citySubdivisionName || '',
+          citySubdivisionNameAr: customer.citySubdivisionNameAr || '',
+          cityName: customer.cityName || '',
+          cityNameAr: customer.cityNameAr || '',
+          postalZone: customer.postalZone || '',
+          countryCode: customer.countryCode || 'SA',
+          note: apiData.note || '',
         },
       }));
 
       if (apiData.lineItems) {
         _lineItems(apiData.lineItems.map(item => ({
-          description: item.description || item.name || '',
+          description: item.description || '',
+          productCode: item.productCode || '',
           quantity: item.quantity || 1,
           price: item.price || 0,
+          discount_amount: item.discount_amount || 0,
+          discount_percentage: item.discount_percentage || 0,
           taxExempt: item.taxExempt || false,
+          taxExemptReason: item.taxExemptReason || '',
         })));
       }
     } else if (invoiceData?.isError) {
@@ -165,26 +199,45 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         data: {
           ...old.data,
           customerId: customer._id,
-          registeredName: customer.registrationName,
-          customerEmail: customer.email || '',
-          customerPhone: customer.phone || '',
-          customerVat: customer.customerVAT || '',
-          customerAddress: `${customer.streetName || ''} ${customer.buildingNumber || ''} ${customer.cityName || ''} ${customer.country || ''}`.trim(),
-          customerCode: customer.customerReferenceCode || '',
+          registrationName: customer.registrationName || '',
+          registrationNameAr: customer.registrationNameAr || '',
+          email: customer.email || '',
+          phone: customer.phone || '',
+          customerVAT: customer.customerVAT || '',
+          streetName: customer.streetName || '',
+          streetNameAr: customer.streetNameAr || '',
+          address: customer.address || '',
+          addressAr: customer.addressAr || '',
+          buildingNumber: customer.buildingNumber || '',
+          citySubdivisionName: customer.citySubdivisionName || '',
+          citySubdivisionNameAr: customer.citySubdivisionNameAr || '',
+          cityName: customer.cityName || '',
+          cityNameAr: customer.cityNameAr || '',
+          postalZone: customer.postalZone || '',
+          countryCode: customer.countryCode || 'SA',
         },
       }));
     } else {
-      // Clear fields if selection is cleared (optional, depending on UX preference)
       _formData((old) => ({
         ...old,
         data: {
           ...old.data,
-          registeredName: '',
-          customerEmail: '',
-          customerPhone: '',
-          customerVat: '',
-          customerAddress: '',
-          customerCode: '',
+          registrationName: '',
+          registrationNameAr: '',
+          email: '',
+          phone: '',
+          customerVAT: '',
+          streetName: '',
+          streetNameAr: '',
+          address: '',
+          addressAr: '',
+          buildingNumber: '',
+          citySubdivisionName: '',
+          citySubdivisionNameAr: '',
+          cityName: '',
+          cityNameAr: '',
+          postalZone: '',
+          countryCode: 'SA',
         },
       }));
     }
@@ -233,24 +286,40 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
       const payloadData = {
         referenceNumber: formData.data.referenceNumber,
-        // Mapping UI fields to backend structure
-        customerId: formData.data.customerId, // Assuming this is an ID or handle
-        supplierId: formData.data.companyProfile,
+        customer: formData.data.customerId || {
+          streetName: formData.data.streetName,
+          streetNameAr: formData.data.streetNameAr,
+          address: formData.data.address,
+          addressAr: formData.data.addressAr,
+          buildingNumber: formData.data.buildingNumber,
+          citySubdivisionName: formData.data.citySubdivisionName,
+          citySubdivisionNameAr: formData.data.citySubdivisionNameAr,
+          cityName: formData.data.cityName,
+          cityNameAr: formData.data.cityNameAr,
+          postalZone: formData.data.postalZone,
+          countryCode: formData.data.countryCode,
+          customerVAT: formData.data.customerVAT,
+          registrationName: formData.data.registrationName,
+          registrationNameAr: formData.data.registrationNameAr,
+          email: formData.data.email,
+          phone: formData.data.phone,
+        },
         paymentType: formData.data.paymentType?.toUpperCase(),
         paymentTerms: formData.data.paymentTerms,
-        deliveryDate: formData.data.supplyDate || formData.data.dueDate,
+        deliveryDate: formData.data.deliveryDate || formData.data.dueDate,
         currency: 'SAR',
         lineItems: lineItems.map(item => ({
-          name: item.description,
           description: item.description,
+          productCode: item.productCode,
           quantity: item.quantity,
           price: item.price,
+          discount_amount: item.discount_amount,
+          discount_percentage: item.discount_percentage,
           taxExempt: item.taxExempt,
-          taxExemptReason: item.taxExempt ? 'Tax Exempted' : undefined
+          taxExemptReason: item.taxExemptReason || '',
         })),
         vat: 15,
-        status: id ? 'UPDATED' : 'DRAFT',
-        note: `Invoice created from dashboard. Type: ${formData.data.invoiceType}`
+        note: formData.data.note,
       };
 
       const request = id
@@ -286,7 +355,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             [field]:
               field === 'taxExempt'
                 ? value
-                : field === 'quantity' || field === 'price'
+                : field === 'quantity' || field === 'price' || field === 'discount_amount' || field === 'discount_percentage'
                   ? value === '' ? '' : Number(value) || 0
                   : value,
           }
@@ -306,7 +375,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           {id ? 'Edit Invoice' : 'Create Invoice'}
         </h1>
         <p className="text-[#4c669a] dark:text-gray-400 text-base font-normal">
-          Create compliant tax invoices or bulk process via XML/PDF.
+          {id ? 'Update and manage your compliant tax invoice.' : 'Create compliant tax invoices or bulk process via XML/PDF.'}
         </p>
       </div>
     </div>
@@ -364,7 +433,6 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           />
         </div>
 
-        {/* Row 2 */}
         <div className="flex flex-col gap-2">
           <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Payment Type</label>
           <select
@@ -375,8 +443,10 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           >
             <option value="">Select payment type...</option>
             <option value="CASH">CASH</option>
-            <option value="CREDIT">CREDIT</option>
-            <option value="INSTALLMENT"> INSTALLMENT</option>
+            <option value="CREDIT_CARD">CREDIT CARD</option>
+            <option value="BANK_TRANSFER">BANK TRANSFER</option>
+            <option value="CHECK">CHECK</option>
+            <option value="BANK_CARD">BANK CARD</option>
           </select>
           {formData.errors.paymentType && (
             <span className="text-xs text-tomato">{formData.errors.paymentType}</span>
@@ -385,37 +455,28 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
         <div className="flex flex-col gap-2">
           <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Payment Terms</label>
-          <select
+          <input
             name="paymentTerms"
+            type="text"
             value={formData.data.paymentTerms}
             onChange={handleChangeFormData}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white pr-8 text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors appearance-none dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          >
-            <option value="">Select payment terms...</option>
-            <option value="immediate">Immediate</option>
-            <option value="15-days">15 Days</option>
-            <option value="30-days">30 Days</option>
-            <option value="60-days">60 Days</option>
-          </select>
+            placeholder="e.g. Net 30"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+          {formData.errors.paymentTerms && (
+            <span className="text-xs text-tomato">{formData.errors.paymentTerms}</span>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Company Profile</label>
-          <select
-            name="companyProfile"
-            value={formData.data.companyProfile}
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Delivery Date</label>
+          <input
+            name="deliveryDate"
+            type="date"
+            value={formData.data.deliveryDate}
             onChange={handleChangeFormData}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white pr-8 text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors appearance-none dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          >
-            <option value="">Select company profile...</option>
-            <option value="Fl3xx">Fl3xx</option>
-            <option value="FB01">FB01</option>
-            <option value="MR02">MR02</option>
-            <option value="SM03">SM03</option>
-          </select>
-          {formData.errors.companyProfile && (
-            <span className="text-xs text-tomato">{formData.errors.companyProfile}</span>
-          )}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
         </div>
 
         {/* Row 3 */}
@@ -434,23 +495,23 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Created Date</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Currency</label>
           <input
-            name="createdDate"
-            type="date"
-            value={formData.data.createdDate}
-            onChange={handleChangeFormData}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            type="text"
+            value="SAR"
+            disabled
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-gray-50 text-sm text-[#0d121b] dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white cursor-not-allowed"
           />
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Supply Date</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Note</label>
           <input
-            name="supplyDate"
-            type="date"
-            value={formData.data.supplyDate}
+            name="note"
+            type="text"
+            value={formData.data.note}
             onChange={handleChangeFormData}
+            placeholder="Internal note"
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
           />
         </div>
@@ -473,8 +534,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             loadOptions={loadCustomerOptions}
             onChange={handleCustomerChange}
             value={
-              formData.data.registeredName
-                ? { label: formData.data.registeredName, value: formData.data.registeredName }
+              formData.data.registrationName
+                ? { label: formData.data.registrationName, value: formData.data.registrationName }
                 : null
             }
             placeholder="Select or search customer..."
@@ -495,34 +556,34 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
               placeholder: () => '!text-sm !text-[#4c669a]',
             }}
           />
-          {formData.errors.registeredName && (
-            <span className="text-xs text-tomato">{formData.errors.registeredName}</span>
+          {formData.errors.registrationName && (
+            <span className="text-xs text-tomato">{formData.errors.registrationName}</span>
           )}
         </div>
 
-        {/* Customer Email */}
+        {/* Email */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Customer Email</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Email</label>
           <input
-            name="customerEmail"
+            name="email"
             type="email"
-            value={formData.data.customerEmail}
+            value={formData.data.email}
             onChange={handleChangeFormData}
             placeholder="customer@example.com"
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
           />
-          {formData.errors.customerEmail && (
-            <span className="text-xs text-tomato">{formData.errors.customerEmail}</span>
+          {formData.errors.email && (
+            <span className="text-xs text-tomato">{formData.errors.email}</span>
           )}
         </div>
 
-        {/* Customer Phone */}
+        {/* Phone */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Customer Phone</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Phone</label>
           <input
-            name="customerPhone"
+            name="phone"
             type="text"
-            value={formData.data.customerPhone}
+            value={formData.data.phone}
             onChange={handleChangeFormData}
             placeholder="+966 11 234 5678"
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
@@ -531,39 +592,174 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
         {/* VAT */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">VAT</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Customer VAT</label>
           <input
-            name="customerVat"
+            name="customerVAT"
             type="text"
-            value={formData.data.customerVat}
+            value={formData.data.customerVAT}
             onChange={handleChangeFormData}
-            placeholder="300012345600003"
+            placeholder="300000000000003"
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
           />
         </div>
 
-        {/* Customer Address */}
-        <div className="flex flex-col gap-2 md:col-span-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Customer Address</label>
-          <input
-            name="customerAddress"
-            type="text"
-            value={formData.data.customerAddress}
-            onChange={handleChangeFormData}
-            placeholder="King Fahd Road, Al Olaya District, Riyadh"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          />
-        </div>
-
-        {/* Customer Code */}
+        {/* Registration Name Arabic */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Customer Code</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Registered Name (AR)</label>
           <input
-            name="customerCode"
+            name="registrationNameAr"
             type="text"
-            value={formData.data.customerCode}
+            value={formData.data.registrationNameAr}
             onChange={handleChangeFormData}
-            placeholder="CUST-0001"
+            placeholder="شركة أكمي"
+            dir="rtl"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* Street Name */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Street Name</label>
+          <input
+            name="streetName"
+            type="text"
+            value={formData.data.streetName}
+            onChange={handleChangeFormData}
+            placeholder="Prince Sultan Street"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* Street Name Arabic */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Street Name (AR)</label>
+          <input
+            name="streetNameAr"
+            type="text"
+            value={formData.data.streetNameAr}
+            onChange={handleChangeFormData}
+            placeholder="شارع الأمير سلطان"
+            dir="rtl"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* Address */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Address</label>
+          <input
+            name="address"
+            type="text"
+            value={formData.data.address}
+            onChange={handleChangeFormData}
+            placeholder="Building 1234, Prince Sultan Street, Riyadh"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* Address Arabic */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Address (AR)</label>
+          <input
+            name="addressAr"
+            type="text"
+            value={formData.data.addressAr}
+            onChange={handleChangeFormData}
+            placeholder="مبنى 1234، شارع الأمير سلطان، الرياض"
+            dir="rtl"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* Building Number */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Building Number</label>
+          <input
+            name="buildingNumber"
+            type="text"
+            value={formData.data.buildingNumber}
+            onChange={handleChangeFormData}
+            placeholder="1234"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* City Subdivision */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">District</label>
+          <input
+            name="citySubdivisionName"
+            type="text"
+            value={formData.data.citySubdivisionName}
+            onChange={handleChangeFormData}
+            placeholder="District 5"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* City Subdivision Arabic */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">District (AR)</label>
+          <input
+            name="citySubdivisionNameAr"
+            type="text"
+            value={formData.data.citySubdivisionNameAr}
+            onChange={handleChangeFormData}
+            placeholder="الحي الخامس"
+            dir="rtl"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* City Name */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">City</label>
+          <input
+            name="cityName"
+            type="text"
+            value={formData.data.cityName}
+            onChange={handleChangeFormData}
+            placeholder="Riyadh"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* City Name Arabic */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">City (AR)</label>
+          <input
+            name="cityNameAr"
+            type="text"
+            value={formData.data.cityNameAr}
+            onChange={handleChangeFormData}
+            placeholder="الرياض"
+            dir="rtl"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* Postal Zone */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Postal Zone</label>
+          <input
+            name="postalZone"
+            type="text"
+            value={formData.data.postalZone}
+            onChange={handleChangeFormData}
+            placeholder="12345"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+        </div>
+
+        {/* Country Code */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Country Code</label>
+          <input
+            name="countryCode"
+            type="text"
+            value={formData.data.countryCode}
+            onChange={handleChangeFormData}
+            placeholder="SA"
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
           />
         </div>
@@ -575,7 +771,12 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     const calculateTotal = (item) => {
       const qty = Number(item.quantity) || 0;
       const price = Number(item.price) || 0;
-      return (qty * price).toFixed(2);
+      const discountAmt = Number(item.discount_amount) || 0;
+      const discountPct = Number(item.discount_percentage) || 0;
+      let total = qty * price;
+      if (discountPct > 0) total -= total * (discountPct / 100);
+      if (discountAmt > 0) total -= discountAmt;
+      return Math.max(0, total).toFixed(2);
     };
 
     return (
@@ -592,22 +793,26 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             + Add Item
           </button>
         </div>
-        <div className="border border-[#e7ebf3] dark:border-[#2a3447] rounded-lg overflow-hidden">
+        <div className="border border-[#e7ebf3] dark:border-[#2a3447] rounded-lg overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-[#f5f6f8] dark:bg-[#161f30] text-[#4c669a] dark:text-gray-400 font-bold uppercase text-[10px]">
               <tr>
                 <th className="px-4 py-3">Description</th>
+                <th className="px-4 py-3 w-28">Product Code</th>
                 <th className="px-4 py-3 w-20">Qty</th>
-                <th className="px-4 py-3 w-32">Price (SAR)</th>
-                <th className="px-4 py-3 w-32">Tax Exempt</th>
-                <th className="px-4 py-3 w-32 text-right">Total</th>
+                <th className="px-4 py-3 w-28">Price (SAR)</th>
+                <th className="px-4 py-3 w-28">Disc. Amt</th>
+                <th className="px-4 py-3 w-24">Disc. %</th>
+                <th className="px-4 py-3 w-24">Tax Exempt</th>
+                <th className="px-4 py-3 w-32">Exempt Reason</th>
+                <th className="px-4 py-3 w-28 text-right">Total</th>
                 <th className="px-4 py-3 w-16"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e7ebf3] dark:divide-[#2a3447] dark:text-white">
               {lineItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400 italic">
+                  <td colSpan={10} className="px-4 py-8 text-center text-sm text-gray-400 italic">
                     No line items added. Click "Add Item" to add one.
                   </td>
                 </tr>
@@ -622,7 +827,18 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                         onChange={(e) =>
                           handleChangeLineItem(index, 'description', e.target.value)
                         }
-                        placeholder="Enter item description..."
+                        placeholder="Description of product..."
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        type="text"
+                        value={item.productCode}
+                        onChange={(e) =>
+                          handleChangeLineItem(index, 'productCode', e.target.value)
+                        }
+                        placeholder="Product Code"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -651,12 +867,48 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                     </td>
                     <td className="px-4 py-3">
                       <input
+                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.discount_amount}
+                        onChange={(e) =>
+                          handleChangeLineItem(index, 'discount_amount', e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={item.discount_percentage}
+                        onChange={(e) =>
+                          handleChangeLineItem(index, 'discount_percentage', e.target.value)
+                        }
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
                         type="checkbox"
                         checked={item.taxExempt}
                         onChange={(e) =>
                           handleChangeLineItem(index, 'taxExempt', e.target.checked)
                         }
                         className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        type="text"
+                        value={item.taxExemptReason}
+                        onChange={(e) =>
+                          handleChangeLineItem(index, 'taxExemptReason', e.target.value)
+                        }
+                        placeholder="e.g. Export"
                       />
                     </td>
                     <td className="px-4 py-3 text-right font-bold">

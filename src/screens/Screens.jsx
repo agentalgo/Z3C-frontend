@@ -13,7 +13,7 @@ import {
   Dashboard,
   CompanyProfileList,
   CompanyProfileForm,
-  InvoicesList,
+  InvoiceList,
   InvoiceForm,
   CustomerList,
   CustomerForm,
@@ -44,7 +44,7 @@ function Screens() {
             <Route path="/company-profile" element={<CompanyProfileList />} />
             <Route path="/company-profile/new" element={<CompanyProfileForm />} />
             <Route path="/company-profile/:id" element={<CompanyProfileForm />} />
-            <Route path="/invoices" element={<InvoicesList />} />
+            <Route path="/invoices" element={<InvoiceList />} />
             <Route path="/invoices/new" element={<InvoiceForm />} />
             <Route path="/invoices/:id" element={<InvoiceForm />} />
             <Route path="/customer" element={<CustomerList />} />

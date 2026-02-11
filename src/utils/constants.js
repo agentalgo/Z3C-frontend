@@ -6,6 +6,8 @@ export const ENCODER = "Z@tca_da$hb0arD_2026";
 // Pagination page size options for listing views (React Table)
 export const PAGINATION_PAGE_SIZES = [20, 50, 100];
 
+export const DEFAULT_PAGE_SIZE = 20;
+
 // Toast Type Configurations
 export const toastTypes = {
   success: {

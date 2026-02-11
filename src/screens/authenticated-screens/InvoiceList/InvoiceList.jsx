@@ -6,14 +6,14 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { CustomerListRequest } from '../../../requests';
+import { InvoiceListRequest } from '../../../requests';
 
 // Utils 
 import { Footer, ErrorFallback } from '../../../components';
 import { auth } from '../../../atoms';
 import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString } from '../../../utils';
 
-function CustomerList() {
+function InvoiceList() {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
 
@@ -28,29 +28,58 @@ function CustomerList() {
   const [isActionsOpen, _isActionsOpen] = useState(false);
   const [rowSelection, _rowSelection] = useState({});
 
+  // Filters state
+  const [filters, _filters] = useState({
+    zatcaStatus: '',
+    type: '',
+    invoicePaid: '',
+  });
 
-  const customersPromise = useMemo(() => {
+  const invoicesPromise = useMemo(() => {
     const decodedToken = decodeString(authValue);
     const params = {
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
       search: appliedSearchQuery || undefined,
       sortBy: sorting.length > 0 ? `${sorting[0].id}:${sorting[0].desc ? 'desc' : 'asc'}` : undefined,
+      zatcaStatus: filters.zatcaStatus || undefined,
+      type: filters.type || undefined,
+      invoicePaid: filters.invoicePaid || undefined,
     };
 
-    return CustomerListRequest(decodedToken, params);
-  }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting]);
+    return InvoiceListRequest(decodedToken, params);
+  }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting, filters]);
 
   const TableLoadingSkeleton = () => (
     <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-sm overflow-hidden">
       <div className="px-6 py-8 text-center text-sm text-[#4c669a]">
         <div className="flex items-center justify-center gap-2">
           <span className="material-symbols-outlined animate-spin">sync</span>
-          Loading Customers...
+          Loading Invoices...
         </div>
       </div>
     </div>
   );
+
+  const handleFilterChange = (key, value) => {
+    _filters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const resetFilters = () => {
+    _filters({
+      zatcaStatus: '',
+      type: '',
+      invoicePaid: '',
+    });
+    _pagination((prev) => ({ ...prev, pageIndex: 0 }));
+  };
+
+  const applyFilters = () => {
+    _pagination((prev) => ({ ...prev, pageIndex: 0 }));
+    _isFilterOpen(false);
+  };
+
+  const selectedRowCount = Object.keys(rowSelection).length;
 
   return (
     <Fragment>
@@ -58,9 +87,9 @@ function CustomerList() {
         <div className="flex flex-wrap justify-between items-end gap-4">
           <div className="space-y-1">
             <h2 className="text-[#0d121b] dark:text-white text-3xl font-black tracking-tight">
-              Customers
+              Invoices
             </h2>
-            <p className="text-[#4c669a] text-base">Manage your customer information and records</p>
+            <p className="text-[#4c669a] text-base">Manage and track your electronic invoices</p>
           </div>
         </div>
 
@@ -72,7 +101,7 @@ function CustomerList() {
               </span>
               <input
                 type="text"
-                placeholder="Search customers..."
+                placeholder="Search invoices..."
                 value={searchQuery}
                 onChange={(e) => _searchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -87,31 +116,135 @@ function CustomerList() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => _isFilterOpen(!isFilterOpen)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm font-medium text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full sm:w-auto"
-            >
-              <span className="material-symbols-outlined text-[20px]">filter_list</span>
-              Filters
-              <span className="material-symbols-outlined text-[16px]">
-                {isFilterOpen ? 'expand_less' : 'expand_more'}
-              </span>
-            </button>
+            {selectedRowCount > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => _isActionsOpen(!isActionsOpen)}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-primary bg-primary/10 text-sm font-medium text-primary hover:bg-primary/20 transition-colors w-full sm:w-auto"
+                >
+                  <span className="material-symbols-outlined text-[20px]">checklist</span>
+                  Actions ({selectedRowCount})
+                  <span className="material-symbols-outlined text-[16px]">
+                    {isActionsOpen ? 'expand_less' : 'expand_more'}
+                  </span>
+                </button>
+
+                {isActionsOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
+                    <div className="py-1">
+                      <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                        <span className="material-symbols-outlined text-[18px]">send</span>
+                        Submit to ZATCA
+                      </button>
+                      <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                        <span className="material-symbols-outlined text-[18px]">mail</span>
+                        Send Email
+                      </button>
+                      <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                        <span className="material-symbols-outlined text-[18px]">download</span>
+                        Export Selected
+                      </button>
+                      <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                        <span className="material-symbols-outlined text-[18px]">print</span>
+                        Print
+                      </button>
+                      <div className="border-t border-[#e7ebf3] dark:border-[#2a3447] my-1"></div>
+                      <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                        Delete Selected
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="relative">
+              <button
+                onClick={() => _isFilterOpen(!isFilterOpen)}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm font-medium text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full sm:w-auto"
+              >
+                <span className="material-symbols-outlined text-[20px]">filter_list</span>
+                Filters
+                <span className="material-symbols-outlined text-[16px]">
+                  {isFilterOpen ? 'expand_less' : 'expand_more'}
+                </span>
+              </button>
+
+              {isFilterOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
+                  <div className="p-4 space-y-4">
+                    <div>
+                      <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">ZATCA Status</label>
+                      <select
+                        value={filters.zatcaStatus}
+                        onChange={(e) => handleFilterChange('zatcaStatus', e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
+                      >
+                        <option value="">All</option>
+                        <option value="CLEARED">Cleared</option>
+                        <option value="REPORTED">Reported</option>
+                        <option value="REJECTED">Rejected</option>
+                        <option value="PENDING">Pending</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Invoice Type</label>
+                      <select
+                        value={filters.type}
+                        onChange={(e) => handleFilterChange('type', e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
+                      >
+                        <option value="">All</option>
+                        <option value="B2B">B2B</option>
+                        <option value="B2C">B2C</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Payment Status</label>
+                      <select
+                        value={filters.invoicePaid}
+                        onChange={(e) => handleFilterChange('invoicePaid', e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
+                      >
+                        <option value="">All</option>
+                        <option value="Yes">Paid</option>
+                        <option value="No">Unpaid</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2 pt-2 border-t border-[#e7ebf3] dark:border-[#2a3447]">
+                      <button
+                        onClick={resetFilters}
+                        className="flex-1 px-3 py-2 text-sm font-medium text-[#4c669a] hover:text-[#0d121b] dark:hover:text-white transition-colors"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={applyFilters}
+                        className="flex-1 px-3 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <button
-              onClick={() => navigate('/customer/new')}
+              onClick={() => navigate('/invoices/new')}
               className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
             >
               <span className="material-symbols-outlined text-[20px]">add</span>
-              Create Customer
+              Create
             </button>
           </div>
         </div>
 
         <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
           <Suspense fallback={<TableLoadingSkeleton />}>
-            <CustomersTableContent
-              customersPromise={customersPromise}
+            <InvoicesTableContent
+              invoicesPromise={invoicesPromise}
               pagination={pagination}
               _pagination={_pagination}
               sorting={sorting}
@@ -127,8 +260,8 @@ function CustomerList() {
   );
 }
 
-function CustomersTableContent({
-  customersPromise,
+function InvoicesTableContent({
+  invoicesPromise,
   pagination,
   _pagination,
   sorting,
@@ -137,7 +270,7 @@ function CustomersTableContent({
   _rowSelection,
 }) {
   const navigate = useNavigate();
-  const response = use(customersPromise);
+  const response = use(invoicesPromise);
   const data = response?.data || [];
   const meta = response?.meta || {
     total: 0,
@@ -176,62 +309,101 @@ function CustomersTableContent({
         enableSorting: false,
       },
       {
-        accessorKey: 'registrationName',
-        header: 'Registered Name',
+        accessorKey: 'invoiceNumber',
+        header: 'Invoice No.',
         enableSorting: true,
       },
       {
-        accessorKey: 'streetName',
-        header: 'Street',
+        accessorKey: 'referenceNumber',
+        header: 'Reference No.',
         enableSorting: true,
       },
       {
-        accessorKey: 'buildingNumber',
-        header: 'Building',
+        accessorKey: 'status',
+        header: 'Status',
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const status = getValue();
+          const statusColors = {
+            CLEARED: 'bg-green-100 text-green-700',
+            REPORTED: 'bg-blue-100 text-blue-700',
+            REJECTED: 'bg-red-100 text-red-700',
+            PENDING: 'bg-amber-100 text-amber-700',
+            DRAFT: 'bg-gray-100 text-gray-700',
+          };
+          return (
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${statusColors[status] || 'bg-gray-100 text-gray-700'}`}>
+              {status}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: 'paymentTerms',
+        header: 'Payment Term',
         enableSorting: true,
       },
       {
-        accessorKey: 'citySubdivisionName',
-        header: 'District',
-        enableSorting: true,
-      },
-      {
-        accessorKey: 'cityName',
-        header: 'City',
-        enableSorting: true,
-      },
-      {
-        accessorKey: 'postalZone',
-        header: 'Postal Zone',
-        enableSorting: true,
-      },
-      {
-        accessorKey: 'email',
-        header: 'Email',
+        accessorKey: 'emailSentCounter',
+        header: 'Emails Sent',
         enableSorting: true,
         cell: ({ getValue }) => (
-          <a href={`mailto:${getValue()}`} className="text-primary hover:underline">{getValue()}</a>
+          <span className="flex items-center gap-1">
+            <span className="material-symbols-outlined text-[16px]">mail</span>
+            {getValue() || 0}
+          </span>
         ),
       },
       {
-        accessorKey: 'phone',
-        header: 'Phone',
+        accessorKey: 'invoicePaid',
+        header: 'Invoice Paid',
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const paid = getValue();
+          return (
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${paid === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+              {paid}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: 'invoiceType',
+        header: 'Type',
         enableSorting: true,
       },
       {
-        accessorKey: 'customerVAT',
-        header: 'Customer VAT',
+        id: 'customerName',
+        header: 'Customer',
         enableSorting: true,
-        cell: ({ getValue }) => (
-          <span className="font-mono text-xs">{getValue()}</span>
-        ),
+        cell: ({ row }) => row.original.customerId?.registrationName || 'N/A'
+      },
+      {
+        id: 'createdBy',
+        header: 'Created By',
+        enableSorting: true,
+        cell: ({ row }) => row.original.createdBy?.username || 'N/A'
+      },
+      {
+        accessorKey: 'grandTotal',
+        header: 'Grand Total',
+        enableSorting: true,
+        cell: ({ getValue, row }) => {
+          const currency = row.original.currency || 'SAR';
+          return <span className="font-bold">{getValue()?.toLocaleString()} {currency}</span>;
+        },
+      },
+      {
+        accessorKey: 'paymentType',
+        header: 'Payment Type',
+        enableSorting: true,
       },
       {
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => (
           <button
-            onClick={() => navigate(`/customer/${row.original._id}`)}
+            onClick={() => navigate(`/invoices/${row.original._id}`)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
           >
             <span className="material-symbols-outlined text-[16px]">edit</span>
@@ -262,8 +434,6 @@ function CustomersTableContent({
     },
     enableRowSelection: true,
   });
-
-  const selectedRowCount = Object.keys(rowSelection).length;
 
   return (
     <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-sm overflow-hidden">
@@ -298,7 +468,7 @@ function CustomersTableContent({
             {data.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-6 py-8 text-center text-sm text-[#4c669a]">
-                  No customers found
+                  No invoices found
                 </td>
               </tr>
             ) : (
@@ -401,4 +571,4 @@ function CustomersTableContent({
   );
 }
 
-export default CustomerList;
+export default InvoiceList;

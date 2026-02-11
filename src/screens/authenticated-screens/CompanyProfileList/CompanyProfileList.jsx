@@ -5,7 +5,7 @@ import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowMode
 import { ErrorBoundary } from 'react-error-boundary';
 import { Footer, ErrorFallback } from '../../../components';
 import { fetchPaginatedData } from '../../../requests';
-import { PAGINATION_PAGE_SIZES } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES } from '../../../utils';
 
 // Sample data fallback (for initial render)
 const sampleCompanyProfiles = [
@@ -67,7 +67,7 @@ function CompanyProfileList() {
   const [isLoading, _isLoading] = useState(false);
   const [pagination, _pagination] = useState({
     pageIndex: 0,
-    pageSize: 20,
+    pageSize: DEFAULT_PAGE_SIZE,
   });
   const [sorting, _sorting] = useState([]);
   const [rowSelection, _rowSelection] = useState({});

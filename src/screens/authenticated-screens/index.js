@@ -1,7 +1,7 @@
 export { default as Dashboard } from './Dashboard/Dashboard';
 export { default as CompanyProfileList } from './CompanyProfileList/CompanyProfileList';
 export { default as CompanyProfileForm } from './CompanyProfileForm/CompanyProfileForm';
-export { default as InvoicesList } from './InvoicesList/InvoicesList';
+export { default as InvoiceList } from './InvoiceList/InvoiceList';
 export { default as InvoiceForm } from './InvoiceForm/InvoiceForm';
 export { default as CustomerList } from './CustomerList/CustomerList';
 export { default as CustomerForm } from './CustomerForm/CustomerForm';

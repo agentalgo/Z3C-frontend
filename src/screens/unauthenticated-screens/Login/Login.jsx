@@ -2,7 +2,7 @@
 import { Fragment, useState, useEffect } from 'react';
 import { useSetAtom } from 'jotai';
 
-// Requests
+// APIs
 import { LoginRequest, VerifyOtpRequest } from '../../../requests';
 
 // Utils
