@@ -1,17 +1,17 @@
 // Packages
-import { Fragment, useMemo, useState, Suspense, use } from 'react';
+import { Fragment, useMemo, useState, Suspense, use, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { InvoiceListRequest } from '../../../requests';
+import { InvoiceListRequest, InvoiceDeleteRequest } from '../../../requests';
 
 // Utils 
-import { Footer, ErrorFallback } from '../../../components';
+import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
 import { auth } from '../../../atoms';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, showToast } from '../../../utils';
 
 function InvoiceList() {
   const navigate = useNavigate();
@@ -27,6 +27,7 @@ function InvoiceList() {
   const [isFilterOpen, _isFilterOpen] = useState(false);
   const [isActionsOpen, _isActionsOpen] = useState(false);
   const [rowSelection, _rowSelection] = useState({});
+  const [reloadKey, _reloadKey] = useState(0);
 
   // Filters state
   const [filters, _filters] = useState({
@@ -48,7 +49,7 @@ function InvoiceList() {
     };
 
     return InvoiceListRequest(decodedToken, params);
-  }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting, filters]);
+  }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting, filters, reloadKey]);
 
   const TableLoadingSkeleton = () => (
     <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-sm overflow-hidden">
@@ -148,11 +149,6 @@ function InvoiceList() {
                         <span className="material-symbols-outlined text-[18px]">print</span>
                         Print
                       </button>
-                      <div className="border-t border-[#e7ebf3] dark:border-[#2a3447] my-1"></div>
-                      <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                        Delete Selected
-                      </button>
                     </div>
                   </div>
                 )}
@@ -251,6 +247,7 @@ function InvoiceList() {
               _sorting={_sorting}
               rowSelection={rowSelection}
               _rowSelection={_rowSelection}
+              refreshInvoices={() => _reloadKey((prev) => prev + 1)}
             />
           </Suspense>
         </ErrorBoundary>
@@ -268,8 +265,11 @@ function InvoicesTableContent({
   _sorting,
   rowSelection,
   _rowSelection,
+  refreshInvoices,
 }) {
   const navigate = useNavigate();
+  const authValue = useAtomValue(auth);
+  const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
   const response = use(invoicesPromise);
   const data = response?.data || [];
   const meta = response?.meta || {
@@ -285,6 +285,40 @@ function InvoicesTableContent({
     hasNextPage: meta.page < meta.totalPages,
     hasPreviousPage: meta.page > 1,
   };
+
+  const [isDeleteModalOpen, _isDeleteModalOpen] = useState(false);
+  const [selectedInvoiceId, _selectedInvoiceId] = useState(null);
+  const [isDeleting, _isDeleting] = useState(false);
+
+  const openDeleteModal = (invoiceId) => {
+    if (!invoiceId) return;
+    _selectedInvoiceId(invoiceId);
+    _isDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    _isDeleteModalOpen(false);
+    _selectedInvoiceId(null);
+  };
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!selectedInvoiceId) return;
+
+    _isDeleting(true);
+    InvoiceDeleteRequest(decodedToken, selectedInvoiceId)
+      .then(() => {
+        showToast('Invoice deleted successfully!', 'success');
+        closeDeleteModal();
+        refreshInvoices?.();
+      })
+      .catch((err) => {
+        showToast(err?.message || 'Failed to delete invoice', 'error');
+      })
+      .finally(() => {
+        _isDeleting(false);
+      });
+  }, [decodedToken, selectedInvoiceId, refreshInvoices]);
 
   const columns = useMemo(
     () => [
@@ -402,18 +436,27 @@ function InvoicesTableContent({
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => (
-          <button
-            onClick={() => navigate(`/invoices/${row.original._id}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[16px]">edit</span>
-            Edit
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate(`/invoices/${row.original._id}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[16px]">edit</span>
+              Edit
+            </button>
+            <button
+              onClick={() => openDeleteModal(row.original._id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-red-200 dark:border-red-500/60 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[16px]">delete</span>
+              Delete
+            </button>
+          </div>
         ),
         enableSorting: false,
       },
     ],
-    [navigate]
+    [navigate, openDeleteModal]
   );
 
   const table = useReactTable({
@@ -567,6 +610,16 @@ function InvoicesTableContent({
           </button>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        title="Delete invoice"
+        description="Are you sure you want to delete this invoice? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={closeDeleteModal}
+        isConfirming={isDeleting}
+      />
     </div>
   );
 }

@@ -5,7 +5,7 @@ const InvoiceUpdateRequest = (token, invoiceId, jsonData) => {
         ...defaultHeaders,
         'Authorization': `Bearer ${token}`
     };
-    return fetch(getApiUrl(`/invoices/${invoiceId}`), {
+    return fetch(getApiUrl(`/invoices/excl-customer/${invoiceId}`), {
         method: 'PATCH',
         headers: headers,
         body: jsonData

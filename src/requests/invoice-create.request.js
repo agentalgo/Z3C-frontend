@@ -5,7 +5,7 @@ const InvoiceCreateRequest = (token, jsonData) => {
     ...defaultHeaders,
     'Authorization': `Bearer ${token}`
   };
-  return fetch(getApiUrl('/invoices'), {
+  return fetch(getApiUrl('/invoices/excl-customer'), {
     method: 'POST',
     headers: headers,
     body: jsonData

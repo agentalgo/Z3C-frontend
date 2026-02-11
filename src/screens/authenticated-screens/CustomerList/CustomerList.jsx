@@ -1,15 +1,15 @@
 // Packages
-import { Fragment, useMemo, useState, Suspense, use } from 'react';
+import { Fragment, useMemo, useState, Suspense, use, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { CustomerListRequest } from '../../../requests';
+import { CustomerListRequest, CustomerDeleteRequest } from '../../../requests';
 
 // Utils 
-import { Footer, ErrorFallback } from '../../../components';
+import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
 import { auth } from '../../../atoms';
 import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString } from '../../../utils';
 
@@ -27,6 +27,7 @@ function CustomerList() {
   const [isFilterOpen, _isFilterOpen] = useState(false);
   const [isActionsOpen, _isActionsOpen] = useState(false);
   const [rowSelection, _rowSelection] = useState({});
+  const [reloadKey, _reloadKey] = useState(0);
 
 
   const customersPromise = useMemo(() => {
@@ -39,7 +40,7 @@ function CustomerList() {
     };
 
     return CustomerListRequest(decodedToken, params);
-  }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting]);
+  }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting, reloadKey]);
 
   const TableLoadingSkeleton = () => (
     <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-sm overflow-hidden">
@@ -118,6 +119,7 @@ function CustomerList() {
               _sorting={_sorting}
               rowSelection={rowSelection}
               _rowSelection={_rowSelection}
+              refreshCustomers={() => _reloadKey((prev) => prev + 1)}
             />
           </Suspense>
         </ErrorBoundary>
@@ -135,8 +137,11 @@ function CustomersTableContent({
   _sorting,
   rowSelection,
   _rowSelection,
+  refreshCustomers,
 }) {
   const navigate = useNavigate();
+  const authValue = useAtomValue(auth);
+  const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
   const response = use(customersPromise);
   const data = response?.data || [];
   const meta = response?.meta || {
@@ -152,6 +157,42 @@ function CustomersTableContent({
     hasNextPage: meta.page < meta.totalPages,
     hasPreviousPage: meta.page > 1,
   };
+
+  const [isDeleteModalOpen, _isDeleteModalOpen] = useState(false);
+  const [selectedCustomerId, _selectedCustomerId] = useState(null);
+  const [isDeleting, _isDeleting] = useState(false);
+
+  const openDeleteModal = (customerId) => {
+    if (!customerId) return;
+    _selectedCustomerId(customerId);
+    _isDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    _isDeleteModalOpen(false);
+    _selectedCustomerId(null);
+  };
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!selectedCustomerId) return;
+
+    _isDeleting(true);
+    CustomerDeleteRequest(decodedToken, selectedCustomerId)
+      .then(() => {
+        // Using window.alert or toast util if available in this screen later
+        // For consistency with invoices, you might wire showToast here too
+        // but it's not imported currently.
+        closeDeleteModal();
+        refreshCustomers?.();
+      })
+      .catch(() => {
+        // Optionally handle error UI here
+      })
+      .finally(() => {
+        _isDeleting(false);
+      });
+  }, [decodedToken, selectedCustomerId, refreshCustomers]);
 
   const columns = useMemo(
     () => [
@@ -230,18 +271,27 @@ function CustomersTableContent({
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => (
-          <button
-            onClick={() => navigate(`/customer/${row.original._id}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[16px]">edit</span>
-            Edit
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate(`/customer/${row.original._id}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[16px]">edit</span>
+              Edit
+            </button>
+            <button
+              onClick={() => openDeleteModal(row.original._id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-red-200 dark:border-red-500/60 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[16px]">delete</span>
+              Delete
+            </button>
+          </div>
         ),
         enableSorting: false,
       },
     ],
-    [navigate]
+    [navigate, openDeleteModal]
   );
 
   const table = useReactTable({
@@ -397,6 +447,16 @@ function CustomersTableContent({
           </button>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        title="Delete customer"
+        description="Are you sure you want to delete this customer? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={closeDeleteModal}
+        isConfirming={isDeleting}
+      />
     </div>
   );
 }

@@ -5,10 +5,6 @@ import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { useAtomValue } from 'jotai';
 
-// Utils
-import { Footer, ErrorFallback } from '../../../components';
-import { showToast, validateSubmissionData, decodeString } from '../../../utils';
-
 // APIs
 import {
   InvoiceCreateRequest,
@@ -17,7 +13,9 @@ import {
   CustomerListRequest,
 } from '../../../requests';
 
-// Atoms
+// Utils
+import { Footer, ErrorFallback } from '../../../components';
+import { showToast, validateSubmissionData, decodeString } from '../../../utils';
 import { auth } from '../../../atoms';
 
 const INITIAL_FORM_DATA = {
@@ -52,27 +50,13 @@ const INITIAL_FORM_DATA = {
     note: '',
   },
   validations: {
-    invoiceNumber: { isRequired: true, label: 'Invoice Number' },
-    invoiceType: { isRequired: true, label: 'Invoice Type' },
-    paymentType: { isRequired: true, label: 'Payment Type' },
+    customerId: { isRequired: true, label: 'Customer' },
     paymentTerms: { isRequired: true, label: 'Payment Terms' },
-    deliveryDate: { isRequired: true, label: 'Delivery Date' },
-    registrationName: { isRequired: true, label: 'Registered Name' },
-    registrationNameAr: { isRequired: true, label: 'Registered Name (Arabic)' },
-    email: {
+    deliveryDate: {
       isRequired: true,
-      label: 'Email',
-      regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
+      label: 'Delivery Date',
+      regex: /^\d{4}-\d{2}-\d{2}$/,
     },
-    customerVAT: { isRequired: true, label: 'Customer VAT' },
-    streetName: { isRequired: true, label: 'Street Name' },
-    streetNameAr: { isRequired: true, label: 'Street Name (Arabic)' },
-    address: { isRequired: true, label: 'Address' },
-    addressAr: { isRequired: true, label: 'Address (Arabic)' },
-    buildingNumber: { isRequired: true, label: 'Building Number' },
-    cityName: { isRequired: true, label: 'City' },
-    cityNameAr: { isRequired: true, label: 'City (Arabic)' },
-    postalZone: { isRequired: true, exact: 5, label: 'Postal Zone' },
   },
   errors: {},
 };
@@ -150,7 +134,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           dueDate: apiData.dueDate ? new Date(apiData.dueDate).toISOString().split('T')[0] : '',
           deliveryDate: apiData.deliveryDate ? new Date(apiData.deliveryDate).toISOString().split('T')[0] : '',
           // Customer fields from nested customerId object
-          customerId: customer._id || null,
+          customerId: customer._id ? String(customer._id) : null,
           registrationName: customer.registrationName || '',
           registrationNameAr: customer.registrationNameAr || '',
           email: customer.email || '',
@@ -208,7 +192,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         ...old,
         data: {
           ...old.data,
-          customerId: customer._id,
+          customerId: String(customer._id || customer.id || ''),
           registrationName: customer.registrationName || '',
           registrationNameAr: customer.registrationNameAr || '',
           email: customer.email || '',
@@ -232,6 +216,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         ...old,
         data: {
           ...old.data,
+          customerId: null,
           registrationName: '',
           registrationNameAr: '',
           email: '',
@@ -274,10 +259,19 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       formData.validations
     );
 
-    if (!allValid) {
+    const validationErrors = { ...errors };
+    let isValid = allValid;
+
+    // Validate lineItems array
+    if (!lineItems || lineItems.length === 0) {
+      validationErrors.lineItems = 'Line items should not be empty';
+      isValid = false;
+    }
+
+    if (!isValid) {
       _formData((old) => ({
         ...old,
-        errors,
+        errors: validationErrors,
       }));
     } else {
       _formData((old) => ({
@@ -286,7 +280,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       }));
     }
 
-    return allValid;
+    return isValid;
   };
 
   const handleSubmitForm = (e) => {
@@ -296,27 +290,10 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
       const payloadData = {
         referenceNumber: formData.data.referenceNumber,
-        customer: {
-          streetName: formData.data.streetName,
-          streetNameAr: formData.data.streetNameAr,
-          address: formData.data.address,
-          addressAr: formData.data.addressAr,
-          buildingNumber: formData.data.buildingNumber,
-          citySubdivisionName: formData.data.citySubdivisionName,
-          citySubdivisionNameAr: formData.data.citySubdivisionNameAr,
-          cityName: formData.data.cityName,
-          cityNameAr: formData.data.cityNameAr,
-          postalZone: formData.data.postalZone,
-          countryCode: formData.data.countryCode,
-          customerVAT: formData.data.customerVAT,
-          registrationName: formData.data.registrationName,
-          registrationNameAr: formData.data.registrationNameAr,
-          email: formData.data.email,
-          phone: formData.data.phone,
-        },
+        customerId: String(formData.data.customerId || ''),
         paymentType: formData.data.paymentType || 'CASH',
         paymentTerms: formData.data.paymentTerms,
-        deliveryDate: formData.data.deliveryDate || formData.data.dueDate,
+        deliveryDate: formData.data.deliveryDate,
         currency: 'SAR',
         lineItems: lineItems.map((item) => ({
           description: item.description,
@@ -378,6 +355,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     _lineItems((old) => old.filter((_, i) => i !== index));
   };
 
+  /***** Render Functions *****/
   const PAGE_HEADER = () => (
     <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
       <div className="flex flex-col gap-1">
@@ -566,8 +544,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
               placeholder: () => '!text-sm !text-[#4c669a]',
             }}
           />
-          {formData.errors.registrationName && (
-            <span className="text-xs text-tomato">{formData.errors.registrationName}</span>
+          {formData.errors.customerId && (
+            <span className="text-xs text-tomato">{formData.errors.customerId}</span>
           )}
         </div>
 
@@ -580,7 +558,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.email}
             onChange={handleChangeFormData}
             placeholder="customer@example.com"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
           {formData.errors.email && (
             <span className="text-xs text-tomato">{formData.errors.email}</span>
@@ -596,7 +575,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.phone}
             onChange={handleChangeFormData}
             placeholder="+966 11 234 5678"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -609,7 +589,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.customerVAT}
             onChange={handleChangeFormData}
             placeholder="300000000000003"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -623,7 +604,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             onChange={handleChangeFormData}
             placeholder="شركة أكمي"
             dir="rtl"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -636,7 +618,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.streetName}
             onChange={handleChangeFormData}
             placeholder="Prince Sultan Street"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -650,7 +633,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             onChange={handleChangeFormData}
             placeholder="شارع الأمير سلطان"
             dir="rtl"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -663,7 +647,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.address}
             onChange={handleChangeFormData}
             placeholder="Building 1234, Prince Sultan Street, Riyadh"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -677,7 +662,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             onChange={handleChangeFormData}
             placeholder="مبنى 1234، شارع الأمير سلطان، الرياض"
             dir="rtl"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -690,7 +676,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.buildingNumber}
             onChange={handleChangeFormData}
             placeholder="1234"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -703,7 +690,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.citySubdivisionName}
             onChange={handleChangeFormData}
             placeholder="District 5"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -717,7 +705,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             onChange={handleChangeFormData}
             placeholder="الحي الخامس"
             dir="rtl"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -730,7 +719,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.cityName}
             onChange={handleChangeFormData}
             placeholder="Riyadh"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -744,7 +734,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             onChange={handleChangeFormData}
             placeholder="الرياض"
             dir="rtl"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -757,7 +748,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.postalZone}
             onChange={handleChangeFormData}
             placeholder="12345"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
 
@@ -770,7 +762,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.countryCode}
             onChange={handleChangeFormData}
             placeholder="SA"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
         </div>
       </div>
@@ -943,6 +936,9 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             </tbody>
           </table>
         </div>
+        {formData.errors.lineItems && (
+          <span className="text-xs text-tomato mt-2 block">{formData.errors.lineItems}</span>
+        )}
       </section>
     );
   };

@@ -1,0 +1,22 @@
+{
+  "referenceNumber": "REF-001",
+  "customerId": "507f1f77bcf86cd799439011",
+  "paymentType": "BANK_TRANSFER",
+  "paymentTerms": "Net 30",
+  "deliveryDate": "2025-01-15",
+  "currency": "SAR",
+  "lineItems": [
+    {
+      "description": "Description of product A",
+      "productCode": "Product Code",
+      "quantity": 2,
+      "price": 10000,
+      "discount_amount": 0,
+      "discount_percentage": 10,
+      "taxExempt": false,
+      "taxExemptReason": "Export"
+    }
+  ],
+  "vat": 15,
+  "note": "Internal note"
+}
