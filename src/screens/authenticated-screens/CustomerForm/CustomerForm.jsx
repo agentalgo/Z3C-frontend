@@ -32,11 +32,23 @@ const INITIAL_FORM_DATA = {
     countryCode: '',
   },
   validations: {
+    streetName: { isRequired: true, label: 'Street Name' },
+    streetNameAr: { isRequired: true, label: 'Street Name (Arabic)' },
+    address: { isRequired: true, label: 'Full Address' },
+    addressAr: { isRequired: true, label: 'Full Address (Arabic)' },
+    buildingNumber: { isRequired: true, label: 'Building Number' },
+    cityName: { isRequired: true, label: 'City Name' },
+    cityNameAr: { isRequired: true, label: 'City Name (Arabic)' },
     postalZone: { isRequired: true, min: 5, label: 'Postal Zone' },
-    registrationName: { isRequired: true, label: 'Registered Name' },
-    cityName: { isRequired: true, label: 'City' },
     countryCode: { isRequired: true, label: 'Country Code' },
-    email: { regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/, label: 'Email' },
+    customerVAT: { isRequired: true, label: 'Customer VAT' },
+    registrationName: { isRequired: true, label: 'Registered Name' },
+    registrationNameAr: { isRequired: true, label: 'Registered Name (Arabic)' },
+    email: {
+      isRequired: true,
+      regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
+      label: 'Email',
+    },
   },
   errors: {},
 };
@@ -57,7 +69,8 @@ function CustomerForm() {
     return null;
   }, [id, decodedToken]);
 
-  return (
+  // *********** Render Functions ***********
+  const CONTENT = () => (
     <Fragment>
       <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
         <Suspense fallback={
@@ -77,6 +90,12 @@ function CustomerForm() {
         </Suspense>
       </ErrorBoundary>
     </Fragment>
+  );
+
+  return (
+    <div id="customer-form">
+      {CONTENT()}
+    </div>
   );
 }
 
@@ -115,7 +134,7 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
     }
   }, [customerData]);
 
-  /********  handlers  ********/
+  // *********** Handlers ***********
   const handleChangeFormData = (e) => {
     _formData(old => ({
       ...old,
@@ -186,7 +205,7 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
     }
   };
 
-  /********  Render functions  ********/
+  // *********** Render Functions ***********
   const PAGE_HEADER = () => (
     <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
       <div className="flex flex-col gap-1">

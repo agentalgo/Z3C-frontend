@@ -3,8 +3,12 @@ import { Fragment, useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Footer, ErrorFallback } from '../../../components';
+
+// APIs
 import { fetchPaginatedData } from '../../../requests';
+
+// Utils
+import { Footer, ErrorFallback } from '../../../components';
 import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES } from '../../../utils';
 
 // Sample data fallback (for initial render)
@@ -223,6 +227,8 @@ function CompanyProfileList() {
   });
 
   const selectedRowCount = Object.keys(rowSelection).length;
+
+  // *********** Render Functions ***********
 
   const HEADER_SECTION = () => (
     <div className="flex flex-wrap justify-between items-end gap-4">
@@ -525,7 +531,7 @@ function CompanyProfileList() {
   );
 
   return (
-    <div>
+    <div id="company-profile-list">
       {CONTENT()}
     </div>
   );

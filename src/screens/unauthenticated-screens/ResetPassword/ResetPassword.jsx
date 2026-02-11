@@ -5,11 +5,16 @@ import { Fragment } from 'react';
 import { showToast } from '../../../utils';
 
 function ResetPassword() {
+
+  // *********** Handlers ***********
+
   const handleReset = () => {
     showToast('Reset link sent to your email!', 'info');
   };
 
-  return (
+  // *********** Render Functions ***********
+
+  const CONTENT = () => (
     <Fragment>
       <div className="min-h-screen flex items-center justify-center bg-[#f5f6f8] dark:bg-[#0f1323]">
         <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] p-8 w-full max-w-md shadow-lg">
@@ -45,6 +50,12 @@ function ResetPassword() {
         </div>
       </div>
     </Fragment>
+  );
+
+  return (
+    <div id="reset-password">
+      {CONTENT()}
+    </div>
   );
 }
 

@@ -1,11 +1,8 @@
+// Packages
 import { Fragment, useState, useMemo, Suspense, use, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
-
-// Utils
-import { Footer, ErrorFallback } from '../../../components';
-import { showToast, validateSubmissionData, decodeString } from '../../../utils';
 
 // APIs
 import {
@@ -14,7 +11,9 @@ import {
   CompanyProfileUpdateRequest,
 } from '../../../requests';
 
-// Atoms
+// Utils
+import { Footer, ErrorFallback } from '../../../components';
+import { showToast, validateSubmissionData, decodeString } from '../../../utils';
 import { auth } from '../../../atoms';
 
 const INITIAL_FORM_DATA = {
@@ -82,7 +81,8 @@ function CompanyProfileForm() {
     return null;
   }, [id, decodedToken]);
 
-  return (
+  // *********** Render Functions ***********
+  const CONTENT = () => (
     <Fragment>
       <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
         <Suspense fallback={
@@ -102,6 +102,12 @@ function CompanyProfileForm() {
         </Suspense>
       </ErrorBoundary>
     </Fragment>
+  );
+
+  return (
+    <div id="company-profile-form">
+      {CONTENT()}
+    </div>
   );
 }
 
@@ -150,7 +156,7 @@ function CompanyProfileFormContent({ id, profilePromise, decodedToken, navigate 
     }
   }, [profileData]);
 
-  /********  handlers  ********/
+  // *********** Handlers ***********
   const handleChangeFormData = (e) => {
     const { name, value } = e.target;
     _formData((old) => ({
@@ -210,7 +216,7 @@ function CompanyProfileFormContent({ id, profilePromise, decodedToken, navigate 
     }
   };
 
-  /********  Render functions  ********/
+  // *********** Render Functions ***********
   const PAGE_HEADER = () => (
     <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
       <div className="flex flex-col gap-1">
@@ -722,4 +728,3 @@ function CompanyProfileFormContent({ id, profilePromise, decodedToken, navigate 
 }
 
 export default CompanyProfileForm;
-

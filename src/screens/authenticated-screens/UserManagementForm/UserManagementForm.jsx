@@ -1,12 +1,9 @@
+// Packages
 import { Fragment, useState, useMemo, Suspense, use, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useNavigate, useParams } from 'react-router-dom';
 import Select from 'react-select';
 import { useAtomValue } from 'jotai';
-
-// Utils
-import { Footer, ErrorFallback } from '../../../components';
-import { showToast, validateSubmissionData, decodeString } from '../../../utils';
 
 // APIs
 import {
@@ -15,7 +12,9 @@ import {
   UserUpdateRequest,
 } from '../../../requests';
 
-// Atoms
+// Utils
+import { Footer, ErrorFallback } from '../../../components';
+import { showToast, validateSubmissionData, decodeString } from '../../../utils';
 import { auth } from '../../../atoms';
 
 const INITIAL_FORM_DATA = {
@@ -53,7 +52,8 @@ function UserManagementForm() {
     return null;
   }, [id, decodedToken]);
 
-  return (
+  // *********** Render Functions ***********
+  const CONTENT = () => (
     <Fragment>
       <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
         <Suspense fallback={
@@ -72,7 +72,13 @@ function UserManagementForm() {
           />
         </Suspense>
       </ErrorBoundary>
-    </Fragment >
+    </Fragment>
+  );
+
+  return (
+    <div id="user-management-form">
+      {CONTENT()}
+    </div>
   );
 }
 
@@ -122,7 +128,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     }
   }, [userData, id]);
 
-  /********  handlers  ********/
+  // *********** Handlers ***********
   const handleChangeFormData = (e) => {
     _formData(old => ({
       ...old,
@@ -193,7 +199,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     }
   };
 
-  /********  Render functions  ********/
+  // *********** Render Functions ***********
   const PAGE_HEADER = () => (
     <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
       <div className="flex flex-col gap-1">

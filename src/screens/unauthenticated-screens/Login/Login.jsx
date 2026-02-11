@@ -38,6 +38,8 @@ function Login() {
     if (error) _error(null);
   }, [formData.data.email, formData.data.password]);
 
+  // *********** Handlers ***********
+
   const handleChangeFormData = (e) => {
     const { name, value } = e.target;
     _formData((old) => ({
@@ -132,18 +134,11 @@ function Login() {
     }
   };
 
+  // *********** Render Functions ***********
+
   const HERO_LEFT = () => (
     <Fragment>
       <div>
-        {/* 
-        <a href="javascript:void(0)">
-          <img
-            src="https://readymadeui.com/readymadeui-white.svg"
-            alt="logo"
-            className="w-40"
-          />
-        </a>
-         */}
         <div className="max-w-lg mt-16 max-lg:hidden">
           <h1 className="text-4xl font-semibold text-white">Sign in</h1>
           <p className="text-[15px] mt-4 text-slate-100 leading-relaxed">
@@ -379,7 +374,7 @@ function Login() {
   );
 
   return (
-    <div>
+    <div id="login">
       {CONTENT()}
     </div>
   );

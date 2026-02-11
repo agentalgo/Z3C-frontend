@@ -13,6 +13,9 @@ import {
 } from '../../../components';
 
 function Dashboard() {
+
+  // *********** Render Functions ***********
+
   const MAIN_CONTENT = () => (
     <div className="p-8 space-y-8">
       <PageHeader />
@@ -34,7 +37,7 @@ function Dashboard() {
   );
 
   return (
-    <div>
+    <div id="dashboard">
       {CONTENT()}
     </div>
   );

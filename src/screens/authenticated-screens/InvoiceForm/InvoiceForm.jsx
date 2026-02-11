@@ -1,3 +1,4 @@
+// Packages
 import { Fragment, useState, useMemo, Suspense, use, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -78,6 +79,7 @@ function InvoiceForm() {
   const authValue = useAtomValue(auth);
   const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
 
+  // *********** Render Functions ***********
   const invoicePromise = useMemo(() => {
     if (id) {
       return InvoiceDetailRequest(decodedToken, id).catch((err) => {
@@ -88,7 +90,7 @@ function InvoiceForm() {
     return null;
   }, [id, decodedToken]);
 
-  return (
+  const CONTENT = () => (
     <Fragment>
       <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
         <Suspense fallback={
@@ -108,6 +110,12 @@ function InvoiceForm() {
         </Suspense>
       </ErrorBoundary>
     </Fragment>
+  );
+
+  return (
+    <div id="invoice-form">
+      {CONTENT()}
+    </div>
   );
 }
 
@@ -173,7 +181,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     }
   }, [invoiceData]);
 
-  /********  handlers  ********/
+  // *********** Handlers ***********
   const handleChangeFormData = (e) => {
     const { name, value } = e.target;
     _formData((old) => ({
@@ -355,7 +363,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     _lineItems((old) => old.filter((_, i) => i !== index));
   };
 
-  /***** Render Functions *****/
+  // *********** Render Functions ***********
   const PAGE_HEADER = () => (
     <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
       <div className="flex flex-col gap-1">
@@ -1100,4 +1108,3 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 }
 
 export default InvoiceForm;
-

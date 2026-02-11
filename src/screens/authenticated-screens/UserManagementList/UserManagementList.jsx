@@ -1,105 +1,174 @@
 // Packages
-import { Fragment, useMemo, useState, useEffect } from 'react';
+import { Fragment, useMemo, useState, Suspense, use } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
-import { Footer, ErrorFallback } from '../../../components';
-import { fetchPaginatedData } from '../../../requests';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES } from '../../../utils';
 
-// Sample data fallback (for initial render)
-const sampleUsers = [
-  {
-    firstName: 'Muhammad Taufiq',
-    lastName: 'Yusuf',
-    email: 'muyusuf@spa.sa',
-    isAdmin: 'No',
-    isActive: 'No',
-    createdDate: '2023-06-18 04:18:06 PM',
-    updatedDate: '2023-06-18 04:18:06 PM',
-  },
-  {
-    firstName: 'Lakshmi',
-    lastName: 'Veluchamy',
-    email: 'lveluchamy@spa.sa',
-    isAdmin: 'No',
-    isActive: 'No',
-    createdDate: '2023-06-18 04:18:06 PM',
-    updatedDate: '2023-06-18 04:18:06 PM',
-  },
-  {
-    firstName: 'Ahmed',
-    lastName: 'Al-Saud',
-    email: 'ahmed@spa.sa',
-    isAdmin: 'Yes',
-    isActive: 'Yes',
-    createdDate: '2023-05-15 10:30:00 AM',
-    updatedDate: '2023-12-20 02:45:00 PM',
-  },
-  {
-    firstName: 'Fatima',
-    lastName: 'Al-Zahrani',
-    email: 'fatima@spa.sa',
-    isAdmin: 'No',
-    isActive: 'Yes',
-    createdDate: '2023-07-22 11:15:00 AM',
-    updatedDate: '2023-11-10 09:20:00 AM',
-  },
-  {
-    firstName: 'Mohammed',
-    lastName: 'Al-Rashid',
-    email: 'mohammed@spa.sa',
-    isAdmin: 'Yes',
-    isActive: 'Yes',
-    createdDate: '2023-04-10 08:00:00 AM',
-    updatedDate: '2024-01-15 03:30:00 PM',
-  },
-];
+// APIs
+import { UserListRequest } from '../../../requests';
+
+// Utils
+import { auth } from '../../../atoms';
+import { Footer, ErrorFallback } from '../../../components';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString } from '../../../utils';
 
 function UserManagementList() {
   const navigate = useNavigate();
-  const [data, _data] = useState([]);
-  const [isLoading, _isLoading] = useState(false);
+  const authValue = useAtomValue(auth);
+
   const [pagination, _pagination] = useState({
     pageIndex: 0,
     pageSize: DEFAULT_PAGE_SIZE,
   });
   const [sorting, _sorting] = useState([]);
-  const [rowSelection, _rowSelection] = useState({});
   const [searchQuery, _searchQuery] = useState('');
   const [appliedSearchQuery, _appliedSearchQuery] = useState('');
   const [isFilterOpen, _isFilterOpen] = useState(false);
-  const [isActionsOpen, _isActionsOpen] = useState(false);
-  const [paginationInfo, _paginationInfo] = useState({
-    totalCount: 0,
-    totalPages: 0,
-    hasNextPage: false,
-    hasPreviousPage: false,
-  });
+  const [rowSelection, _rowSelection] = useState({});
+  const [reloadKey, _reloadKey] = useState(0);
 
-  // Fetch data when pagination changes
-  useEffect(() => {
-    const loadData = async () => {
-      _isLoading(true);
-      try {
-        const response = await fetchPaginatedData(
-          '/api/users',
-          pagination.pageIndex + 1,
-          pagination.pageSize,
-          { search: appliedSearchQuery || undefined }
-        );
-        _data(response.data);
-        _paginationInfo(response.pagination);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-      } finally {
-        _isLoading(false);
-      }
+  const usersPromise = useMemo(() => {
+    const decodedToken = decodeString(authValue);
+    const params = {
+      page: pagination.pageIndex + 1,
+      limit: pagination.pageSize,
+      search: appliedSearchQuery || undefined,
+      sortBy: sorting.length > 0 ? `${sorting[0].id}:${sorting[0].desc ? 'desc' : 'asc'}` : undefined,
     };
 
-    loadData();
-  }, [pagination.pageIndex, pagination.pageSize, appliedSearchQuery]);
+    return UserListRequest(decodedToken, params);
+  }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting, reloadKey]);
+
+  // *********** Render Functions ***********
+
+  const TableLoadingSkeleton = () => (
+    <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-sm overflow-hidden">
+      <div className="px-6 py-8 text-center text-sm text-[#4c669a]">
+        <div className="flex items-center justify-center gap-2">
+          <span className="material-symbols-outlined animate-spin">sync</span>
+          Loading Users...
+        </div>
+      </div>
+    </div>
+  );
+
+  const PAGE_HEADER = () => (
+    <div className="flex flex-wrap justify-between items-end gap-4">
+      <div className="space-y-1">
+        <h2 className="text-[#0d121b] dark:text-white text-3xl font-black tracking-tight">
+          User Management
+        </h2>
+        <p className="text-[#4c669a] text-base">Manage users, roles and access permissions</p>
+      </div>
+    </div>
+  );
+
+  const SEARCH_FILTERS_SECTION = () => (
+    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
+      <div className="flex-1 max-w-md">
+        <div className="relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#4c669a] text-[20px]">
+            search
+          </span>
+          <input
+            type="text"
+            placeholder="Search users..."
+            value={searchQuery}
+            onChange={(e) => _searchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                _appliedSearchQuery(searchQuery);
+                _pagination((prev) => ({ ...prev, pageIndex: 0 }));
+              }
+            }}
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white placeholder:text-[#4c669a] focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={() => _isFilterOpen(!isFilterOpen)}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm font-medium text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full sm:w-auto"
+        >
+          <span className="material-symbols-outlined text-[20px]">filter_list</span>
+          Filters
+          <span className="material-symbols-outlined text-[16px]">
+            {isFilterOpen ? 'expand_less' : 'expand_more'}
+          </span>
+        </button>
+
+        <button
+          onClick={() => navigate('/user-management/new')}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
+        >
+          <span className="material-symbols-outlined text-[20px]">add</span>
+          Create User
+        </button>
+      </div>
+    </div>
+  );
+
+  const CONTENT = () => (
+    <Fragment>
+      <div className="p-8 space-y-6">
+        {PAGE_HEADER()}
+        {SEARCH_FILTERS_SECTION()}
+        <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
+          <Suspense fallback={<TableLoadingSkeleton />}>
+            <UsersTableContent
+              usersPromise={usersPromise}
+              pagination={pagination}
+              sorting={sorting}
+              rowSelection={rowSelection}
+              _sorting={_sorting}
+              _pagination={_pagination}
+              _rowSelection={_rowSelection}
+              refreshUsers={() => _reloadKey((prev) => prev + 1)}
+            />
+          </Suspense>
+        </ErrorBoundary>
+      </div>
+      <Footer />
+    </Fragment>
+  );
+
+  return (
+    <div id="user-management-list">
+      {CONTENT()}
+    </div>
+  );
+}
+
+function UsersTableContent({
+  usersPromise,
+  pagination,
+  sorting,
+  rowSelection,
+  _pagination,
+  _sorting,
+  _rowSelection,
+  refreshUsers,
+}) {
+  const navigate = useNavigate();
+  const authValue = useAtomValue(auth);
+  const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
+  const response = use(usersPromise);
+  const data = response?.data || [];
+  const meta = response?.meta || {
+    total: 0,
+    page: 1,
+    limit: 20,
+    totalPages: 0,
+  };
+
+  const paginationInfo = {
+    totalCount: meta.total,
+    totalPages: meta.totalPages,
+    hasNextPage: meta.page < meta.totalPages,
+    hasPreviousPage: meta.page > 1,
+  };
 
   const columns = useMemo(
     () => [
@@ -189,26 +258,26 @@ function UserManagementList() {
           <span className="text-xs">{getValue()}</span>
         ),
       },
-      {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => (
-          <button
-            onClick={() => navigate(`/user-management/${row.original.id || row.original.email}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[16px]">edit</span>
-            Edit
-          </button>
-        ),
-        enableSorting: false,
-      },
+      // {
+      //   id: 'actions',
+      //   header: 'Actions',
+      //   cell: ({ row }) => (
+      //     <button
+      //       onClick={() => navigate(`/user-management/${row.original._id || row.original.id || row.original.email}`)}
+      //       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+      //     >
+      //       <span className="material-symbols-outlined text-[16px]">edit</span>
+      //       Edit
+      //     </button>
+      //   ),
+      //   enableSorting: false,
+      // },
     ],
     [navigate]
   );
 
   const table = useReactTable({
-    data: data.length > 0 ? data : sampleUsers,
+    data: data.length > 0 ? data : [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -226,141 +295,59 @@ function UserManagementList() {
     enableRowSelection: true,
   });
 
-  const selectedRowCount = Object.keys(rowSelection).length;
+  // *********** Render Functions ***********
 
-  const HEADER_SECTION = () => (
-    <div className="flex flex-wrap justify-between items-end gap-4">
-      <div className="space-y-1">
-        <h2 className="text-[#0d121b] dark:text-white text-3xl font-black tracking-tight">
-          User Management
-        </h2>
-        <p className="text-[#4c669a] text-base">Manage users, roles and access permissions</p>
-      </div>
-    </div>
-  );
-
-  const TOOLBAR_SECTION = () => (
-    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
-      {/* Search Bar */}
-      <div className="flex-1 max-w-md">
-        <div className="relative">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#4c669a] text-[20px]">
-            search
-          </span>
-          <input
-            type="text"
-            placeholder="Search users..."
-            value={searchQuery}
-            onChange={(e) => _searchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                _appliedSearchQuery(searchQuery);
-                _pagination((prev) => ({ ...prev, pageIndex: 0 }));
-              }
-            }}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white placeholder:text-[#4c669a] focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-        </div>
-      </div>
-
-      {/* Right Side Actions */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        {/* Actions Dropdown - Only visible when rows are selected */}
-        {selectedRowCount > 0 && (
-          <div className="relative">
-            <button
-              onClick={() => _isActionsOpen(!isActionsOpen)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-primary bg-primary/10 text-sm font-medium text-primary hover:bg-primary/20 transition-colors w-full sm:w-auto"
-            >
-              <span className="material-symbols-outlined text-[20px]">checklist</span>
-              Actions ({selectedRowCount})
-              <span className="material-symbols-outlined text-[16px]">
-                {isActionsOpen ? 'expand_less' : 'expand_more'}
-              </span>
-            </button>
-
-            {/* Actions Dropdown Menu */}
-            {isActionsOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
-                <div className="py-1">
-                  <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <span className="material-symbols-outlined text-[18px]">edit</span>
-                    Edit Selected
-                  </button>
-                  <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <span className="material-symbols-outlined text-[18px]">lock</span>
-                    Activate/Deactivate
-                  </button>
-                  <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                    <span className="material-symbols-outlined text-[18px]">download</span>
-                    Export Selected
-                  </button>
-                  <div className="border-t border-[#e7ebf3] dark:border-[#2a3447] my-1"></div>
-                  <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                    Delete Selected
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Filters Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => _isFilterOpen(!isFilterOpen)}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm font-medium text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full sm:w-auto"
-          >
-            <span className="material-symbols-outlined text-[20px]">filter_list</span>
-            Filters
-            <span className="material-symbols-outlined text-[16px]">
-              {isFilterOpen ? 'expand_less' : 'expand_more'}
-            </span>
-          </button>
-
-          {/* Dropdown Menu */}
-          {isFilterOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
-              <div className="p-4 space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Is Admin</label>
-                  <select className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3">
-                    <option value="">All</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">is_active</label>
-                  <select className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3">
-                    <option value="">All</option>
-                    <option value="Yes">Active</option>
-                    <option value="No">Inactive</option>
-                  </select>
-                </div>
-                <div className="flex gap-2 pt-2 border-t border-[#e7ebf3] dark:border-[#2a3447]">
-                  <button className="flex-1 px-3 py-2 text-sm font-medium text-[#4c669a] hover:text-[#0d121b] dark:hover:text-white transition-colors">
-                    Reset
-                  </button>
-                  <button className="flex-1 px-3 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
-                    Apply
-                  </button>
-                </div>
-              </div>
-            </div>
+  const USER_TABLE = () => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left min-w-[1000px]">
+        <thead className="bg-[#f8f9fc] dark:bg-[#1a253a] text-[#4c669a] dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th
+                  key={header.id}
+                  className={`px-6 py-4 ${header.column.getCanSort() ? 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800' : ''} transition-colors ${header.id === 'select' ? 'w-12' : ''}`}
+                  onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
+                >
+                  <div className="flex items-center gap-2">
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.column.getCanSort() && (
+                      <span className="material-symbols-outlined text-[16px]">
+                        {{
+                          asc: 'arrow_upward',
+                          desc: 'arrow_downward',
+                        }[header.column.getIsSorted()] || 'unfold_more'}
+                      </span>
+                    )}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody className="divide-y divide-[#e7ebf3] dark:divide-[#2a3447]">
+          {data.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length} className="px-6 py-8 text-center text-sm text-[#4c669a]">
+                No users found
+              </td>
+            </tr>
+          ) : (
+            table.getRowModel().rows.map((row) => (
+              <tr
+                key={row.id}
+                className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${row.getIsSelected() ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className={`px-6 py-4 text-sm text-[#0d121b] dark:text-white ${cell.column.id === 'select' ? 'w-12' : ''}`}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))
           )}
-        </div>
-
-        {/* Create User Button */}
-        <button
-          onClick={() => navigate('/user-management/new')}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
-        >
-          <span className="material-symbols-outlined text-[20px]">add</span>
-          Create User
-        </button>
-      </div>
+        </tbody>
+      </table>
     </div>
   );
 
@@ -386,14 +373,14 @@ function UserManagementList() {
       <div className="flex items-center gap-2">
         <button
           onClick={() => table.setPageIndex(0)}
-          disabled={!paginationInfo.hasPreviousPage || isLoading}
+          disabled={!paginationInfo.hasPreviousPage}
           className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">first_page</span>
         </button>
         <button
           onClick={() => table.previousPage()}
-          disabled={!paginationInfo.hasPreviousPage || isLoading}
+          disabled={!paginationInfo.hasPreviousPage}
           className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">chevron_left</span>
@@ -416,11 +403,10 @@ function UserManagementList() {
               <button
                 key={pageNum}
                 onClick={() => table.setPageIndex(pageNum - 1)}
-                disabled={isLoading}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${pagination.pageIndex + 1 === pageNum
                   ? 'bg-primary text-white'
                   : 'border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  }`}
               >
                 {pageNum}
               </button>
@@ -430,14 +416,14 @@ function UserManagementList() {
 
         <button
           onClick={() => table.nextPage()}
-          disabled={!paginationInfo.hasNextPage || isLoading}
+          disabled={!paginationInfo.hasNextPage}
           className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">chevron_right</span>
         </button>
         <button
           onClick={() => table.setPageIndex(paginationInfo.totalPages - 1)}
-          disabled={!paginationInfo.hasNextPage || isLoading}
+          disabled={!paginationInfo.hasNextPage}
           className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">last_page</span>
@@ -446,90 +432,10 @@ function UserManagementList() {
     </div>
   );
 
-  const TABLE_SECTION = () => (
-    <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left min-w-[1000px]">
-          <thead className="bg-[#f8f9fc] dark:bg-[#1a253a] text-[#4c669a] dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className={`px-6 py-4 ${header.column.getCanSort() ? 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800' : ''} transition-colors ${header.id === 'select' ? 'w-12' : ''}`}
-                    onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
-                  >
-                    <div className="flex items-center gap-2">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {header.column.getCanSort() && (
-                        <span className="material-symbols-outlined text-[16px]">
-                          {{
-                            asc: 'arrow_upward',
-                            desc: 'arrow_downward',
-                          }[header.column.getIsSorted()] || 'unfold_more'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody className="divide-y divide-[#e7ebf3] dark:divide-[#2a3447]">
-            {isLoading ? (
-              <tr>
-                <td colSpan={columns.length} className="px-6 py-8 text-center text-sm text-[#4c669a]">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="material-symbols-outlined animate-spin">sync</span>
-                    Loading...
-                  </div>
-                </td>
-              </tr>
-            ) : table.getRowModel().rows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} className="px-6 py-8 text-center text-sm text-[#4c669a]">
-                  No users found
-                </td>
-              </tr>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${row.getIsSelected() ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className={`px-6 py-4 text-sm text-[#0d121b] dark:text-white ${cell.column.id === 'select' ? 'w-12' : ''}`}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-      {PAGINATION_SECTION()}
-    </div>
-  );
-
-  const MAIN_CONTENT = () => (
-    <div className="p-8 space-y-6">
-      {HEADER_SECTION()}
-      {TOOLBAR_SECTION()}
-      {TABLE_SECTION()}
-    </div>
-  );
-
-  const CONTENT = () => (
-    <Fragment>
-      {MAIN_CONTENT()}
-      <Footer />
-    </Fragment>
-  );
-
   return (
-    <div>
-      {CONTENT()}
+    <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-sm overflow-hidden">
+      {USER_TABLE()}
+      {PAGINATION_SECTION()}
     </div>
   );
 }
