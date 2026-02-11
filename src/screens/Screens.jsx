@@ -40,7 +40,8 @@ function Screens() {
         <main className="flex-1 flex flex-col overflow-y-auto">
           <Header />
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="*" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/company-profile" element={<CompanyProfileList />} />
             <Route path="/company-profile/new" element={<CompanyProfileForm />} />
             <Route path="/company-profile/:id" element={<CompanyProfileForm />} />
