@@ -3,7 +3,6 @@ import toast, { toastConfig } from 'react-simple-toasts';
 import 'react-simple-toasts/dist/style.css';
 import 'react-simple-toasts/dist/theme/dark.css';
 import CryptoJS from "crypto-js";
-import { jwtDecode } from "jwt-decode";
 
 // Constants
 import { toastTypes, ENCODER } from './constants';
@@ -11,7 +10,7 @@ import { toastTypes, ENCODER } from './constants';
 // Toast Configuration
 toastConfig({
   position: 'top-right',
-  duration: 3000,
+  duration: 3500,
   clickClosable: true,
   maxVisibleToasts: 3,
   className: 'toast-custom',

@@ -48,7 +48,7 @@ const ONLY_NUMBERS_REGEX = /^[\d]+[.]{0,1}[\d]*$/;
 export const validateField = (fieldValue, fieldName = 'Field', options = {}) => {
   let isValid = true;
   let error = '';
-  
+
   // Use custom label or format fieldName
   fieldName = options.label || (fieldName[0].toUpperCase() + fieldName.slice(1)).replaceAll('_', ' ');
 
@@ -146,6 +146,31 @@ export const validateField = (fieldValue, fieldName = 'Field', options = {}) => 
     }
   }
 
+  // 4.5. EXACT VALIDATION
+  if (options.exact !== undefined && options.exact !== null) {
+    if (options.isArray) {
+      if (fieldValue.length !== options.exact) {
+        isValid = false;
+        error = `Exactly ${options.exact} item${options.exact > 1 ? 's are' : ' is'} required`;
+        return { isValid, error };
+      }
+    } else if (options.isNumber) {
+      const numValue = parseFloat(fieldValue);
+      if (numValue !== options.exact) {
+        isValid = false;
+        error = `Value must be exactly ${options.exact}`;
+        return { isValid, error };
+      }
+    } else {
+      // String
+      if (fieldValue.trim().length !== options.exact) {
+        isValid = false;
+        error = `${fieldName} must be exactly ${options.exact} character${options.exact > 1 ? 's' : ''}`;
+        return { isValid, error };
+      }
+    }
+  }
+
   // 5. REGEX VALIDATION (for strings)
   if (options.regex) {
     if (options.isArray || options.isNumber) {
@@ -173,7 +198,7 @@ export const validateField = (fieldValue, fieldName = 'Field', options = {}) => 
 export const validateSubmissionData = (data, validations) => {
   let allValid = true;
   const errors = {};
-  
+
   // Validate each field that has validation rules
   Object.keys(data).forEach((key) => {
     if (validations[key]) {
@@ -184,6 +209,6 @@ export const validateSubmissionData = (data, validations) => {
       }
     }
   });
-  
+
   return { allValid, errors };
 };

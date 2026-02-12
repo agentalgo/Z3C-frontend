@@ -1,5 +1,7 @@
 // Packages
 import { Fragment } from 'react';
+
+// Utils
 import {
   PageHeader,
   KpiStats,
@@ -11,6 +13,9 @@ import {
 } from '../../../components';
 
 function Dashboard() {
+
+  // *********** Render Functions ***********
+
   const MAIN_CONTENT = () => (
     <div className="p-8 space-y-8">
       <PageHeader />
@@ -18,7 +23,7 @@ function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-1 gap-8">
         <div className="xl:col-span-2">
           <TrendChart />
-        </div>      
+        </div>
       </div>
       <RecentActivity />
     </div>
@@ -32,7 +37,7 @@ function Dashboard() {
   );
 
   return (
-    <div>
+    <div id="dashboard">
       {CONTENT()}
     </div>
   );

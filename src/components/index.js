@@ -7,3 +7,5 @@ export { default as QuickActions } from './QuickActions/QuickActions';
 export { default as DeviceHealth } from './DeviceHealth/DeviceHealth';
 export { default as RecentActivity } from './RecentActivity/RecentActivity';
 export { default as Footer } from './Footer/Footer';
+export { ErrorFallback } from './ErrorFallback/ErrorFallback';
+export { default as ConfirmModal } from './ConfirmModal/ConfirmModal';

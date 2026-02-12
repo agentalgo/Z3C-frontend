@@ -53,3 +53,33 @@ body {
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
+
+/* Global thin scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5f5 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #cbd5f5;
+  border-radius: 9999px;
+}
+
+@variant dark {
+  * {
+    scrollbar-color: #4b5563 transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #4b5563;
+  }
+}

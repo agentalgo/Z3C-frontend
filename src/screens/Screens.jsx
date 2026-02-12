@@ -3,11 +3,9 @@ import { Fragment, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 
-// Atoms
-import { auth } from '../atoms';
-
 // Utils
 import '../utils';
+import { auth } from '../atoms';
 import { Sidebar, Header } from '../components';
 
 // Authenticated Screens
@@ -15,9 +13,9 @@ import {
   Dashboard,
   CompanyProfileList,
   CompanyProfileForm,
-  InvoicesList,
+  InvoiceList,
   InvoiceForm,
-  CustomersList,
+  CustomerList,
   CustomerForm,
   UserManagementList,
   UserManagementForm,
@@ -42,15 +40,20 @@ function Screens() {
         <main className="flex-1 flex flex-col overflow-y-auto">
           <Header />
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            {/* <Route path="/company-profile" element={<CompanyProfileList />} /> */}
-            {/* <Route path="/company-profile/new" element={<CompanyProfileForm />} /> */}
-            <Route path="/invoices" element={<InvoicesList />} />
+            <Route path="*" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/company-profile" element={<CompanyProfileList />} />
+            <Route path="/company-profile/new" element={<CompanyProfileForm />} />
+            <Route path="/company-profile/:id" element={<CompanyProfileForm />} />
+            <Route path="/invoices" element={<InvoiceList />} />
             <Route path="/invoices/new" element={<InvoiceForm />} />
-            <Route path="/customer" element={<CustomersList />} />
+            <Route path="/invoices/:id" element={<InvoiceForm />} />
+            <Route path="/customer" element={<CustomerList />} />
             <Route path="/customer/new" element={<CustomerForm />} />
+            <Route path="/customer/:id" element={<CustomerForm />} />
             <Route path="/user-management" element={<UserManagementList />} />
             <Route path="/user-management/new" element={<UserManagementForm />} />
+            <Route path="/user-management/:id" element={<UserManagementForm />} />
           </Routes>
         </main>
       </div>

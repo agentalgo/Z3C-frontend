@@ -1,19 +1,19 @@
 // Packages
-import { Fragment, useMemo, useState, Suspense, use } from 'react';
+import { Fragment, useMemo, useState, Suspense, use, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { UserListRequest } from '../../../requests';
+import { CustomerListRequest, CustomerDeleteRequest } from '../../../requests';
 
 // Utils
 import { auth } from '../../../atoms';
-import { Footer, ErrorFallback } from '../../../components';
+import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
 import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString } from '../../../utils';
 
-function UserManagementList() {
+function CustomerList() {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
 
@@ -25,10 +25,11 @@ function UserManagementList() {
   const [searchQuery, _searchQuery] = useState('');
   const [appliedSearchQuery, _appliedSearchQuery] = useState('');
   const [isFilterOpen, _isFilterOpen] = useState(false);
+  const [, _isActionsOpen] = useState(false);
   const [rowSelection, _rowSelection] = useState({});
   const [reloadKey, _reloadKey] = useState(0);
 
-  const usersPromise = useMemo(() => {
+  const customersPromise = useMemo(() => {
     const decodedToken = decodeString(authValue);
     const params = {
       page: pagination.pageIndex + 1,
@@ -37,7 +38,7 @@ function UserManagementList() {
       sortBy: sorting.length > 0 ? `${sorting[0].id}:${sorting[0].desc ? 'desc' : 'asc'}` : undefined,
     };
 
-    return UserListRequest(decodedToken, params);
+    return CustomerListRequest(decodedToken, params);
   }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting, reloadKey]);
 
   // *********** Render Functions ***********
@@ -47,7 +48,7 @@ function UserManagementList() {
       <div className="px-6 py-8 text-center text-sm text-[#4c669a]">
         <div className="flex items-center justify-center gap-2">
           <span className="material-symbols-outlined animate-spin">sync</span>
-          Loading Users...
+          Loading Customers...
         </div>
       </div>
     </div>
@@ -57,9 +58,9 @@ function UserManagementList() {
     <div className="flex flex-wrap justify-between items-end gap-4">
       <div className="space-y-1">
         <h2 className="text-[#0d121b] dark:text-white text-3xl font-black tracking-tight">
-          User Management
+          Customers
         </h2>
-        <p className="text-[#4c669a] text-base">Manage users, roles and access permissions</p>
+        <p className="text-[#4c669a] text-base">Manage your customer information and records</p>
       </div>
     </div>
   );
@@ -73,7 +74,7 @@ function UserManagementList() {
           </span>
           <input
             type="text"
-            placeholder="Search users..."
+            placeholder="Search customers..."
             value={searchQuery}
             onChange={(e) => _searchQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -100,11 +101,11 @@ function UserManagementList() {
         </button>
 
         <button
-          onClick={() => navigate('/user-management/new')}
+          onClick={() => navigate('/customer/new')}
           className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
         >
           <span className="material-symbols-outlined text-[20px]">add</span>
-          Create User
+          Create Customer
         </button>
       </div>
     </div>
@@ -117,15 +118,15 @@ function UserManagementList() {
         {SEARCH_FILTERS_SECTION()}
         <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
           <Suspense fallback={<TableLoadingSkeleton />}>
-            <UsersTableContent
-              usersPromise={usersPromise}
+            <CustomersTableContent
+              customersPromise={customersPromise}
               pagination={pagination}
               sorting={sorting}
               rowSelection={rowSelection}
               _sorting={_sorting}
               _pagination={_pagination}
               _rowSelection={_rowSelection}
-              refreshUsers={() => _reloadKey((prev) => prev + 1)}
+              refreshCustomers={() => _reloadKey((prev) => prev + 1)}
             />
           </Suspense>
         </ErrorBoundary>
@@ -135,26 +136,26 @@ function UserManagementList() {
   );
 
   return (
-    <div id="user-management-list">
+    <div id="customer-list">
       {CONTENT()}
     </div>
   );
-}
+};
 
-function UsersTableContent({
-  usersPromise,
+function CustomersTableContent({
+  customersPromise,
   pagination,
   sorting,
   rowSelection,
   _pagination,
   _sorting,
   _rowSelection,
-  refreshUsers,
+  refreshCustomers,
 }) {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
   const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
-  const response = use(usersPromise);
+  const response = use(customersPromise);
   const data = response?.data || [];
   const meta = response?.meta || {
     total: 0,
@@ -169,6 +170,42 @@ function UsersTableContent({
     hasNextPage: meta.page < meta.totalPages,
     hasPreviousPage: meta.page > 1,
   };
+
+  const [isDeleteModalOpen, _isDeleteModalOpen] = useState(false);
+  const [selectedCustomerId, _selectedCustomerId] = useState(null);
+  const [isDeleting, _isDeleting] = useState(false);
+
+  // *********** Handlers ***********
+
+  const handleOpenDeleteModal = (customerId) => {
+    if (!customerId) return;
+    _selectedCustomerId(customerId);
+    _isDeleteModalOpen(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (isDeleting) return;
+    _isDeleteModalOpen(false);
+    _selectedCustomerId(null);
+  };
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!selectedCustomerId) return;
+
+    _isDeleting(true);
+    CustomerDeleteRequest(decodedToken, selectedCustomerId)
+      .then(() => {
+        showToast('Customer deleted successfully!', 'success');
+        handleCloseDeleteModal();
+        refreshCustomers?.();
+      })
+      .catch((err) => {
+        showToast(err?.message || 'Failed to delete customer', 'error');
+      })
+      .finally(() => {
+        _isDeleting(false);
+      });
+  }, [decodedToken, selectedCustomerId, refreshCustomers]);
 
   const columns = useMemo(
     () => [
@@ -193,12 +230,34 @@ function UsersTableContent({
         enableSorting: false,
       },
       {
-        accessorKey: 'username',
-        header: 'User Name',
+        accessorKey: 'registrationName',
+        header: 'Registered Name',
         enableSorting: true,
-        cell: ({ getValue }) => (
-          <span className="font-medium">{getValue() || '-'}</span>
-        ),
+      },
+      {
+        accessorKey: 'streetName',
+        header: 'Street',
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'buildingNumber',
+        header: 'Building',
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'citySubdivisionName',
+        header: 'District',
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'cityName',
+        header: 'City',
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'postalZone',
+        header: 'Postal Zone',
+        enableSorting: true,
       },
       {
         accessorKey: 'email',
@@ -209,71 +268,43 @@ function UsersTableContent({
         ),
       },
       {
-        accessorKey: 'isAdmin',
-        header: 'Is Admin',
+        accessorKey: 'phone',
+        header: 'Phone',
         enableSorting: true,
-        cell: ({ getValue }) => {
-          const isAdmin = getValue();
-          const statusColors = {
-            "false": 'bg-red-100 text-red-700',
-            "true": 'bg-green-100 text-green-700',            
-          };
-          return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${statusColors[isAdmin?.toString()] || 'bg-gray-100 text-gray-700'}`}>
-              {isAdmin?.toString()}
-            </span>
-          );
-        },
       },
       {
-        accessorKey: 'isActive',
-        header: 'Is Active',
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const isActive = getValue();
-          const statusColors = {
-            "false": 'bg-red-100 text-red-700',
-            "true": 'bg-green-100 text-green-700',            
-          };
-          return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${statusColors[isActive?.toString()] || 'bg-gray-100 text-gray-700'}`}>
-              {isActive?.toString()}
-            </span>
-          );
-        },
-      },
-      {
-        accessorKey: 'createdAt',
-        header: 'Created At',
+        accessorKey: 'customerVAT',
+        header: 'Customer VAT',
         enableSorting: true,
         cell: ({ getValue }) => (
-          <span className="text-xs">{getValue()}</span>
-        ),
-      },
-      {
-        accessorKey: 'updatedAt',
-        header: 'Updated At',
-        enableSorting: true,
-        cell: ({ getValue }) => (
-          <span className="text-xs">{getValue()}</span>
+          <span className="font-mono text-xs">{getValue()}</span>
         ),
       },
       {
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => (
-          <button
-            onClick={() => navigate(`/user-management/${row.original._id}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[16px]">edit</span>
-            Edit
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate(`/customer/${row.original._id}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[16px]">edit</span>
+              Edit
+            </button>
+            <button
+              onClick={() => handleOpenDeleteModal(row.original._id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-red-200 dark:border-red-500/60 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[16px]">delete</span>
+              Delete
+            </button>
+          </div>
         ),
         enableSorting: false,
       },
     ],
-    [navigate]
+    [navigate, handleOpenDeleteModal]
   );
 
   const table = useReactTable({
@@ -297,9 +328,9 @@ function UsersTableContent({
 
   // *********** Render Functions ***********
 
-  const USER_TABLE = () => (
+  const CUSTOMER_TABLE = () => (
     <div className="overflow-x-auto">
-      <table className="w-full text-left min-w-[1000px]">
+      <table className="w-full text-left min-w-[1400px]">
         <thead className="bg-[#f8f9fc] dark:bg-[#1a253a] text-[#4c669a] dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -329,7 +360,7 @@ function UsersTableContent({
           {data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="px-6 py-8 text-center text-sm text-[#4c669a]">
-                No users found
+                No customers found
               </td>
             </tr>
           ) : (
@@ -432,12 +463,26 @@ function UsersTableContent({
     </div>
   );
 
+  const CONFIRM_DELETE_MODAL = () => (
+    <ConfirmModal
+      isOpen={isDeleteModalOpen}
+      title="Delete customer"
+      description="Are you sure you want to delete this customer? This action cannot be undone."
+      confirmLabel="Delete"
+      cancelLabel="Cancel"
+      onConfirm={handleConfirmDelete}
+      onCancel={handleCloseDeleteModal}
+      isConfirming={isDeleting}
+    />
+  );
+
   return (
     <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-sm overflow-hidden">
-      {USER_TABLE()}
+      {CUSTOMER_TABLE()}
       {PAGINATION_SECTION()}
+      {CONFIRM_DELETE_MODAL()}
     </div>
   );
 }
 
-export default UserManagementList;
+export default CustomerList;

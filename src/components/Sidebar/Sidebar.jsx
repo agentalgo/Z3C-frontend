@@ -1,9 +1,14 @@
 // Packages
+import { useMemo } from 'react';
+import { useAtom } from 'jotai';
 import { NavLink } from 'react-router-dom';
-import { useSetAtom } from 'jotai';
 
-// Atoms
+// APIs
+import { LogoutRequest } from '../../requests';
+
+// Utils
 import { auth } from '../../atoms';
+import { decodeString } from '../../utils';
 
 const navigation = [
   { label: 'Dashboard', icon: 'dashboard', path: '/' },
@@ -14,11 +19,18 @@ const navigation = [
 ]
 
 function Sidebar() {
-  const setAuth = useSetAtom(auth);
+  const [token, _token] = useAtom(auth);
+  const decodedToken = useMemo(() => decodeString(token), [token]);
 
   const handleLogout = () => {
-    // Clear authentication state; Screens will redirect to login based on auth atom
-    setAuth(null);
+    if (decodedToken) {
+      LogoutRequest(decodedToken)
+        .finally(() => {
+          _token(null);
+        });
+    } else {
+      _token(null);
+    }
   };
 
   const LOGO_SECTION = () => (
