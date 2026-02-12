@@ -1,10 +1,14 @@
 // Packages
-import { NavLink } from 'react-router-dom';
+import { useMemo } from 'react';
 import { useAtom } from 'jotai';
+import { NavLink } from 'react-router-dom';
 
-// Atoms
-import { auth } from '../../atoms';
+// APIs
 import { LogoutRequest } from '../../requests';
+
+// Utils
+import { auth } from '../../atoms';
+import { decodeString } from '../../utils';
 
 const navigation = [
   { label: 'Dashboard', icon: 'dashboard', path: '/' },
@@ -15,16 +19,17 @@ const navigation = [
 ]
 
 function Sidebar() {
-  const [token, setAuth] = useAtom(auth);
+  const [token, _token] = useAtom(auth);
+  const decodedToken = useMemo(() => decodeString(token), [token]);
 
   const handleLogout = () => {
-    if (token) {
-      LogoutRequest(token)
+    if (decodedToken) {
+      LogoutRequest(decodedToken)
         .finally(() => {
-          setAuth(null);
+          _token(null);
         });
     } else {
-      setAuth(null);
+      _token(null);
     }
   };
 

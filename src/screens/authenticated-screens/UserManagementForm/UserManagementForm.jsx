@@ -17,20 +17,22 @@ import { Footer, ErrorFallback } from '../../../components';
 import { showToast, validateSubmissionData, decodeString } from '../../../utils';
 import { auth } from '../../../atoms';
 
+const PERMISSION_MODULES = ['invoice', 'customer', 'profile', 'companyProfile', 'zatcaReporting'];
+
 const INITIAL_FORM_DATA = {
   data: {
-    firstName: '',
-    lastName: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
-    assignedRoles: [],
+    permissions: [],
     isActive: true,
+    isAdmin: false,
   },
   validations: {
-    firstName: { isRequired: true, label: "First Name" },
-    lastName: { isRequired: true, label: "Last Name" },
-    assignedRoles: { isRequired: true, isArray: true, label: "Roles" },
+    password: { isRequired: true, regex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/ },
+    username: { isRequired: true, label: "User Name" },
+    permissions: { isRequired: true, isArray: true, label: "Permissions" },
     email: { isRequired: true, regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/ },
   },
   errors: {},
@@ -87,6 +89,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
   const [isLoading, _isLoading] = useState(false);
   const [isShowPassword, _isShowPassword] = useState(false);
+  const [isReadOnly, _isReadOnly] = useState(true);
   const [isShowConfirmPassword, _isShowConfirmPassword] = useState(false);
 
   useEffect(() => {
@@ -96,13 +99,29 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
         ...old,
         data: {
           ...old.data,
-          firstName: apiData.firstName || '',
-          lastName: apiData.lastName || '',
+          username: apiData.username || '',
           email: apiData.email || '',
-          assignedRoles: apiData.roles || apiData.assignedRoles || [],
+          permissions: (() => {
+            // Prefer permissions object from API if available
+            if (apiData.permissions && typeof apiData.permissions === 'object') {
+              const selected = PERMISSION_MODULES.filter((module) => {
+                const modPerm = apiData.permissions[module];
+                if (!modPerm) return false;
+                return !!(modPerm.create || modPerm.read || modPerm.update || modPerm.delete);
+              });
+              if (selected.length > 0) return selected;
+            }
+            // Fallback to roles/assignedRoles if backend still returns those
+            if (Array.isArray(apiData.roles)) return apiData.roles;
+            if (Array.isArray(apiData.assignedRoles)) return apiData.assignedRoles;
+            return old.data.permissions || [];
+          })(),
           isActive: typeof apiData.isActive === 'string'
             ? apiData.isActive === 'Yes'
             : !!apiData.isActive,
+          isAdmin: typeof apiData.isAdmin === 'string'
+            ? apiData.isAdmin === 'Yes'
+            : !!apiData.isAdmin,
           password: '', // Don't pre-fill password for security
           confirmPassword: '',
         },
@@ -116,15 +135,8 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     } else if (userData?.isError) {
       _formData({ ...INITIAL_FORM_DATA });
     } else if (!id) {
-      // Create mode - ensure password is required
-      _formData(old => ({
-        ...old,
-        validations: {
-          ...old.validations,
-          password: { isRequired: true, label: "Password" },
-          confirmPassword: { isRequired: true, label: "Confirm Password" },
-        }
-      }));
+      // Create mode - reset to a clean, empty form and ensure password is required
+      _formData({ ...INITIAL_FORM_DATA });
     }
   }, [userData, id]);
 
@@ -167,12 +179,35 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     if (handleValidateForm()) {
       _isLoading(true);
 
+      const selectedPermissions = Array.isArray(formData.data.permissions)
+        ? formData.data.permissions
+        : [];
+
+      // Helper to build CRUD permissions for a module
+      const buildModulePermissions = (module) => {
+        const enabled = selectedPermissions.includes(module);
+        return {
+          create: enabled,
+          read: enabled,
+          update: enabled,
+          delete: enabled,
+        };
+      };
+
+      // Build payload based on backend sample schema from `user-create-sample-payload.txt`
       const payload = {
-        firstName: formData.data.firstName,
-        lastName: formData.data.lastName,
+        username: formData.data.username,
         email: formData.data.email,
-        roles: formData.data.assignedRoles,
-        isActive: formData.data.isActive ? 'Yes' : 'No', // Mapping back to API format if needed
+        // Backend sample shows `isActive` as a boolean
+        isActive: !!formData.data.isActive,
+        isAdmin: !!formData.data.isAdmin,
+        permissions: {
+          invoice: buildModulePermissions('invoice'),
+          customer: buildModulePermissions('customer'),
+          profile: buildModulePermissions('profile'),
+          companyProfile: buildModulePermissions('companyProfile'),
+          zatcaReporting: buildModulePermissions('zatcaReporting'),
+        },
       };
 
       if (formData.data.password) {
@@ -214,53 +249,69 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     <section className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">First Name *</label>
+          <label className="text-sm font-medium text-[#0d121b] dark:text-white">User Name *</label>
           <input
             type="text"
-            name="firstName"
-            value={formData.data.firstName}
+            name="username"
+            value={formData.data.username}
             onChange={handleChangeFormData}
-            placeholder="Muhammad Taufiq"
+            placeholder="Enter username"
+            readOnly={isReadOnly}
+            onFocus={() => _isReadOnly(false)}
+            onBlur={() => _isReadOnly(true)}
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
           />
-          {formData.errors.firstName && (
-            <span className="text-xs text-tomato">{formData.errors.firstName}</span>
+          {formData.errors.username && (
+            <span className="text-xs text-tomato">{formData.errors.username}</span>
           )}
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Last Name *</label>
+          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Email *</label>
           <input
-            type="text"
-            name="lastName"
-            value={formData.data.lastName}
+            type="email"
+            name="email"
+            value={formData.data.email}
             onChange={handleChangeFormData}
-            placeholder="Yusuf"
+            placeholder="Enter email"
+            readOnly={isReadOnly}
+            onFocus={() => _isReadOnly(false)}
+            onBlur={() => _isReadOnly(true)}
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
           />
-          {formData.errors.lastName && (
-            <span className="text-xs text-tomato">{formData.errors.lastName}</span>
+          {formData.errors.email && (
+            <span className="text-xs text-tomato">{formData.errors.email}</span>
           )}
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-[#0d121b] dark:text-white">Assigned Roles *</label>
+        <label className="text-sm font-medium text-[#0d121b] dark:text-white">Permissions *</label>
         <Select
           isMulti
-          name="assignedRoles"
+          name="permissions"
           classNamePrefix="react-select"
           className="text-sm"
           options={[
-            { value: 'accountant', label: 'accountant' },
-            { value: 'admin', label: 'admin' },
-            { value: 'manager', label: 'manager' },
-            { value: 'viewer', label: 'viewer' },
+            { value: 'invoice', label: 'Invoice' },
+            { value: 'customer', label: 'Customer' },
+            { value: 'profile', label: 'Profile' },
+            { value: 'companyProfile', label: 'Company Profile' },
+            { value: 'zatcaReporting', label: 'ZATCA Reporting' },
           ]}
-          value={formData.data.assignedRoles.map((role) => ({
-            value: role,
-            label: role,
-          }))}
+          value={formData.data.permissions.map((perm) => {
+            const option = {
+              invoice: 'Invoice',
+              customer: 'Customer',
+              profile: 'Profile',
+              companyProfile: 'Company Profile',
+              zatcaReporting: 'ZATCA Reporting',
+            }[perm] || perm;
+            return {
+              value: perm,
+              label: option,
+            };
+          })}
           onChange={(selectedOptions) => {
             const values = Array.isArray(selectedOptions)
               ? selectedOptions.map((opt) => opt.value)
@@ -270,28 +321,13 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
               ...old,
               data: {
                 ...old.data,
-                assignedRoles: values,
+                permissions: values,
               },
             }));
           }}
         />
-        {formData.errors.assignedRoles && (
-          <span className="text-xs text-tomato">{formData.errors.assignedRoles}</span>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-[#0d121b] dark:text-white">Email *</label>
-        <input
-          type="email"
-          name="email"
-          value={formData.data.email}
-          onChange={handleChangeFormData}
-          placeholder="muyusuf@spa.sa"
-          className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-        />
-        {formData.errors.email && (
-          <span className="text-xs text-tomato">{formData.errors.email}</span>
+        {formData.errors.permissions && (
+          <span className="text-xs text-tomato">{formData.errors.permissions}</span>
         )}
       </div>
 
@@ -305,6 +341,9 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
               value={formData.data.password}
               onChange={handleChangeFormData}
               placeholder="••••••••"
+              readOnly={isReadOnly}
+              onFocus={() => _isReadOnly(false)}
+              onBlur={() => _isReadOnly(true)}
               className="w-full px-4 py-2.5 pr-10 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
             />
             <button
@@ -331,6 +370,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
               value={formData.data.confirmPassword}
               onChange={handleChangeFormData}
               placeholder="••••••••"
+              autoComplete="off"
               className="w-full px-4 py-2.5 pr-10 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
             />
             <button
@@ -349,26 +389,50 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="isActive"
-          name="isActive"
-          checked={formData.data.isActive}
-          onChange={(e) => {
-            _formData(old => ({
-              ...old,
-              data: {
-                ...old.data,
-                isActive: e.target.checked,
-              },
-            }));
-          }}
-          className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
-        />
-        <label htmlFor="isActive" className="text-sm font-medium text-[#0d121b] dark:text-white cursor-pointer">
-          Is Active
-        </label>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="isActive"
+            name="isActive"
+            checked={formData.data.isActive}
+            onChange={(e) => {
+              _formData(old => ({
+                ...old,
+                data: {
+                  ...old.data,
+                  isActive: e.target.checked,
+                },
+              }));
+            }}
+            className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
+          />
+          <label htmlFor="isActive" className="text-sm font-medium text-[#0d121b] dark:text-white cursor-pointer">
+            Is Active
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="isAdmin"
+            name="isAdmin"
+            checked={formData.data.isAdmin}
+            onChange={(e) => {
+              _formData(old => ({
+                ...old,
+                data: {
+                  ...old.data,
+                  isAdmin: e.target.checked,
+                },
+              }));
+            }}
+            className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
+          />
+          <label htmlFor="isAdmin" className="text-sm font-medium text-[#0d121b] dark:text-white cursor-pointer">
+            Is Admin
+          </label>
+        </div>
       </div>
     </section>
   );

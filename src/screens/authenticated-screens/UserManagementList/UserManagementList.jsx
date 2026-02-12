@@ -193,16 +193,8 @@ function UsersTableContent({
         enableSorting: false,
       },
       {
-        accessorKey: 'firstName',
-        header: 'First Name',
-        enableSorting: true,
-        cell: ({ getValue }) => (
-          <span className="font-medium">{getValue()}</span>
-        ),
-      },
-      {
-        accessorKey: 'lastName',
-        header: 'Last Name',
+        accessorKey: 'username',
+        header: 'User Name',
         enableSorting: true,
         cell: ({ getValue }) => (
           <span className="font-medium">{getValue() || '-'}</span>
@@ -222,56 +214,64 @@ function UsersTableContent({
         enableSorting: true,
         cell: ({ getValue }) => {
           const isAdmin = getValue();
+          const statusColors = {
+            "false": 'bg-red-100 text-red-700',
+            "true": 'bg-green-100 text-green-700',            
+          };
           return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${isAdmin === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-              {isAdmin}
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${statusColors[isAdmin?.toString()] || 'bg-gray-100 text-gray-700'}`}>
+              {isAdmin?.toString()}
             </span>
           );
         },
       },
       {
         accessorKey: 'isActive',
-        header: 'is_active',
+        header: 'Is Active',
         enableSorting: true,
         cell: ({ getValue }) => {
           const isActive = getValue();
+          const statusColors = {
+            "false": 'bg-red-100 text-red-700',
+            "true": 'bg-green-100 text-green-700',            
+          };
           return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${isActive === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              {isActive}
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${statusColors[isActive?.toString()] || 'bg-gray-100 text-gray-700'}`}>
+              {isActive?.toString()}
             </span>
           );
         },
       },
       {
-        accessorKey: 'createdDate',
-        header: 'Created Date',
+        accessorKey: 'createdAt',
+        header: 'Created At',
         enableSorting: true,
         cell: ({ getValue }) => (
           <span className="text-xs">{getValue()}</span>
         ),
       },
       {
-        accessorKey: 'updatedDate',
-        header: 'Updated Date',
+        accessorKey: 'updatedAt',
+        header: 'Updated At',
         enableSorting: true,
         cell: ({ getValue }) => (
           <span className="text-xs">{getValue()}</span>
         ),
       },
-      // {
-      //   id: 'actions',
-      //   header: 'Actions',
-      //   cell: ({ row }) => (
-      //     <button
-      //       onClick={() => navigate(`/user-management/${row.original._id || row.original.id || row.original.email}`)}
-      //       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-      //     >
-      //       <span className="material-symbols-outlined text-[16px]">edit</span>
-      //       Edit
-      //     </button>
-      //   ),
-      //   enableSorting: false,
-      // },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: ({ row }) => (
+          <button
+            onClick={() => navigate(`/user-management/${row.original._id}`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+          >
+            <span className="material-symbols-outlined text-[16px]">edit</span>
+            Edit
+          </button>
+        ),
+        enableSorting: false,
+      },
     ],
     [navigate]
   );

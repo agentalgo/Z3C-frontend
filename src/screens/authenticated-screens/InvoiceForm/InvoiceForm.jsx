@@ -7,12 +7,7 @@ import AsyncSelect from 'react-select/async';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import {
-  InvoiceCreateRequest,
-  InvoiceDetailRequest,
-  InvoiceUpdateRequest,
-  CustomerListRequest,
-} from '../../../requests';
+import { InvoiceCreateRequest, InvoiceDetailRequest, InvoiceUpdateRequest, InvoiceSubmitToZatcaRequest, CustomerListRequest } from '../../../requests';
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
@@ -51,13 +46,10 @@ const INITIAL_FORM_DATA = {
     note: '',
   },
   validations: {
+    referenceNumber: { isRequired: true, label: 'Reference Number' },
     customerId: { isRequired: true, label: 'Customer' },
     paymentTerms: { isRequired: true, label: 'Payment Terms' },
-    deliveryDate: {
-      isRequired: true,
-      label: 'Delivery Date',
-      regex: /^\d{4}-\d{2}-\d{2}$/,
-    },
+    deliveryDate: { isRequired: true, label: 'Delivery Date' }
   },
   errors: {},
 };
@@ -337,25 +329,171 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     }
   };
 
+  const handleCreateAndSubmitToZatca = async () => {
+    if (!handleValidateForm()) {
+      showToast('Please fill in all required fields', 'error');
+      return;
+    }
+    if (isLoading) {
+      showToast('Please wait for the previous request to complete', 'error');
+      return;
+    }
+    try {
+      _isLoading(true);
+      const payloadData = {
+        referenceNumber: formData.data.referenceNumber,
+        customerId: String(formData.data.customerId || ''),
+        paymentType: formData.data.paymentType || 'CASH',
+        paymentTerms: formData.data.paymentTerms,
+        deliveryDate: formData.data.deliveryDate,
+        currency: 'SAR',
+        lineItems: lineItems.map((item) => ({
+          description: item.description,
+          productCode: item.productCode,
+          quantity: Number(item.quantity) || 0,
+          price: Number(item.price) || 0,
+          discount_amount: Number(item.discount_amount) || 0,
+          discount_percentage: Number(item.discount_percentage) || 0,
+          taxExempt: !!item.taxExempt,
+          taxExemptReason: item.taxExemptReason || '',
+        })),
+        vat: 15,
+        note: formData.data.note,
+      };
+
+      const response = await InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
+      const createdInvoiceId =
+        response?.data?._id ||
+        response?._id ||
+        response?.id;
+
+      if (!createdInvoiceId) {
+        throw new Error('Invoice created but ID was not returned from server');
+      }
+
+      await InvoiceSubmitToZatcaRequest(decodedToken, createdInvoiceId);
+      showToast('Invoice created and submitted to ZATCA successfully!', 'success');
+      navigate('/invoices');
+    } catch (error) {
+      showToast(error?.message || 'Failed to create and submit invoice to ZATCA', 'error');
+    } finally {
+      _isLoading(false);
+    }
+  };
+
+  const handleUpdateAndSubmitToZatca = async () => {
+    if (!handleValidateForm()) {
+      showToast('Please fill in all required fields', 'error');
+      return;
+    }
+    if (isLoading) {
+      showToast('Please wait for the previous request to complete', 'error');
+      return;
+    }
+    try {
+      _isLoading(true);
+      const payloadData = {
+        referenceNumber: formData.data.referenceNumber,
+        customerId: String(formData.data.customerId || ''),
+        paymentType: formData.data.paymentType || 'CASH',
+        paymentTerms: formData.data.paymentTerms,
+        deliveryDate: formData.data.deliveryDate,
+        currency: 'SAR',
+        lineItems: lineItems.map((item) => ({
+          description: item.description,
+          productCode: item.productCode,
+          quantity: Number(item.quantity) || 0,
+          price: Number(item.price) || 0,
+          discount_amount: Number(item.discount_amount) || 0,
+          discount_percentage: Number(item.discount_percentage) || 0,
+          taxExempt: !!item.taxExempt,
+          taxExemptReason: item.taxExemptReason || '',
+        })),
+        vat: 15,
+        note: formData.data.note,
+      };
+
+      await InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData));
+      await InvoiceSubmitToZatcaRequest(decodedToken, id);
+      showToast('Invoice updated and submitted to ZATCA successfully!', 'success');
+      navigate('/invoices');
+    } catch (error) {
+      showToast(error?.message || 'Failed to update and submit invoice to ZATCA', 'error');
+    } finally {
+      _isLoading(false);
+    }
+  };
+
   const handleAddLineItem = () => {
     _lineItems((old) => [...old, { ...INITIAL_LINE_ITEM }]);
   };
 
   const handleChangeLineItem = (index, field, value) => {
     _lineItems((old) =>
-      old.map((item, i) =>
-        i === index
-          ? {
+      old.map((item, i) => {
+        if (i !== index) return item;
+
+        // Calculate numeric value for numeric fields
+        const numValue = field === 'taxExempt'
+          ? value
+          : field === 'quantity' || field === 'price' || field === 'discount_amount' || field === 'discount_percentage'
+            ? value === '' ? '' : Number(value) || 0
+            : value;
+
+        // Get current item values for calculations
+        const quantity = field === 'quantity' ? numValue : (Number(item.quantity) || 0);
+        const price = field === 'price' ? numValue : (Number(item.price) || 0);
+        const lineTotal = quantity * price;
+
+        // Handle discount_amount change - update discount_percentage
+        if (field === 'discount_amount') {
+          const discountAmount = numValue;
+          const discountPercentage = lineTotal > 0
+            ? ((discountAmount / lineTotal) * 100).toFixed(2)
+            : 0;
+          return {
             ...item,
-            [field]:
-              field === 'taxExempt'
-                ? value
-                : field === 'quantity' || field === 'price' || field === 'discount_amount' || field === 'discount_percentage'
-                  ? value === '' ? '' : Number(value) || 0
-                  : value,
+            discount_amount: discountAmount,
+            discount_percentage: parseFloat(discountPercentage) || 0,
+          };
+        }
+
+        // Handle discount_percentage change - update discount_amount
+        if (field === 'discount_percentage') {
+          const discountPercentage = numValue;
+          const discountAmount = lineTotal > 0
+            ? ((lineTotal * discountPercentage) / 100).toFixed(2)
+            : 0;
+          return {
+            ...item,
+            discount_percentage: discountPercentage,
+            discount_amount: parseFloat(discountAmount) || 0,
+          };
+        }
+
+        // Handle quantity or price change - recalculate discount_amount if discount_percentage exists
+        if (field === 'quantity' || field === 'price') {
+          const updatedItem = {
+            ...item,
+            [field]: numValue,
+          };
+          const currentDiscountPercentage = Number(item.discount_percentage) || 0;
+          if (currentDiscountPercentage > 0) {
+            const newLineTotal = (field === 'quantity' ? numValue : quantity) * (field === 'price' ? numValue : price);
+            const recalculatedDiscountAmount = newLineTotal > 0
+              ? ((newLineTotal * currentDiscountPercentage) / 100).toFixed(2)
+              : 0;
+            updatedItem.discount_amount = parseFloat(recalculatedDiscountAmount) || 0;
           }
-          : item
-      )
+          return updatedItem;
+        }
+
+        // Default case - just update the field
+        return {
+          ...item,
+          [field]: numValue,
+        };
+      })
     );
   };
 
@@ -390,9 +528,11 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           <input
             name="invoiceNumber"
             type="text"
+            disabled={true}
             value={formData.data.invoiceNumber}
-            onChange={handleChangeFormData}
-            placeholder="INV-00000"
+            onChange={() => { }}
+            // onChange={handleChangeFormData}
+            placeholder="Auto-generated field"
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
           />
           {formData.errors.invoiceNumber && (
@@ -427,6 +567,9 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             placeholder="REF-00000"
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
           />
+          {formData.errors.referenceNumber && (
+            <span className="text-xs text-tomato">{formData.errors.referenceNumber}</span>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -1007,12 +1150,23 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                   value={null}
                   onChange={(option) => {
                     if (!option) return;
-                    // Handle action selection
-                    if (option.value !== 'cancel') {
-                      handleSubmitForm();
-                    } else {
+
+                    if (option.value === 'cancel') {
                       navigate('/invoices');
+                      return;
                     }
+
+                    if (option.value === 'create-report-zatca') {
+                      if (id) {
+                        handleUpdateAndSubmitToZatca();
+                      } else {
+                        handleCreateAndSubmitToZatca();
+                      }
+                      return;
+                    }
+
+                    // Default action: simple create/update without ZATCA submission
+                    handleSubmitForm();
                   }}
                   isDisabled={isLoading || invoiceData?.isError}
                   options={[
