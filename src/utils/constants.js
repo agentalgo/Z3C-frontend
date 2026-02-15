@@ -1,5 +1,5 @@
-// export const BASE_URL = 'https://api.zatca.com/api/v1';
-export const BASE_URL = 'http://localhost:5000/api/v1';
+// BASE_URL is read from .env (VITE_BASE_URL). See .env.example. Do not use import.meta.env.BASE_URL — that is Vite's app base path.
+export const BASE_URL = import.meta.env.VITE_BASE_URL ?? 'http://localhost:5000/api/v1';
 
 export const ENCODER = "Z@tca_da$hb0arD_2026";
 
