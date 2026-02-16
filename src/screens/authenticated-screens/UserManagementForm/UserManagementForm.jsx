@@ -357,7 +357,13 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
             </button>
           </div>
           {formData.errors.password && (
-            <span className="text-xs text-tomato">{formData.errors.password}</span>
+            <span className="text-xs text-tomato">
+              {
+                formData.errors.password?.includes('valid')
+                  ? 'Password should be alphanumeric with special characters'
+                  : formData.errors.password
+              }
+            </span>
           )}
         </div>
 
