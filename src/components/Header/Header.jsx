@@ -1,11 +1,29 @@
 // Packages
-import { Fragment } from 'react';
+import { Fragment, useMemo } from 'react';
+import { useAtomValue } from 'jotai';
+
+// Atoms
+import { loginInfo } from '../../atoms';
 
 // Utils
 import { useTheme } from '../../contexts/ThemeContext';
+import { decodeString } from '../../utils';
 
 function Header() {
   const { theme, toggleTheme } = useTheme();
+  const loginInfoValue = useAtomValue(loginInfo);
+
+  const user = useMemo(() => {
+    try {
+      if (!loginInfoValue) return null;
+      return JSON.parse(decodeString(loginInfoValue));
+    } catch (error) {
+      console.error('Failed to parse user info:', error);
+      return null;
+    }
+  }, [loginInfoValue]);
+
+  const userName = user?.username || user?.fullName || user?.name || 'Guest';
 
   const SEARCH_SECTION = () => (
     <div className="flex items-center gap-6 flex-1">
@@ -38,11 +56,11 @@ function Header() {
         <span className="material-symbols-outlined">
           {theme === 'light' ? 'dark_mode' : 'light_mode'}
         </span>
-      </button>     
+      </button>
       <div className="h-8 w-[1px] bg-[#e7ebf3] dark:border-[#2a3447] mx-2"></div>
       <div className="flex items-center gap-3">
         <div className="text-right hidden sm:block">
-          <p className="text-sm font-bold leading-tight">Ahmed K.</p>
+          <p className="text-sm font-bold leading-tight">{userName}</p>
           <p className="text-[11px] text-[#4c669a] dark:text-[#a0aec0]">Administrator</p>
         </div>
         <div

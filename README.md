@@ -47,3 +47,7 @@ An admin dashboard built with React for ZATCA (Zakat, Tax and Customs Authority)
  - **Fontsource Inter (ver 5.2)**
 
  - **ESLint (ver 9.39)**
+ 
+ - **Crypto-JS (ver 4.2)**
+ 
+ - **JWT Decode (ver 4.0)**

@@ -1,15 +1,38 @@
 // Packages
+import { useMemo } from 'react';
+import { useAtom } from 'jotai';
 import { NavLink } from 'react-router-dom';
+
+// APIs
+import { LogoutRequest } from '../../requests';
+
+// Utils
+import { auth } from '../../atoms';
+import { decodeString } from '../../utils';
 
 const navigation = [
   { label: 'Dashboard', icon: 'dashboard', path: '/' },
-  { label: 'Company Profile', icon: 'business', path: '/company-profile' },
+  // { label: 'Company Profile', icon: 'business', path: '/company-profile' },
   { label: 'Invoices', icon: 'description', path: '/invoices' },
   { label: 'Customer', icon: 'people', path: '/customer' },
   { label: 'User Management', icon: 'manage_accounts', path: '/user-management' },
 ]
 
 function Sidebar() {
+  const [token, _token] = useAtom(auth);
+  const decodedToken = useMemo(() => decodeString(token), [token]);
+
+  const handleLogout = () => {
+    if (decodedToken) {
+      LogoutRequest(decodedToken)
+        .finally(() => {
+          _token(null);
+        });
+    } else {
+      _token(null);
+    }
+  };
+
   const LOGO_SECTION = () => (
     <div className="flex items-center gap-3 mb-8">
       <div className="bg-primary p-2 rounded-lg text-white">
@@ -23,16 +46,15 @@ function Sidebar() {
   );
 
   const NAVIGATION_SECTION = () => (
-    <nav className="flex flex-col gap-1 flex-1">
+    <nav className="flex flex-col gap-1">
       {navigation.map((item) => (
         <NavLink
           key={item.label}
           to={item.path}
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm cursor-pointer ${
-              isActive
-                ? 'bg-primary/10 text-primary font-semibold'
-                : 'text-[#4c669a] dark:text-[#a0aec0] font-medium hover:bg-gray-100 dark:hover:bg-gray-800'
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm cursor-pointer ${isActive
+              ? 'bg-primary/10 text-primary font-semibold'
+              : 'text-[#4c669a] dark:text-[#a0aec0] font-medium hover:bg-gray-100 dark:hover:bg-gray-800'
             }`
           }
         >
@@ -41,12 +63,24 @@ function Sidebar() {
         </NavLink>
       ))}
     </nav>
-  )
+  );
+
+  const LOGOUT_SECTION = () => (
+    <button
+      type="button"
+      onClick={handleLogout}
+      className="mt-6 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/30 transition-colors"
+    >
+      <span className="material-symbols-outlined">logout</span>
+      <span>Logout</span>
+    </button>
+  );
 
   const SIDEBAR_CONTENT = () => (
     <div className="p-6 flex flex-col h-full">
       {LOGO_SECTION()}
-      {NAVIGATION_SECTION()}      
+      {NAVIGATION_SECTION()}
+      {LOGOUT_SECTION()}
     </div>
   );
 

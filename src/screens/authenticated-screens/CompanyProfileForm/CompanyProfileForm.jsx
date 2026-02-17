@@ -1,66 +1,162 @@
 // Packages
-import { Fragment, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Fragment, useState, useMemo, Suspense, use, useEffect } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useAtomValue } from 'jotai';
+
+// APIs
+import {
+  CompanyProfileCreateRequest,
+  CompanyProfileDetailRequest,
+  CompanyProfileUpdateRequest,
+} from '../../../requests';
 
 // Utils
-import { Footer } from '../../../components';
-import { showToast, validateSubmissionData } from '../../../utils';
+import { Footer, ErrorFallback } from '../../../components';
+import { showToast, validateSubmissionData, decodeString } from '../../../utils';
+import { auth } from '../../../atoms';
+
+const INITIAL_FORM_DATA = {
+  data: {
+    profileName: '',
+    companyName: '',
+    companyArabicName: '',
+    email: '',
+    phone: '',
+    vatNumber: '',
+    notes: '',
+    invoiceType: '',
+    crnNumber: '',
+    branchName: '',
+    branchIndustry: '',
+    paymentTerms: '',
+    bankDetailsSar: '',
+    bankDetailsUsd: '',
+    fullAddress: '',
+    fullAddressArabic: '',
+    street: '',
+    additionalStreetAddress: '',
+    buildingNumber: '',
+    plotIdentification: '',
+    citySubDivisionName: '',
+    city: '',
+    postCode: '',
+    countrySubEntity: '',
+    country: '',
+    countryCode: '',
+  },
+  validations: {
+    profileName: { isRequired: true, label: 'Profile Name' },
+    companyName: { isRequired: true, label: 'Company Name' },
+    email: {
+      isRequired: true,
+      label: 'Email',
+      regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
+    },
+    vatNumber: { isRequired: true, label: 'VAT Number' },
+    invoiceType: { isRequired: true, label: 'Invoice Type' },
+    crnNumber: { isRequired: true, label: 'CRN Number' },
+    bankDetailsSar: { isRequired: true, label: 'Bank Details' },
+    bankDetailsUsd: { isRequired: true, label: 'Bank Details USD' },
+    city: { isRequired: true, label: 'City' },
+    country: { isRequired: true, label: 'Country' },
+    countryCode: { isRequired: true, label: 'Country Code' },
+  },
+  errors: {},
+};
 
 function CompanyProfileForm() {
+  const { id } = useParams();
   const navigate = useNavigate();
+  const authValue = useAtomValue(auth);
+  const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
 
-  const INITIAL_FORM_DATA = {
-    data: {
-      profileName: '',
-      companyName: '',
-      companyArabicName: '',
-      email: '',
-      phone: '',
-      vatNumber: '',
-      notes: '',
-      invoiceType: '',
-      crnNumber: '',
-      branchName: '',
-      branchIndustry: '',
-      paymentTerms: '',
-      bankDetailsSar: '',
-      bankDetailsUsd: '',
-      fullAddress: '',
-      fullAddressArabic: '',
-      street: '',
-      additionalStreetAddress: '',
-      buildingNumber: '',
-      plotIdentification: '',
-      citySubDivisionName: '',
-      city: '',
-      postCode: '',
-      countrySubEntity: '',
-      country: '',
-      countryCode: '',
-    },
-    validations: {
-      profileName: { isRequired: true, label: 'Profile Name' },
-      companyName: { isRequired: true, label: 'Company Name' },
-      email: {
-        isRequired: true,
-        label: 'Email',
-        regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
-      },
-      vatNumber: { isRequired: true, label: 'VAT Number' },
-      invoiceType: { isRequired: true, label: 'Invoice Type' },
-      crnNumber: { isRequired: true, label: 'CRN Number' },
-      bankDetailsSar: { isRequired: true, label: 'Bank Details' },
-      bankDetailsUsd: { isRequired: true, label: 'Bank Details USD' },
-      city: { isRequired: true, label: 'City' },
-      country: { isRequired: true, label: 'Country' },
-      countryCode: { isRequired: true, label: 'Country Code' },
-    },
-    errors: {},
-  };
+  const profilePromise = useMemo(() => {
+    if (id) {
+      return CompanyProfileDetailRequest(decodedToken, id).catch((err) => {
+        console.error('Failed to fetch profile details:', err);
+        return { data: null, isError: true };
+      });
+    }
+    return null;
+  }, [id, decodedToken]);
 
+  // *********** Render Functions ***********
+  const CONTENT = () => (
+    <Fragment>
+      <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
+        <Suspense fallback={
+          <div className="p-8 flex items-center justify-center">
+            <div className="flex items-center gap-2 text-[#4c669a]">
+              <span className="material-symbols-outlined animate-spin">sync</span>
+              Loading company profile...
+            </div>
+          </div>
+        }>
+          <CompanyProfileFormContent
+            id={id}
+            profilePromise={profilePromise}
+            decodedToken={decodedToken}
+            navigate={navigate}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    </Fragment>
+  );
+
+  return (
+    <div id="company-profile-form">
+      {CONTENT()}
+    </div>
+  );
+}
+
+function CompanyProfileFormContent({ id, profilePromise, decodedToken, navigate }) {
+  const profileData = profilePromise ? use(profilePromise) : null;
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
+  const [isLoading, _isLoading] = useState(false);
 
-  /********  handlers  ********/
+  useEffect(() => {
+    if (profileData?.data) {
+      const apiData = profileData.data;
+      _formData(old => ({
+        ...old,
+        data: {
+          ...old.data,
+          profileName: apiData.profileName || '',
+          companyName: apiData.companyName || '',
+          companyArabicName: apiData.companyArabicName || '',
+          email: apiData.email || '',
+          phone: apiData.phone || apiData.phoneNumber || '',
+          vatNumber: apiData.vat || apiData.vatNumber || '',
+          notes: apiData.notes || '',
+          invoiceType: apiData.invoiceType || '',
+          crnNumber: apiData.crnNumber || '',
+          branchName: apiData.branchName || '',
+          branchIndustry: apiData.branchIndustry || '',
+          paymentTerms: apiData.paymentTerms || '',
+          bankDetailsSar: apiData.bankDetailsSar || '',
+          bankDetailsUsd: apiData.bankDetailsUsd || '',
+          fullAddress: apiData.fullAddress || '',
+          fullAddressArabic: apiData.fullAddressArabic || '',
+          street: apiData.street || '',
+          additionalStreetAddress: apiData.additionalStreetAddress || '',
+          buildingNumber: apiData.buildingNumber || '',
+          plotIdentification: apiData.plotIdentification || '',
+          citySubDivisionName: apiData.citySubDivisionName || '',
+          city: apiData.city || '',
+          postCode: apiData.postCode || '',
+          countrySubEntity: apiData.countrySubEntity || '',
+          country: apiData.country || '',
+          countryCode: apiData.countryCode || '',
+        },
+      }));
+    } else if (profileData?.isError) {
+      _formData({ ...INITIAL_FORM_DATA });
+    }
+  }, [profileData]);
+
+  // *********** Handlers ***********
   const handleChangeFormData = (e) => {
     const { name, value } = e.target;
     _formData((old) => ({
@@ -94,22 +190,38 @@ function CompanyProfileForm() {
   };
 
   const handleSubmitForm = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (handleValidateForm()) {
-      console.log('Company profile form is valid', formData.data);
-      showToast('Company profile saved successfully!', 'success');
-      // TODO: Add API call to create company profile
+      _isLoading(true);
+
+      const payload = { ...formData.data };
+
+      const request = id
+        ? CompanyProfileUpdateRequest(decodedToken, id, JSON.stringify(payload))
+        : CompanyProfileCreateRequest(decodedToken, JSON.stringify(payload));
+
+      request
+        .then(() => {
+          showToast(id ? 'Company profile updated successfully!' : 'Company profile created successfully!', 'success');
+          navigate('/company-profile');
+        })
+        .catch((err) => {
+          showToast(err?.message || (id ? 'Failed to update company profile' : 'Failed to create company profile'), 'error');
+        })
+        .finally(() => {
+          _isLoading(false);
+        });
     } else {
       showToast('Please fill in all required fields', 'error');
     }
   };
 
-  /********  Render functions  ********/
+  // *********** Render Functions ***********
   const PAGE_HEADER = () => (
     <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-[#0d121b] dark:text-white text-3xl font-black leading-tight">
-          Create Company Profile
+          {id ? 'Edit Company Profile' : 'Create Company Profile'}
         </h1>
       </div>
     </div>
@@ -557,10 +669,11 @@ function CompanyProfileForm() {
     <div className="flex gap-3 pt-6">
       <button
         type="submit"
+        disabled={isLoading || profileData?.isError}
         onClick={handleSubmitForm}
-        className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20"
+        className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        SAVE
+        {isLoading ? 'SAVING...' : 'SAVE'}
       </button>
       <button
         type="button"
@@ -615,4 +728,3 @@ function CompanyProfileForm() {
 }
 
 export default CompanyProfileForm;
-

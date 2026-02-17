@@ -1,9 +1,11 @@
 // Packages
-import { Fragment } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAtomValue } from 'jotai';
 
 // Utils
-import '../utils/helpers.jsx';
+import '../utils';
+import { auth } from '../atoms';
 import { Sidebar, Header } from '../components';
 
 // Authenticated Screens
@@ -11,9 +13,9 @@ import {
   Dashboard,
   CompanyProfileList,
   CompanyProfileForm,
-  InvoicesList,
+  InvoiceList,
   InvoiceForm,
-  CustomersList,
+  CustomerList,
   CustomerForm,
   UserManagementList,
   UserManagementForm,
@@ -23,9 +25,13 @@ import {
 import { Login, ResetPassword } from './unauthenticated-screens';
 
 function Screens() {
-  // TODO: Replace with actual authentication state (e.g. from context/API)
-  // const isAuthenticated = false;
-  const isAuthenticated = false;
+  const authValue = useAtomValue(auth);
+  const [hasMounted, setHasMounted] = useState(false);
+  const isAuthenticated = Boolean(authValue);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   const AUTHENTICATED_LAYOUT = () => (
     <div className="min-h-screen bg-[#f5f6f8] dark:bg-[#0f1323] text-[#0d121b] dark:text-[#f8f9fc]">
@@ -34,15 +40,20 @@ function Screens() {
         <main className="flex-1 flex flex-col overflow-y-auto">
           <Header />
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="*" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/company-profile" element={<CompanyProfileList />} />
             <Route path="/company-profile/new" element={<CompanyProfileForm />} />
-            <Route path="/invoices" element={<InvoicesList />} />
+            <Route path="/company-profile/:id" element={<CompanyProfileForm />} />
+            <Route path="/invoices" element={<InvoiceList />} />
             <Route path="/invoices/new" element={<InvoiceForm />} />
-            <Route path="/customer" element={<CustomersList />} />
+            <Route path="/invoices/:id" element={<InvoiceForm />} />
+            <Route path="/customer" element={<CustomerList />} />
             <Route path="/customer/new" element={<CustomerForm />} />
+            <Route path="/customer/:id" element={<CustomerForm />} />
             <Route path="/user-management" element={<UserManagementList />} />
             <Route path="/user-management/new" element={<UserManagementForm />} />
+            <Route path="/user-management/:id" element={<UserManagementForm />} />
           </Routes>
         </main>
       </div>
@@ -59,11 +70,24 @@ function Screens() {
     </div>
   );
 
-  const CONTENT = () => (
-    <Fragment>
-      {isAuthenticated ? AUTHENTICATED_LAYOUT() : UNAUTHENTICATED_LAYOUT()}
-    </Fragment>
-  );
+  const CONTENT = () => {
+    if (!hasMounted) {
+      // Avoid flashing the login screen briefly on initial render
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#f5f6f8] dark:bg-[#0f1323] text-[#0d121b] dark:text-[#f8f9fc]">
+          <span className="text-sm text-slate-600 dark:text-slate-300">
+            Loading your workspace...
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <Fragment>
+        {isAuthenticated ? AUTHENTICATED_LAYOUT() : UNAUTHENTICATED_LAYOUT()}
+      </Fragment>
+    );
+  };
 
   return CONTENT();
 }
