@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const UserCreateRequest = (token, jsonData) => {
     const headers = {
@@ -10,15 +10,17 @@ const UserCreateRequest = (token, jsonData) => {
         headers: headers,
         body: jsonData
     })
-        .then((res) => {
+        .then(async (res) => {
             if (!res.ok) {
-                handleNetworkError(res, 'Failed to create user');
-                throw new Error('Failed to create user');
+                await handleNetworkError(res, 'Failed to create user');
+                const err = new Error('Failed to create user');
+                err[HANDLED_RESPONSE_ERROR] = true;
+                throw err;
             }
             return res.json();
         })
         .catch((err) => {
-            handleNetworkError(err, 'User create request failed');
+            if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'User create request failed');
             throw err;
         });
 };

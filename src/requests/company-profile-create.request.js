@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const CompanyProfileCreateRequest = (token, jsonData) => {
     const headers = {
@@ -10,15 +10,17 @@ const CompanyProfileCreateRequest = (token, jsonData) => {
         headers: headers,
         body: jsonData
     })
-        .then((res) => {
+        .then(async (res) => {
             if (!res.ok) {
-                handleNetworkError(res, 'Failed to create company profile');
-                throw new Error('Failed to create company profile');
+                await handleNetworkError(res, 'Failed to create company profile');
+                const err = new Error('Failed to create company profile');
+                err[HANDLED_RESPONSE_ERROR] = true;
+                throw err;
             }
             return res.json();
         })
         .catch((err) => {
-            handleNetworkError(err, 'Company profile create request failed');
+            if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Company profile create request failed');
             throw err;
         });
 };

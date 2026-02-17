@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const CustomerListRequest = async (token, params = {}) => {
   const queryParams = new URLSearchParams();
@@ -21,12 +21,14 @@ const CustomerListRequest = async (token, params = {}) => {
       headers: headers,
     });
     if (!res.ok) {
-      handleNetworkError(res, 'Failed to fetch customers');
-      throw new Error('Failed to fetch customers');
+      await handleNetworkError(res, 'Failed to fetch customers');
+      const err = new Error('Failed to fetch customers');
+      err[HANDLED_RESPONSE_ERROR] = true;
+      throw err;
     }
     return await res.json();
   } catch (err) {
-    handleNetworkError(err, 'Customers list request failed');
+    if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Customers list request failed');
     throw err;
   }
 };

@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const LogoutRequest = (token) => {
   const headers = {
@@ -9,15 +9,17 @@ const LogoutRequest = (token) => {
     method: 'POST',
     headers: headers
   })
-    .then((res) => {
+    .then(async (res) => {
       if (!res.ok) {
-        handleNetworkError(res, 'Logout request failed');
-        throw new Error('Logout request failed');
+        await handleNetworkError(res, 'Logout request failed');
+        const err = new Error('Logout request failed');
+        err[HANDLED_RESPONSE_ERROR] = true;
+        throw err;
       }
       return res.json();
     })
     .catch((err) => {
-      handleNetworkError(err, 'Logout request failed');
+      if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Logout request failed');
       throw err;
     });
 };

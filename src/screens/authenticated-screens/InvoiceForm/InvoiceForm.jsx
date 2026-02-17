@@ -17,13 +17,11 @@ import { auth } from '../../../atoms';
 const INITIAL_FORM_DATA = {
   data: {
     invoiceNumber: '',
-    invoiceType: '',
     customerId: null,
     referenceNumber: '',
     paymentType: '',
     paymentTerms: '',
     customerCategory: 'corporate',
-    dueDate: '',
     deliveryDate: '',
     // Customer fields (matched with registration fields)
     registrationName: '',
@@ -44,12 +42,14 @@ const INITIAL_FORM_DATA = {
     countryCode: 'SA',
     // Note
     note: '',
+    vat: 15,
   },
   validations: {
     referenceNumber: { isRequired: true, label: 'Reference Number' },
     customerId: { isRequired: true, label: 'Customer' },
     paymentTerms: { isRequired: true, label: 'Payment Terms' },
-    deliveryDate: { isRequired: true, label: 'Delivery Date' }
+    deliveryDate: { isRequired: true, label: 'Delivery Date' },
+    vat: { isRequired: true, isNumber: true, label: 'VAT' }
   },
   errors: {},
 };
@@ -127,11 +127,9 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         data: {
           ...old.data,
           invoiceNumber: apiData.invoiceNumber || '',
-          invoiceType: apiData.invoiceType?.toLowerCase() || '',
           referenceNumber: apiData.referenceNumber || '',
           paymentType: apiData.paymentType || '',
           paymentTerms: apiData.paymentTerms || '',
-          dueDate: apiData.dueDate ? new Date(apiData.dueDate).toISOString().split('T')[0] : '',
           deliveryDate: apiData.deliveryDate ? new Date(apiData.deliveryDate).toISOString().split('T')[0] : '',
           // Customer fields from nested customerId object
           customerId: customer._id ? String(customer._id) : null,
@@ -152,6 +150,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           postalZone: customer.postalZone || '',
           countryCode: customer.countryCode || 'SA',
           note: apiData.note || '',
+          vat: apiData.vat || 15,
         },
       }));
 
@@ -253,6 +252,62 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       });
   };
 
+  const handleValidateLineItems = () => {
+    // Check if lineItems array is empty
+    if (!lineItems || lineItems.length === 0) {
+      return { allValid: false, errors: { empty: 'Line items should not be empty' } };
+    }
+
+    const validationData = {
+      description: { isRequired: true },
+      productCode: { isRequired: true },
+      quantity: { isRequired: true, isNumber: true },
+      price: { isRequired: true, isNumber: true },
+    };
+
+    let allValid = true;
+    const lineItemErrors = {};
+
+    // Validate each line item
+    lineItems.forEach((item, index) => {
+      const { allValid: itemValid, errors: itemErrors } = validateSubmissionData(
+        item,
+        validationData
+      );
+
+      if (!itemValid) {
+        allValid = false;
+        lineItemErrors[index] = itemErrors;
+      }
+    });
+
+    return { allValid, errors: lineItemErrors };
+  };
+
+  const getLineItemsErrorMessage = (lineItemErrors) => {
+    // Handle empty line items case
+    if (lineItemErrors.empty) {
+      return lineItemErrors.empty;
+    }
+
+    const missingFields = new Set();
+    
+    Object.values(lineItemErrors).forEach((errors) => {
+      if (typeof errors === 'object' && errors !== null) {
+        Object.keys(errors).forEach((field) => {
+          missingFields.add(field);
+        });
+      }
+    });
+
+    const fieldNames = Array.from(missingFields).map(field => {
+      // Convert camelCase to Title Case
+      return field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
+    });
+
+    return `Line items have missing ${fieldNames.join(', ')}`;
+  };
+
   const handleValidateForm = () => {
     const { allValid, errors } = validateSubmissionData(
       formData.data,
@@ -261,12 +316,6 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
     const validationErrors = { ...errors };
     let isValid = allValid;
-
-    // Validate lineItems array
-    if (!lineItems || lineItems.length === 0) {
-      validationErrors.lineItems = 'Line items should not be empty';
-      isValid = false;
-    }
 
     if (!isValid) {
       _formData((old) => ({
@@ -283,10 +332,36 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     return isValid;
   };
 
+  const handleValidateAll = () => {
+    // Run both validations in parallel
+    const formValidation = handleValidateForm();
+    const lineItemsValidation = handleValidateLineItems();
+
+    const formValid = formValidation;
+    const lineItemsValid = lineItemsValidation.allValid;
+
+    // Show toast messages for each error type
+    if (!formValid) {
+      showToast('Please fill in all required fields', 'error');
+    }
+
+    if (!lineItemsValid) {
+      const errorMessage = getLineItemsErrorMessage(lineItemsValidation.errors);
+      showToast(errorMessage, 'error');
+    }
+
+    return formValid && lineItemsValid;
+  };
+
   const handleSubmitForm = (e) => {
     if (e) e.preventDefault();
-    if (handleValidateForm()) {
-      _isLoading(true);
+    
+    // Validate both form and line items in parallel
+    if (!handleValidateAll()) {
+      return;
+    }
+
+    _isLoading(true);
 
       const payloadData = {
         referenceNumber: formData.data.referenceNumber,
@@ -305,7 +380,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           taxExempt: !!item.taxExempt,
           taxExemptReason: item.taxExemptReason || '',
         })),
-        vat: 15,
+        vat: Number(formData.data.vat) || 15,
         note: formData.data.note,
       };
 
@@ -321,23 +396,22 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         .catch((err) => {
           showToast(err?.message || (id ? 'Failed to update invoice' : 'Failed to create invoice'), 'error');
         })
-        .finally(() => {
-          _isLoading(false);
-        });
-    } else {
-      showToast('Please fill in all required fields', 'error');
-    }
+      .finally(() => {
+        _isLoading(false);
+      });
   };
 
   const handleCreateAndSubmitToZatca = async () => {
-    if (!handleValidateForm()) {
-      showToast('Please fill in all required fields', 'error');
-      return;
-    }
     if (isLoading) {
       showToast('Please wait for the previous request to complete', 'error');
       return;
     }
+
+    // Validate both form and line items in parallel
+    if (!handleValidateAll()) {
+      return;
+    }
+
     try {
       _isLoading(true);
       const payloadData = {
@@ -357,7 +431,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           taxExempt: !!item.taxExempt,
           taxExemptReason: item.taxExemptReason || '',
         })),
-        vat: 15,
+        vat: Number(formData.data.vat) || 15,
         note: formData.data.note,
       };
 
@@ -382,14 +456,16 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   };
 
   const handleUpdateAndSubmitToZatca = async () => {
-    if (!handleValidateForm()) {
-      showToast('Please fill in all required fields', 'error');
-      return;
-    }
     if (isLoading) {
       showToast('Please wait for the previous request to complete', 'error');
       return;
     }
+
+    // Validate both form and line items in parallel
+    if (!handleValidateAll()) {
+      return;
+    }
+
     try {
       _isLoading(true);
       const payloadData = {
@@ -409,7 +485,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           taxExempt: !!item.taxExempt,
           taxExemptReason: item.taxExemptReason || '',
         })),
-        vat: 15,
+        vat: Number(formData.data.vat) || 15,
         note: formData.data.note,
       };
 
@@ -541,23 +617,6 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Invoice Type</label>
-          <select
-            name="invoiceType"
-            value={formData.data.invoiceType}
-            onChange={handleChangeFormData}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white pr-8 text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors appearance-none dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          >
-            <option value="">Select invoice type...</option>
-            <option value="standard">Standard Tax Invoice (B2B)</option>
-            <option value="simplified">Simplified Tax Invoice (B2C)</option>
-          </select>
-          {formData.errors.invoiceType && (
-            <span className="text-xs text-tomato">{formData.errors.invoiceType}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
           <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Reference Number</label>
           <input
             name="referenceNumber"
@@ -618,21 +677,6 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           />
         </div>
 
-        {/* Row 3 */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Due Date</label>
-          <input
-            name="dueDate"
-            type="date"
-            value={formData.data.dueDate}
-            onChange={handleChangeFormData}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          />
-          {formData.errors.dueDate && (
-            <span className="text-xs text-tomato">{formData.errors.dueDate}</span>
-          )}
-        </div>
-
         <div className="flex flex-col gap-2">
           <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Currency</label>
           <input
@@ -653,6 +697,24 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             placeholder="Internal note"
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
           />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">VAT (%)</label>
+          <input
+            name="vat"
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={formData.data.vat}
+            onChange={handleChangeFormData}
+            placeholder="15"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          />
+          {formData.errors.vat && (
+            <span className="text-xs text-tomato">{formData.errors.vat}</span>
+          )}
         </div>
       </div>
     </section>
@@ -1113,11 +1175,13 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     };
     const calculateVat = () => {
       const total = lineItems.reduce((acc, item) => acc + getItemNetTotal(item), 0);
-      return (total * 0.15).toFixed(2);
+      const vatPercentage = Number(formData.data.vat) || 15;
+      return (total * (vatPercentage / 100)).toFixed(2);
     };
     const calculateGrandTotal = () => {
       const total = lineItems.reduce((acc, item) => acc + getItemNetTotal(item), 0);
-      return (total * 1.15).toFixed(2);
+      const vatPercentage = Number(formData.data.vat) || 15;
+      return (total * (1 + vatPercentage / 100)).toFixed(2);
     };
     return (
       <Fragment>
@@ -1129,7 +1193,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                 <span className="text-lg font-bold dark:text-white">{calculateTotal()} SAR</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-primary uppercase">VAT (15%)</span>
+                <span className="text-[10px] font-bold text-primary uppercase">VAT ({formData.data.vat || 15}%)</span>
                 <span className="text-lg font-bold dark:text-white">{calculateVat()} SAR</span>
               </div>
               <div className="flex flex-col">

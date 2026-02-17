@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const CompanyProfileUpdateRequest = (token, profileId, jsonData) => {
     const headers = {
@@ -10,15 +10,17 @@ const CompanyProfileUpdateRequest = (token, profileId, jsonData) => {
         headers: headers,
         body: jsonData
     })
-        .then((res) => {
+        .then(async (res) => {
             if (!res.ok) {
-                handleNetworkError(res, 'Failed to update company profile');
-                throw new Error('Failed to update company profile');
+                await handleNetworkError(res, 'Failed to update company profile');
+                const err = new Error('Failed to update company profile');
+                err[HANDLED_RESPONSE_ERROR] = true;
+                throw err;
             }
             return res.json();
         })
         .catch((err) => {
-            handleNetworkError(err, 'Company profile update request failed');
+            if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Company profile update request failed');
             throw err;
         });
 };

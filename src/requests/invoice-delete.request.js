@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const InvoiceDeleteRequest = (token, invoiceId) => {
   const headers = {
@@ -9,15 +9,17 @@ const InvoiceDeleteRequest = (token, invoiceId) => {
     method: 'DELETE',
     headers: headers,
   })
-    .then((res) => {
+    .then(async (res) => {
       if (!res.ok) {
-        handleNetworkError(res, 'Failed to delete invoice');
-        throw new Error('Failed to delete invoice');
+        await handleNetworkError(res, 'Failed to delete invoice');
+        const err = new Error('Failed to delete invoice');
+        err[HANDLED_RESPONSE_ERROR] = true;
+        throw err;
       }
       return res.json();
     })
     .catch((err) => {
-      handleNetworkError(err, 'Invoice get request failed');
+      if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Invoice get request failed');
       throw err;
     });
 };

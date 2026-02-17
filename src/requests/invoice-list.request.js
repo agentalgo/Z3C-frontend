@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const InvoiceListRequest = async (token, params = {}) => {
   const queryParams = new URLSearchParams();
@@ -24,12 +24,14 @@ const InvoiceListRequest = async (token, params = {}) => {
       headers: headers,
     });
     if (!res.ok) {
-      handleNetworkError(res, 'Failed to fetch invoices');
-      throw new Error('Failed to fetch invoices');
+      await handleNetworkError(res, 'Failed to fetch invoices');
+      const err = new Error('Failed to fetch invoices');
+      err[HANDLED_RESPONSE_ERROR] = true;
+      throw err;
     }
     return await res.json();
   } catch (err) {
-    handleNetworkError(err, 'Invoices list request failed');
+    if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Invoices list request failed');
     throw err;
   }
 };
