@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const LoginRequest = (data) => {
   const body = typeof data === 'string' ? data : JSON.stringify(data);
@@ -7,15 +7,17 @@ const LoginRequest = (data) => {
     headers: defaultHeaders,
     body,
   })
-    .then((res) => { 
+    .then(async (res) => {
       if (!res.ok) {
-        handleNetworkError(res, 'Invalid email or password');
-        throw new Error('Invalid email or password');
+        await handleNetworkError(res, 'Invalid email or password');
+        const err = new Error('Invalid email or password');
+        err[HANDLED_RESPONSE_ERROR] = true;
+        throw err;
       }
       return res.json();
     })
     .catch((err) => {
-      handleNetworkError(err, 'Login request failed');
+      if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Login request failed');
       throw err;
     });
 };

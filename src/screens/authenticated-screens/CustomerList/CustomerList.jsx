@@ -11,7 +11,7 @@ import { CustomerListRequest, CustomerDeleteRequest } from '../../../requests';
 // Utils
 import { auth } from '../../../atoms';
 import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, showToast } from '../../../utils';
 
 function CustomerList() {
   const navigate = useNavigate();
@@ -196,7 +196,8 @@ function CustomersTableContent({
     CustomerDeleteRequest(decodedToken, selectedCustomerId)
       .then(() => {
         showToast('Customer deleted successfully!', 'success');
-        handleCloseDeleteModal();
+        _isDeleteModalOpen(false);
+        _selectedCustomerId(null);
         refreshCustomers?.();
       })
       .catch((err) => {
@@ -281,26 +282,51 @@ function CustomersTableContent({
         ),
       },
       {
+        accessorKey: 'isActive',
+        header: 'Status',
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const isActive = getValue();
+          return (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+              isActive
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
+                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                isActive ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'
+              }`}></span>
+              {isActive ? 'Active' : 'Inactive'}
+            </span>
+          );
+        },
+      },
+      {
         id: 'actions',
         header: 'Actions',
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(`/customer/${row.original._id}`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[16px]">edit</span>
-              Edit
-            </button>
-            <button
-              onClick={() => handleOpenDeleteModal(row.original._id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-red-200 dark:border-red-500/60 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[16px]">delete</span>
-              Delete
-            </button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const isActive = row.original.isActive;
+          return (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate(`/customer/${row.original._id}`)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[16px]">edit</span>
+                Edit
+              </button>
+              {isActive && (
+                <button
+                  onClick={() => handleOpenDeleteModal(row.original._id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-red-200 dark:border-red-500/60 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[16px]">delete</span>
+                  Delete
+                </button>
+              )}
+            </div>
+          );
+        },
         enableSorting: false,
       },
     ],

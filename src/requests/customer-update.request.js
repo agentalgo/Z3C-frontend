@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const CustomerUpdateRequest = (token, customerId, jsonData) => {
     const headers = {
@@ -10,15 +10,17 @@ const CustomerUpdateRequest = (token, customerId, jsonData) => {
         headers: headers,
         body: jsonData
     })
-        .then((res) => {
+        .then(async (res) => {
             if (!res.ok) {
-                handleNetworkError(res, 'Failed to update customer');
-                throw new Error('Failed to update customer');
+                await handleNetworkError(res, 'Failed to update customer');
+                const err = new Error('Failed to update customer');
+                err[HANDLED_RESPONSE_ERROR] = true;
+                throw err;
             }
             return res.json();
         })
         .catch((err) => {
-            handleNetworkError(err, 'Customer update request failed');
+            if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Customer update request failed');
             throw err;
         });
 };

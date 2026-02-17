@@ -29,15 +29,30 @@ export const HTTP_ERROR_MESSAGES = {
 
 /**
  * Generic network error handler: shows an error toast and logs to console.
+ * For HTTP 400, parses the response body and shows the server's "message" if present.
  * @param {Response|Error|unknown} errorOrResponse - Fetch Response (with status) or Error instance.
  * @param {string} [fallbackMessage] - Message to use when status/error message cannot be determined.
+ * @returns {Promise<void>}
  */
-export const handleNetworkError = (errorOrResponse, fallbackMessage = 'Something went wrong') => {
+export const handleNetworkError = async (errorOrResponse, fallbackMessage = 'Something went wrong') => {
   let message = fallbackMessage;
 
   if (errorOrResponse?.status !== undefined) {
-    // Fetch Response object
     const status = errorOrResponse.status;
+    // For 400, use server message from response body (e.g. validation errors)
+    if (status === 400 && typeof errorOrResponse.json === 'function') {
+      try {
+        const data = await errorOrResponse.json();
+        if (data?.message && typeof data.message === 'string') {
+          message = data.message;
+          showToast(message, 'error');
+          console.error('[Network Error]', message, errorOrResponse);
+          return;
+        }
+      } catch (_) {
+        // body was not valid JSON, fall through to generic message
+      }
+    }
     message = HTTP_ERROR_MESSAGES[status] ?? errorOrResponse.statusText ?? fallbackMessage;
   } else if (errorOrResponse?.message) {
     message = errorOrResponse.message;
@@ -57,5 +72,10 @@ export const getApiUrl = (path) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${base}${normalizedPath}`;
 };
+
+/**
+ * Property set on errors thrown after handleNetworkError(res) so catch blocks skip showing toast again.
+ */
+export const HANDLED_RESPONSE_ERROR = '__handledByResponse';
 
 export { BASE_URL };

@@ -18,6 +18,7 @@ import { showToast, validateSubmissionData, decodeString } from '../../../utils'
 import { auth } from '../../../atoms';
 
 const PERMISSION_MODULES = ['invoice', 'customer', 'profile', 'companyProfile', 'zatcaReporting'];
+const USER_ROLES = ["Admin", "Manager", "Accountant", "Viewer"];
 
 const INITIAL_FORM_DATA = {
   data: {
@@ -26,6 +27,7 @@ const INITIAL_FORM_DATA = {
     password: '',
     confirmPassword: '',
     permissions: [],
+    role: 'Admin',
     isActive: true,
     isAdmin: false,
   },
@@ -116,6 +118,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
             if (Array.isArray(apiData.assignedRoles)) return apiData.assignedRoles;
             return old.data.permissions || [];
           })(),
+          role: apiData.role && USER_ROLES.includes(apiData.role) ? apiData.role : 'Admin',
           isActive: typeof apiData.isActive === 'string'
             ? apiData.isActive === 'Yes'
             : !!apiData.isActive,
@@ -149,6 +152,54 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
         [e.target.name]: e.target.value,
       },
     }))
+  };
+
+  const handleToggleIsAdmin = (e) => {
+    const isAdminChecked = e.target.checked;
+    _formData(old => ({
+      ...old,
+      data: {
+        ...old.data,
+        isAdmin: isAdminChecked,
+        // When isAdmin is checked, automatically select all permissions
+        permissions: isAdminChecked ? [...PERMISSION_MODULES] : old.data.permissions,
+      },
+    }));
+  };
+
+  const handleToggleIsActive = (e) => {
+    const isActiveChecked = e.target.checked;
+    _formData(old => ({
+      ...old,
+      data: {
+        ...old.data,
+        isActive: isActiveChecked,
+      },
+    }));
+  };
+
+  const handleChangePermissions = (selectedOptions) => {
+    const values = Array.isArray(selectedOptions)
+      ? selectedOptions.map((opt) => opt.value)
+      : [];
+
+    _formData(old => ({
+      ...old,
+      data: {
+        ...old.data,
+        permissions: values,
+      },
+    }));
+  };
+
+  const handleChangeRole = (selectedOption) => {
+    _formData(old => ({
+      ...old,
+      data: {
+        ...old.data,
+        role: selectedOption ? selectedOption.value : 'Admin',
+      },
+    }));
   };
 
   const handleValidateForm = () => {
@@ -201,6 +252,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
         // Backend sample shows `isActive` as a boolean
         isActive: !!formData.data.isActive,
         isAdmin: !!formData.data.isAdmin,
+        role: formData.data.role || 'Admin',
         permissions: {
           invoice: buildModulePermissions('invoice'),
           customer: buildModulePermissions('customer'),
@@ -286,12 +338,34 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
       </div>
 
       <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium text-[#0d121b] dark:text-white">Role</label>
+        <Select
+          name="role"
+          classNamePrefix="react-select"
+          className="text-sm"
+          onChange={handleChangeRole}
+          options={USER_ROLES.map((role) => ({
+            value: role,
+            label: role,
+          }))}
+          value={formData.data.role ? {
+            value: formData.data.role,
+            label: formData.data.role,
+          } : {
+            value: 'Admin',
+            label: 'Admin',
+          }}
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-[#0d121b] dark:text-white">Permissions *</label>
         <Select
           isMulti
           name="permissions"
           classNamePrefix="react-select"
           className="text-sm"
+          onChange={handleChangePermissions}
           options={[
             { value: 'invoice', label: 'Invoice' },
             { value: 'customer', label: 'Customer' },
@@ -311,20 +385,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
               value: perm,
               label: option,
             };
-          })}
-          onChange={(selectedOptions) => {
-            const values = Array.isArray(selectedOptions)
-              ? selectedOptions.map((opt) => opt.value)
-              : [];
-
-            _formData(old => ({
-              ...old,
-              data: {
-                ...old.data,
-                permissions: values,
-              },
-            }));
-          }}
+          })}          
         />
         {formData.errors.permissions && (
           <span className="text-xs text-tomato">{formData.errors.permissions}</span>
@@ -402,15 +463,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
             id="isActive"
             name="isActive"
             checked={formData.data.isActive}
-            onChange={(e) => {
-              _formData(old => ({
-                ...old,
-                data: {
-                  ...old.data,
-                  isActive: e.target.checked,
-                },
-              }));
-            }}
+            onChange={handleToggleIsActive}
             className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
           />
           <label htmlFor="isActive" className="text-sm font-medium text-[#0d121b] dark:text-white cursor-pointer">
@@ -424,15 +477,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
             id="isAdmin"
             name="isAdmin"
             checked={formData.data.isAdmin}
-            onChange={(e) => {
-              _formData(old => ({
-                ...old,
-                data: {
-                  ...old.data,
-                  isAdmin: e.target.checked,
-                },
-              }));
-            }}
+            onChange={handleToggleIsAdmin}
             className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
           />
           <label htmlFor="isAdmin" className="text-sm font-medium text-[#0d121b] dark:text-white cursor-pointer">

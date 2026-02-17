@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const InvoiceSubmitToZatcaRequest = (token, invoiceId) => {
     const headers = {
@@ -9,15 +9,17 @@ const InvoiceSubmitToZatcaRequest = (token, invoiceId) => {
         method: 'POST',
         headers: headers,
     })
-        .then((res) => {
+        .then(async (res) => {
             if (!res.ok) {
-                handleNetworkError(res, 'Failed to submit invoice to ZATCA');
-                throw new Error('Failed to submit invoice to ZATCA');
+                await handleNetworkError(res, 'Failed to submit invoice to ZATCA');
+                const err = new Error('Failed to submit invoice to ZATCA');
+                err[HANDLED_RESPONSE_ERROR] = true;
+                throw err;
             }
             return res.json();
         })
         .catch((err) => {
-            handleNetworkError(err, 'Invoice submit to ZATCA request failed');
+            if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Invoice submit to ZATCA request failed');
             throw err;
         });
 };

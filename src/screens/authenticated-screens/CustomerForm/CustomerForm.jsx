@@ -39,8 +39,8 @@ const INITIAL_FORM_DATA = {
     buildingNumber: { isRequired: true, label: 'Building Number' },
     cityName: { isRequired: true, label: 'City Name' },
     cityNameAr: { isRequired: true, label: 'City Name (Arabic)' },
-    postalZone: { isRequired: true, min: 5, label: 'Postal Zone' },
-    countryCode: { isRequired: true, label: 'Country Code' },
+    postalZone: { isRequired: true, regex: /^\d{5}$/, label: 'Postal Zone' },
+    countryCode: { isRequired: true, exact: 2, label: 'Country Code' },
     customerVAT: { isRequired: true, label: 'Customer VAT' },
     registrationName: { isRequired: true, label: 'Registered Name' },
     registrationNameAr: { isRequired: true, label: 'Registered Name (Arabic)' },
@@ -455,6 +455,7 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
           <label className="text-sm font-medium text-[#0d121b] dark:text-white">Postal Zone *</label>
           <input
             type="text"
+            maxLength={5}
             name="postalZone"
             value={formData.data.postalZone || ''}
             onChange={handleChangeFormData}
@@ -470,6 +471,7 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
           <label className="text-sm font-medium text-[#0d121b] dark:text-white">Country Code *</label>
           <input
             type="text"
+            maxLength={2}
             name="countryCode"
             value={formData.data.countryCode || ''}
             onChange={handleChangeFormData}

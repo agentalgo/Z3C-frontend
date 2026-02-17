@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const InvoiceDetailRequest = (token, invoiceId) => {
   const headers = {
@@ -9,15 +9,17 @@ const InvoiceDetailRequest = (token, invoiceId) => {
     method: 'GET',
     headers: headers,
   })
-    .then((res) => {
+    .then(async (res) => {
       if (!res.ok) {
-        handleNetworkError(res, 'Failed to get invoice');
-        throw new Error('Failed to get invoice');
+        await handleNetworkError(res, 'Failed to get invoice');
+        const err = new Error('Failed to get invoice');
+        err[HANDLED_RESPONSE_ERROR] = true;
+        throw err;
       }
       return res.json();
     })
     .catch((err) => {
-      handleNetworkError(err, 'Invoice get request failed');
+      if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Invoice get request failed');
       throw err;
     });
 };

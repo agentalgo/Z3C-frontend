@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const UserDetailRequest = (token, userId) => {
     const headers = {
@@ -9,15 +9,17 @@ const UserDetailRequest = (token, userId) => {
         method: 'GET',
         headers: headers,
     })
-        .then((res) => {
+        .then(async (res) => {
             if (!res.ok) {
-                handleNetworkError(res, 'Failed to get user details');
-                throw new Error('Failed to get user details');
+                await handleNetworkError(res, 'Failed to get user details');
+                const err = new Error('Failed to get user details');
+                err[HANDLED_RESPONSE_ERROR] = true;
+                throw err;
             }
             return res.json();
         })
         .catch((err) => {
-            handleNetworkError(err, 'User details request failed');
+            if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'User details request failed');
             throw err;
         });
 };

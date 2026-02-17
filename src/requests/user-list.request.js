@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const UserListRequest = async (token, params = {}) => {
   const queryParams = new URLSearchParams();
@@ -22,13 +22,15 @@ const UserListRequest = async (token, params = {}) => {
     });
 
     if (!res.ok) {
-      handleNetworkError(res, 'Failed to fetch users');
-      throw new Error('Failed to fetch users');
+      await handleNetworkError(res, 'Failed to fetch users');
+      const err = new Error('Failed to fetch users');
+      err[HANDLED_RESPONSE_ERROR] = true;
+      throw err;
     }
 
     return await res.json();
   } catch (err) {
-    handleNetworkError(err, 'Users list request failed');
+    if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Users list request failed');
     throw err;
   }
 };

@@ -1,4 +1,4 @@
-import { getApiUrl, defaultHeaders, handleNetworkError } from './api.config';
+import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
 const CustomerCreateRequest = (token, jsonData) => {
   const headers = {
@@ -10,15 +10,17 @@ const CustomerCreateRequest = (token, jsonData) => {
     headers: headers,
     body: jsonData
   })
-    .then((res) => {
+    .then(async (res) => {
       if (!res.ok) {
-        handleNetworkError(res, 'Failed to create customer');
-        throw new Error('Failed to create customer');
+        await handleNetworkError(res, 'Failed to create customer');
+        const err = new Error('Failed to create customer');
+        err[HANDLED_RESPONSE_ERROR] = true;
+        throw err;
       }
       return res.json();
     })
     .catch((err) => {
-      handleNetworkError(err, 'Customer create request failed');
+      if (!err?.[HANDLED_RESPONSE_ERROR]) handleNetworkError(err, 'Customer create request failed');
       throw err;
     });
 };
