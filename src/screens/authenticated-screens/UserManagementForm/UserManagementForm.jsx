@@ -6,11 +6,7 @@ import Select from 'react-select';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import {
-  UserCreateRequest,
-  UserDetailRequest,
-  UserUpdateRequest,
-} from '../../../requests';
+import { UserCreateRequest, UserDetailRequest, UserUpdateRequest } from '../../../requests';
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
