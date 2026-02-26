@@ -9,13 +9,17 @@ import { useAtomValue } from 'jotai';
 import { UserListRequest } from '../../../requests';
 
 // Utils
-import { auth } from '../../../atoms';
+import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback } from '../../../components';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
 
 function UserManagementList() {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
+  const loginInfoValue = useAtomValue(loginInfo);
+
+  const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
+  const userPerms = useMemo(() => getNormalizedModulePermissions(user, 'user'), [user]);
 
   const [pagination, _pagination] = useState({
     pageIndex: 0,
@@ -99,13 +103,15 @@ function UserManagementList() {
           </span>
         </button>
 
-        <button
-          onClick={() => navigate('/user-management/new')}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
-        >
-          <span className="material-symbols-outlined text-[20px]">add</span>
-          Create User
-        </button>
+        {userPerms.create && (
+          <button
+            onClick={() => navigate('/user-management/new')}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
+          >
+            <span className="material-symbols-outlined text-[20px]">add</span>
+            Create User
+          </button>
+        )}
       </div>
     </div>
   );
@@ -153,7 +159,10 @@ function UsersTableContent({
 }) {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
+  const loginInfoValue = useAtomValue(loginInfo);
   const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
+  const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
+  const userPerms = useMemo(() => getNormalizedModulePermissions(user, 'user'), [user]);
   const response = use(usersPromise);
   const data = response?.data || [];
   const meta = response?.meta || {
@@ -261,19 +270,23 @@ function UsersTableContent({
       {
         id: 'actions',
         header: 'Actions',
-        cell: ({ row }) => (
-          <button
-            onClick={() => navigate(`/user-management/${row.original._id}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[16px]">edit</span>
-            Edit
-          </button>
-        ),
+        cell: ({ row }) => {
+          if (!userPerms.update) return null;
+
+          return (
+            <button
+              onClick={() => navigate(`/user-management/${row.original._id}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[16px]">edit</span>
+              Edit
+            </button>
+          );
+        },
         enableSorting: false,
       },
     ],
-    [navigate]
+    [navigate, userPerms]
   );
 
   const table = useReactTable({

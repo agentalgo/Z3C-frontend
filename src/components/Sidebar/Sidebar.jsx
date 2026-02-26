@@ -1,26 +1,38 @@
 // Packages
 import { useMemo } from 'react';
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { NavLink } from 'react-router-dom';
 
 // APIs
 import { LogoutRequest } from '../../requests';
 
 // Utils
-import { auth } from '../../atoms';
-import { decodeString } from '../../utils';
+import { auth, loginInfo } from '../../atoms';
+import { decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../utils';
 
 const navigation = [
-  { label: 'Dashboard', icon: 'dashboard', path: '/' },
-  // { label: 'Company Profile', icon: 'business', path: '/company-profile' },
-  { label: 'Invoices', icon: 'description', path: '/invoices' },
-  { label: 'Customer', icon: 'people', path: '/customer' },
-  { label: 'User Management', icon: 'manage_accounts', path: '/user-management' },
+  { label: 'Dashboard', icon: 'dashboard', path: '/', permissionKey: 'zatcaReporting' },
+  // { label: 'Company Profile', icon: 'business', path: '/company-profile', permissionKey: 'companyProfile' },
+  { label: 'Invoices', icon: 'description', path: '/invoices', permissionKey: 'invoice' },
+  { label: 'Customer', icon: 'people', path: '/customer', permissionKey: 'customer' },
+  { label: 'User Management', icon: 'manage_accounts', path: '/user-management', permissionKey: 'user' },
 ]
 
 function Sidebar() {
   const [token, _token] = useAtom(auth);
+  const loginInfoValue = useAtomValue(loginInfo);
   const decodedToken = useMemo(() => decodeString(token), [token]);
+  const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
+
+  const filteredNavigation = useMemo(() => {
+    if (!user) return navigation;
+
+    return navigation.filter((item) => {
+      if (!item.permissionKey) return true;
+      const perms = getNormalizedModulePermissions(user, item.permissionKey);
+      return perms.read;
+    });
+  }, [user]);
 
   const handleLogout = () => {
     if (decodedToken) {
@@ -47,7 +59,7 @@ function Sidebar() {
 
   const NAVIGATION_SECTION = () => (
     <nav className="flex flex-col gap-1">
-      {navigation.map((item) => (
+      {filteredNavigation.map((item) => (
         <NavLink
           key={item.label}
           to={item.path}
