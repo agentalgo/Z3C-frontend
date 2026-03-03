@@ -6,7 +6,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { InvoiceListRequest, InvoiceDeleteRequest } from '../../../requests';
+import { InvoiceListRequest, InvoiceDeleteRequest, InvoicePdfDownloadRequest } from '../../../requests';
 
 // Utils 
 import { auth, loginInfo } from '../../../atoms';
@@ -62,7 +62,7 @@ function InvoiceList() {
   const handleFilterChange = (key, value) => {
     _filters((prev) => ({ ...prev, [key]: value }));
   };
-
+  
   const resetFilters = () => {
     _filters({
       zatcaStatus: '',
@@ -343,16 +343,13 @@ function InvoicesTableContent({
       });
   }, [decodedToken, selectedInvoiceId, refreshInvoices]);
 
-  const handlePrintInvoice = (invoiceId) => {
+  const handlePrintInvoice = async (invoiceId) => {
     if (!invoiceId) return;
-
-    const printUrl = `/invoices/${invoiceId}/print`;
-    const printWindow = window.open(printUrl, '_blank', 'noopener,noreferrer');
-
-    if (printWindow) {
-      printWindow.focus();
-    } else {
-      navigate(printUrl);
+    try {
+      const response = await InvoicePdfDownloadRequest(decodedToken, invoiceId);
+      console.log(response);
+    } catch (error) {
+      showToast(error?.message || 'Failed to download invoice PDF', 'error');
     }
   };
   

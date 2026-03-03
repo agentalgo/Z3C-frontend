@@ -15,6 +15,7 @@ export { default as InvoiceDetailRequest } from './invoice-detail.request';
 export { default as InvoiceUpdateRequest } from './invoice-update.request';
 export { default as InvoiceDeleteRequest } from './invoice-delete.request';
 export { default as InvoiceSubmitToZatcaRequest } from './invoice-submit-to-zatca.request';
+export { default as InvoicePdfDownloadRequest } from './invoice-pdf-download.request';
 export { default as UserListRequest } from './user-list.request';
 export { default as UserCreateRequest } from './user-create.request';
 export { default as UserDetailRequest } from './user-detail.request';

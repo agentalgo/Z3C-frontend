@@ -7,7 +7,7 @@ import AsyncSelect from 'react-select/async';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { InvoiceCreateRequest, InvoiceDetailRequest, InvoiceUpdateRequest, InvoiceSubmitToZatcaRequest, CustomerListRequest } from '../../../requests';
+import { InvoiceCreateRequest, InvoiceDetailRequest, InvoiceUpdateRequest, InvoiceSubmitToZatcaRequest, InvoicePdfDownloadRequest, CustomerListRequest } from '../../../requests';
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
@@ -503,6 +503,10 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   const handleAddLineItem = () => {
     _lineItems((old) => [...old, { ...INITIAL_LINE_ITEM }]);
   };
+
+  const handleUpdateAndPrintPdf = () => {};
+  
+  const handleCreateAndPrintPdf = () => {}; 
 
   const handleChangeLineItem = (index, field, value) => {
     _lineItems((old) =>
@@ -1215,12 +1219,11 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                   onChange={(option) => {
                     if (!option) return;
 
-                    if (option.value === 'cancel') {
+                    else if (option.value === 'cancel') {
                       navigate('/invoices');
                       return;
                     }
-
-                    if (option.value === 'create-report-zatca') {
+                    else if (option.value === 'create-report-zatca') {
                       if (id) {
                         handleUpdateAndSubmitToZatca();
                       } else {
@@ -1228,15 +1231,24 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                       }
                       return;
                     }
-
-                    // Default action: simple create/update without ZATCA submission
-                    handleSubmitForm();
+                    else if (option.value === 'print-report-pdf') {
+                      if (id) {
+                        handleUpdateAndPrintPdf();
+                      } else {
+                        handleCreateAndPrintPdf();
+                      }
+                      return;
+                    } 
+                    else {
+                      handleSubmitForm();
+                    }
                   }}
                   isDisabled={isLoading || invoiceData?.isError}
                   options={[
                     { value: 'create', label: id ? 'Update' : 'Create' },
                     { value: 'create-check-compliance', label: id ? 'Update and Check Compliance' : 'Create and Check Compliance' },
                     { value: 'create-report-zatca', label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA' },
+                    { value: 'print-report-pdf', label: id ? 'Update and Print Pdf' : 'Create and Print Pdf' },
                     { value: 'cancel', label: 'Cancel' },
                   ]}
                   classNamePrefix="react-select"
