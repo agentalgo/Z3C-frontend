@@ -193,8 +193,9 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           description: item.description || '',
           productCode: item.productCode || '',
           quantity: item.quantity || 1,
-          price: item.price || 0,
-          discount_amount: item.discount_amount || 0,
+          // API returns price and discount_amount in cents, so we need to convert it to SAR
+          price: item.price ? item.price / 100 : 0,
+          discount_amount: item.discount_amount ? item.discount_amount / 100 : 0,
           discount_percentage: item.discount_percentage || 0,
           taxExempt: item.taxExempt || false,
           taxExemptReason: item.taxExemptReason || '',
