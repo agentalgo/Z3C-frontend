@@ -3,13 +3,15 @@ import { Fragment, useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
 import { ErrorBoundary } from 'react-error-boundary';
+import { useAtomValue } from 'jotai';
 
 // APIs
 import { fetchPaginatedData } from '../../../requests';
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
+import { loginInfo } from '../../../atoms';
 
 // Sample data fallback (for initial render)
 const sampleCompanyProfiles = [
@@ -67,6 +69,9 @@ const sampleCompanyProfiles = [
 
 function CompanyProfileList() {
   const navigate = useNavigate();
+  const loginInfoValue = useAtomValue(loginInfo);
+  const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
+  const companyProfilePerms = useMemo(() => getNormalizedModulePermissions(user, 'companyProfile'), [user]);
   const [data, _data] = useState([]);
   const [isLoading, _isLoading] = useState(false);
   const [pagination, _pagination] = useState({
@@ -192,19 +197,23 @@ function CompanyProfileList() {
       {
         id: 'actions',
         header: 'Actions',
-        cell: ({ row }) => (
-          <button
-            onClick={() => navigate(`/company-profile/${row.original.id || row.original.profileNumber}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-          >
-            <span className="material-symbols-outlined text-[16px]">edit</span>
-            Edit
-          </button>
-        ),
+        cell: ({ row }) => {
+          if (!companyProfilePerms.update) return null;
+
+          return (
+            <button
+              onClick={() => navigate(`/company-profile/${row.original.id || row.original.profileNumber}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[16px]">edit</span>
+              Edit
+            </button>
+          );
+        },
         enableSorting: false,
       },
     ],
-    [navigate]
+    [navigate, companyProfilePerms]
   );
 
   const table = useReactTable({
@@ -356,13 +365,15 @@ function CompanyProfileList() {
         </div>
 
         {/* Create Button */}
-        <button
-          onClick={() => navigate('/company-profile/new')}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
-        >
-          <span className="material-symbols-outlined text-[20px]">add</span>
-          Create
-        </button>
+        {companyProfilePerms.create && (
+          <button
+            onClick={() => navigate('/company-profile/new')}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
+          >
+            <span className="material-symbols-outlined text-[20px]">add</span>
+            Create
+          </button>
+        )}
       </div>
     </div>
   );

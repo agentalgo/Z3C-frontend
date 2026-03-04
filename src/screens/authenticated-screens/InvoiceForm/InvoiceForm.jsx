@@ -7,7 +7,7 @@ import AsyncSelect from 'react-select/async';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { InvoiceCreateRequest, InvoiceDetailRequest, InvoiceUpdateRequest, InvoiceSubmitToZatcaRequest, CustomerListRequest } from '../../../requests';
+import { InvoiceCreateRequest, InvoiceDetailRequest, InvoiceUpdateRequest, InvoiceSubmitToZatcaRequest, InvoicePdfDownloadRequest, CustomerListRequest } from '../../../requests';
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
@@ -42,13 +42,13 @@ const INITIAL_FORM_DATA = {
     countryCode: 'SA',
     // Note
     note: '',
-    vat: 15,
+    vat: 15
   },
   validations: {
     referenceNumber: { isRequired: true, label: 'Reference Number' },
     customerId: { isRequired: true, label: 'Customer' },
     paymentTerms: { isRequired: true, label: 'Payment Terms' },
-    deliveryDate: { isRequired: true, label: 'Delivery Date' },
+    // deliveryDate: { isRequired: true, label: 'Delivery Date' },
     vat: { isRequired: true, isNumber: true, label: 'VAT' }
   },
   errors: {},
@@ -115,7 +115,41 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   const invoiceData = invoicePromise ? use(invoicePromise) : null;
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
   const [isLoading, _isLoading] = useState(false);
+
+  const getItemNetTotal = (item) => {
+    const qty = Number(item.quantity) || 0;
+    const priceCents = Math.round((Number(item.price) || 0) * 100);
+    const discountAmtCents = Math.round((Number(item.discount_amount) || 0) * 100);
+    const discountPct = Number(item.discount_percentage) || 0;
+
+    let totalCents = qty * priceCents;
+
+    if (discountPct > 0) {
+      totalCents -= Math.round(totalCents * (discountPct / 100));
+    }
+
+    if (discountAmtCents > 0) {
+      totalCents -= discountAmtCents;
+    }
+
+    return Math.max(0, totalCents) / 100;
+  };
+
   const [lineItems, _lineItems] = useState([]);
+
+  const totals = useMemo(() => {
+    const totalCents = lineItems.reduce(
+      (acc, item) => acc + Math.round(getItemNetTotal(item) * 100),
+      0
+    );
+    const subtotal = (totalCents / 100).toFixed(2);
+    const vatPercentage = Number(formData.data.vat) || 15;
+    const vatCents = Math.round(totalCents * (vatPercentage / 100));
+    const vatAmount = (vatCents / 100).toFixed(2);
+    const grandTotal = ((totalCents + vatCents) / 100).toFixed(2);
+
+    return { subtotal, vatAmount, grandTotal };
+  }, [lineItems, formData.data.vat]);
 
   useEffect(() => {
     if (invoiceData?.data) {
@@ -159,8 +193,9 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           description: item.description || '',
           productCode: item.productCode || '',
           quantity: item.quantity || 1,
-          price: item.price || 0,
-          discount_amount: item.discount_amount || 0,
+          // API returns price and discount_amount in cents, so we need to convert it to SAR
+          price: item.price ? item.price / 100 : 0,
+          discount_amount: item.discount_amount ? item.discount_amount / 100 : 0,
           discount_percentage: item.discount_percentage || 0,
           taxExempt: item.taxExempt || false,
           taxExemptReason: item.taxExemptReason || '',
@@ -291,7 +326,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     }
 
     const missingFields = new Set();
-    
+
     Object.values(lineItemErrors).forEach((errors) => {
       if (typeof errors === 'object' && errors !== null) {
         Object.keys(errors).forEach((field) => {
@@ -355,7 +390,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
   const handleSubmitForm = (e) => {
     if (e) e.preventDefault();
-    
+
     // Validate both form and line items in parallel
     if (!handleValidateAll()) {
       return;
@@ -363,39 +398,40 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
     _isLoading(true);
 
-      const payloadData = {
-        referenceNumber: formData.data.referenceNumber,
-        customerId: String(formData.data.customerId || ''),
-        paymentType: formData.data.paymentType || 'CASH',
-        paymentTerms: formData.data.paymentTerms,
-        deliveryDate: formData.data.deliveryDate,
-        currency: 'SAR',
-        lineItems: lineItems.map((item) => ({
-          description: item.description,
-          productCode: item.productCode,
-          quantity: Number(item.quantity) || 0,
-          price: Number(item.price) || 0,
-          discount_amount: Number(item.discount_amount) || 0,
-          discount_percentage: Number(item.discount_percentage) || 0,
-          taxExempt: !!item.taxExempt,
-          taxExemptReason: item.taxExemptReason || '',
-        })),
-        vat: Number(formData.data.vat) || 15,
-        note: formData.data.note,
-      };
+    const payloadData = {
+      referenceNumber: formData.data.referenceNumber,
+      customerId: String(formData.data.customerId || ''),
+      paymentType: formData.data.paymentType || 'CASH',
+      paymentTerms: formData.data.paymentTerms,
+      deliveryDate: formData.data.deliveryDate,
+      // grandTotal: totals.grandTotal,  // Temporarily removed
+      currency: 'SAR',
+      lineItems: lineItems.map((item) => ({
+        description: item.description,
+        productCode: item.productCode,
+        quantity: Number(item.quantity) || 0,
+        price: Number(item.price) * 100 || 0, // Send item price in cents
+        discount_amount: Number(item.discount_amount) * 100 || 0, // Send item discount amount in cents
+        discount_percentage: Number(item.discount_percentage) || 0,
+        taxExempt: !!item.taxExempt,
+        taxExemptReason: item.taxExemptReason || '',
+      })),
+      vat: Number(formData.data.vat) || 15,
+      note: formData.data.note,
+    };
 
-      const request = id
-        ? InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData))
-        : InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
+    const request = id
+      ? InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData))
+      : InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
 
-      request
-        .then(() => {
-          showToast(id ? 'Invoice updated successfully!' : 'Invoice created successfully!', 'success');
-          navigate('/invoices');
-        })
-        .catch((err) => {
-          showToast(err?.message || (id ? 'Failed to update invoice' : 'Failed to create invoice'), 'error');
-        })
+    request
+      .then(() => {
+        showToast(id ? 'Invoice updated successfully!' : 'Invoice created successfully!', 'success');
+        navigate('/invoices');
+      })
+      .catch((err) => {
+        showToast(err?.message || (id ? 'Failed to update invoice' : 'Failed to create invoice'), 'error');
+      })
       .finally(() => {
         _isLoading(false);
       });
@@ -504,46 +540,90 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     _lineItems((old) => [...old, { ...INITIAL_LINE_ITEM }]);
   };
 
+  const handleUpdateAndPrintPdf = () => { };
+
+  const handleCreateAndPrintPdf = () => { };
+
+  const handleFormatLineItemNumericValues = (field, value) => {
+    if (value === '') return '';
+
+    if (field === 'quantity') {
+      // Allow only digits (integer)
+      return value.replace(/[^\d]/g, '');
+    }
+
+    if (['price', 'discount_amount', 'discount_percentage'].includes(field)) {
+      // Allow only digits and at most one decimal point
+      let sanitized = value.replace(/[^\d.]/g, '');
+      const parts = sanitized.split('.');
+
+      if (parts.length > 2) {
+        // More than one dot - keep only the first dot and digits
+        sanitized = parts[0] + '.' + parts.slice(1).join('');
+      }
+
+      // Limit to 2 decimal places if there is a dot
+      if (sanitized.includes('.')) {
+        const [intPart, decimalPart] = sanitized.split('.');
+        sanitized = `${intPart}.${decimalPart.slice(0, 2)}`;
+      }
+
+      return sanitized;
+    }
+
+    return value;
+  };
+
   const handleChangeLineItem = (index, field, value) => {
     _lineItems((old) =>
       old.map((item, i) => {
         if (i !== index) return item;
 
-        // Calculate numeric value for numeric fields
-        const numValue = field === 'taxExempt'
+        // Format/Sanitize numeric values or use raw value for other fields
+        const formattedValue = field === 'taxExempt'
           ? value
-          : field === 'quantity' || field === 'price' || field === 'discount_amount' || field === 'discount_percentage'
-            ? value === '' ? '' : Number(value) || 0
+          : (field === 'quantity' || field === 'price' || field === 'discount_amount' || field === 'discount_percentage')
+            ? handleFormatLineItemNumericValues(field, value)
             : value;
 
-        // Get current item values for calculations
-        const quantity = field === 'quantity' ? numValue : (Number(item.quantity) || 0);
-        const price = field === 'price' ? numValue : (Number(item.price) || 0);
-        const lineTotal = quantity * price;
+        // Get current item values for calculations (as numbers)
+        const quantity = field === 'quantity'
+          ? (formattedValue === '' ? 0 : Number(formattedValue) || 0)
+          : (Number(item.quantity) || 0);
+        const price = field === 'price'
+          ? (formattedValue === '' ? 0 : Number(formattedValue) || 0)
+          : (Number(item.price) || 0);
+
+        // Work in integer cents for accurate 2-decimal math
+        const priceCents = Math.round(price * 100);
+        const lineTotalCents = quantity * priceCents;
 
         // Handle discount_amount change - update discount_percentage
         if (field === 'discount_amount') {
-          const discountAmount = numValue;
-          const discountPercentage = lineTotal > 0
-            ? ((discountAmount / lineTotal) * 100).toFixed(2)
+          const discountAmount = formattedValue;
+          const discountAmountCents = Math.round((Number(discountAmount) || 0) * 100);
+          const discountPercentage = lineTotalCents > 0
+            ? (discountAmountCents / lineTotalCents) * 100
             : 0;
           return {
             ...item,
             discount_amount: discountAmount,
-            discount_percentage: parseFloat(discountPercentage) || 0,
+            discount_percentage: parseFloat(discountPercentage.toFixed(2)).toString() || '0',
           };
         }
 
         // Handle discount_percentage change - update discount_amount
         if (field === 'discount_percentage') {
-          const discountPercentage = numValue;
-          const discountAmount = lineTotal > 0
-            ? ((lineTotal * discountPercentage) / 100).toFixed(2)
+          const discountPercentage = formattedValue;
+          const discountPctNum = Number(discountPercentage) || 0;
+          const discountAmountCents = lineTotalCents > 0
+            ? Math.round(lineTotalCents * (discountPctNum / 100))
             : 0;
+          const discountAmount = discountAmountCents / 100;
           return {
             ...item,
             discount_percentage: discountPercentage,
-            discount_amount: parseFloat(discountAmount) || 0,
+            discount_amount: parseFloat(discountAmount.toFixed(2)).toString() || '0',
           };
         }
 
@@ -551,15 +631,24 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         if (field === 'quantity' || field === 'price') {
           const updatedItem = {
             ...item,
-            [field]: numValue,
+            [field]: formattedValue,
           };
           const currentDiscountPercentage = Number(item.discount_percentage) || 0;
           if (currentDiscountPercentage > 0) {
-            const newLineTotal = (field === 'quantity' ? numValue : quantity) * (field === 'price' ? numValue : price);
-            const recalculatedDiscountAmount = newLineTotal > 0
-              ? ((newLineTotal * currentDiscountPercentage) / 100).toFixed(2)
+            const newQuantity = field === 'quantity'
+              ? (formattedValue === '' ? 0 : Number(formattedValue) || 0)
+              : quantity;
+            const newPrice = field === 'price'
+              ? (formattedValue === '' ? 0 : Number(formattedValue) || 0)
+              : price;
+
+            const newPriceCents = Math.round(newPrice * 100);
+            const newLineTotalCents = newQuantity * newPriceCents;
+            const recalculatedDiscountAmountCents = newLineTotalCents > 0
+              ? Math.round(newLineTotalCents * (currentDiscountPercentage / 100))
               : 0;
-            updatedItem.discount_amount = parseFloat(recalculatedDiscountAmount) || 0;
+            const recalculatedDiscountAmount = recalculatedDiscountAmountCents / 100;
+            updatedItem.discount_amount = parseFloat(recalculatedDiscountAmount.toFixed(2)).toString() || '0';
           }
           return updatedItem;
         }
@@ -567,7 +656,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         // Default case - just update the field
         return {
           ...item,
-          [field]: numValue,
+          [field]: formattedValue,
         };
       })
     );
@@ -983,16 +1072,6 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     </section>
   );
 
-  const getItemNetTotal = (item) => {
-    const qty = Number(item.quantity) || 0;
-    const price = Number(item.price) || 0;
-    const discountAmt = Number(item.discount_amount) || 0;
-    const discountPct = Number(item.discount_percentage) || 0;
-    let total = qty * price;
-    if (discountPct > 0) total -= total * (discountPct / 100);
-    if (discountAmt > 0) total -= discountAmt;
-    return Math.max(0, total);
-  };
 
   const LINE_ITEMS_SECTION = () => {
     const calculateTotal = (item) => {
@@ -1169,20 +1248,6 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
 
   const FOOTER_ACTION_BAR = () => {
-    const calculateTotal = () => {
-      const total = lineItems.reduce((acc, item) => acc + getItemNetTotal(item), 0);
-      return total.toFixed(2);
-    };
-    const calculateVat = () => {
-      const total = lineItems.reduce((acc, item) => acc + getItemNetTotal(item), 0);
-      const vatPercentage = Number(formData.data.vat) || 15;
-      return (total * (vatPercentage / 100)).toFixed(2);
-    };
-    const calculateGrandTotal = () => {
-      const total = lineItems.reduce((acc, item) => acc + getItemNetTotal(item), 0);
-      const vatPercentage = Number(formData.data.vat) || 15;
-      return (total * (1 + vatPercentage / 100)).toFixed(2);
-    };
     return (
       <Fragment>
         <div className="bg-[#f5f6f8] dark:bg-[#0a0e1a] border-t border-[#e7ebf3] dark:border-[#2a3447] p-6">
@@ -1190,15 +1255,15 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             <div className="flex gap-8">
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold text-[#4c669a] uppercase">Subtotal</span>
-                <span className="text-lg font-bold dark:text-white">{calculateTotal()} SAR</span>
+                <span className="text-lg font-bold dark:text-white">{totals.subtotal} SAR</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold text-primary uppercase">VAT ({formData.data.vat || 15}%)</span>
-                <span className="text-lg font-bold dark:text-white">{calculateVat()} SAR</span>
+                <span className="text-lg font-bold dark:text-white">{totals.vatAmount} SAR</span>
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold text-[#0d121b] dark:text-gray-300 uppercase">Grand Total</span>
-                <span className="text-2xl font-black text-primary">{calculateGrandTotal()} SAR</span>
+                <span className="text-2xl font-black text-primary">{totals.grandTotal} SAR</span>
               </div>
             </div>
 
@@ -1215,12 +1280,11 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                   onChange={(option) => {
                     if (!option) return;
 
-                    if (option.value === 'cancel') {
+                    else if (option.value === 'cancel') {
                       navigate('/invoices');
                       return;
                     }
-
-                    if (option.value === 'create-report-zatca') {
+                    else if (option.value === 'create-report-zatca') {
                       if (id) {
                         handleUpdateAndSubmitToZatca();
                       } else {
@@ -1228,15 +1292,24 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                       }
                       return;
                     }
-
-                    // Default action: simple create/update without ZATCA submission
-                    handleSubmitForm();
+                    else if (option.value === 'print-report-pdf') {
+                      if (id) {
+                        handleUpdateAndPrintPdf();
+                      } else {
+                        handleCreateAndPrintPdf();
+                      }
+                      return;
+                    }
+                    else {
+                      handleSubmitForm();
+                    }
                   }}
                   isDisabled={isLoading || invoiceData?.isError}
                   options={[
                     { value: 'create', label: id ? 'Update' : 'Create' },
                     { value: 'create-check-compliance', label: id ? 'Update and Check Compliance' : 'Create and Check Compliance' },
                     { value: 'create-report-zatca', label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA' },
+                    { value: 'print-report-pdf', label: id ? 'Update and Print Pdf' : 'Create and Print Pdf' },
                     { value: 'cancel', label: 'Cancel' },
                   ]}
                   classNamePrefix="react-select"

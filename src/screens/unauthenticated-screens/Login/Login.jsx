@@ -28,6 +28,7 @@ function Login() {
   const [showOtpCard, _showOtpCard] = useState(false);
   const [tempToken, _tempToken] = useState('');
   const [isLoading, _isLoading] = useState(false);
+  const [showPassword, _showPassword] = useState(false);
   const [error, _error] = useState(null);
 
   const setAuth = useSetAtom(auth);
@@ -134,6 +135,10 @@ function Login() {
     }
   };
 
+  const handleTogglePassword = () => {
+    _showPassword((prev) => !prev);
+  };
+
   // *********** Render Functions ***********
 
   const HERO_LEFT = () => (
@@ -141,7 +146,7 @@ function Login() {
       <div>
         <div className="max-w-lg mt-16 max-lg:hidden">
           <h1 className="text-4xl font-semibold text-white">Sign in</h1>
-          <p className="text-[15px] mt-4 text-slate-100 leading-relaxed">
+          <p className="text-[17px] mt-4 text-slate-100 leading-relaxed">
             Embark on a seamless journey as you sign in to your account. Unlock
             a realm of opportunities and possibilities that await you.
           </p>
@@ -200,7 +205,7 @@ function Login() {
         <div className="relative flex items-center">
           <input
             name="password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             required
             className="w-full text-sm text-slate-900 border border-slate-300 pr-8 px-4 py-3 rounded-md outline-blue-600"
             placeholder="Enter password"
@@ -213,6 +218,7 @@ function Login() {
             stroke="#bbb"
             className="w-[18px] h-[18px] absolute right-4 cursor-pointer"
             viewBox="0 0 128 128"
+            onClick={handleTogglePassword}
           >
             <path d="M64 104C22.127 104 1.367 67.496.504 65.943a4 4 0 0 1 0-3.887C1.367 60.504 22.127 24 64 24s62.633 36.504 63.496 38.057a4 4 0 0 1 0 3.887C126.633 67.496 105.873 104 64 104zM8.707 63.994C13.465 71.205 32.146 96 64 96c31.955 0 50.553-24.775 55.293-31.994C114.535 56.795 95.854 32 64 32 32.045 32 13.447 56.775 8.707 63.994zM64 88c-13.234 0-24-10.766-24-24s10.766-24 24-24 24 10.766 24 24-10.766 24-24 24zm0-40c-8.822 0-16 7.178-16 16s7.178 16 16 16 16-7.178 16-16-7.178-16-16-16z"></path>
           </svg>

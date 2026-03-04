@@ -6,16 +6,20 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { InvoiceListRequest, InvoiceDeleteRequest } from '../../../requests';
+import { InvoiceListRequest, InvoiceDeleteRequest, InvoicePdfDownloadRequest } from '../../../requests';
 
 // Utils 
-import { auth } from '../../../atoms';
+import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, showToast } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, showToast, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
 
 function InvoiceList() {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
+  const loginInfoValue = useAtomValue(loginInfo);
+
+  const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
+  const invoicePerms = useMemo(() => getNormalizedModulePermissions(user, 'invoice'), [user]);
 
   const [pagination, _pagination] = useState({
     pageIndex: 0,
@@ -58,7 +62,7 @@ function InvoiceList() {
   const handleFilterChange = (key, value) => {
     _filters((prev) => ({ ...prev, [key]: value }));
   };
-
+  
   const resetFilters = () => {
     _filters({
       zatcaStatus: '',
@@ -231,13 +235,15 @@ function InvoiceList() {
           )}
         </div>
 
-        <button
-          onClick={() => navigate('/invoices/new')}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
-        >
-          <span className="material-symbols-outlined text-[20px]">add</span>
-          Create
-        </button>
+        {invoicePerms.create && (
+          <button
+            onClick={() => navigate('/invoices/new')}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
+          >
+            <span className="material-symbols-outlined text-[20px]">add</span>
+            Create
+          </button>
+        )}
       </div>
     </div>
   );
@@ -281,6 +287,9 @@ function InvoicesTableContent({
 }) {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
+  const loginInfoValue = useAtomValue(loginInfo);
+  const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
+  const invoicePerms = useMemo(() => getNormalizedModulePermissions(user, 'invoice'), [user]);
   const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
   const response = use(invoicesPromise);
   const data = response?.data || [];
@@ -334,6 +343,16 @@ function InvoicesTableContent({
       });
   }, [decodedToken, selectedInvoiceId, refreshInvoices]);
 
+  const handlePrintInvoice = async (invoiceId) => {
+    if (!invoiceId) return;
+    try {
+      const response = await InvoicePdfDownloadRequest(decodedToken, invoiceId);
+      console.log(response);
+    } catch (error) {
+      showToast(error?.message || 'Failed to download invoice PDF', 'error');
+    }
+  };
+  
   const columns = useMemo(
     () => [
       {
@@ -449,28 +468,46 @@ function InvoicesTableContent({
       {
         id: 'actions',
         header: 'Actions',
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(`/invoices/${row.original._id}`)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[16px]">edit</span>
-              Edit
-            </button>
-            <button
-              onClick={() => handleOpenDeleteModal(row.original._id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-red-200 dark:border-red-500/60 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[16px]">delete</span>
-              Delete
-            </button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const canEdit = invoicePerms.update;
+          const canDelete = invoicePerms.delete;
+
+          if (!canEdit && !canDelete) return null;
+
+          return (
+            <div className="flex items-center gap-2">
+              {canEdit && (
+                <button
+                  onClick={() => navigate(`/invoices/${row.original._id}`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[16px]">edit</span>
+                  Edit
+                </button>
+              )}
+              <button
+                onClick={() => handlePrintInvoice(row.original._id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[16px]">print</span>
+                Print
+              </button>
+              {canDelete && (
+                <button
+                  onClick={() => handleOpenDeleteModal(row.original._id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-red-200 dark:border-red-500/60 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[16px]">delete</span>
+                  Delete
+                </button>
+              )}
+            </div>
+          );
+        },
         enableSorting: false,
       },
     ],
-    [navigate, handleOpenDeleteModal]
+    [navigate, handleOpenDeleteModal, invoicePerms]
   );
 
   const table = useReactTable({

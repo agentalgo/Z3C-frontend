@@ -45,3 +45,60 @@ export const decodeString = (val, encoder = null) => {
   const originalText = bytes.toString(CryptoJS.enc.Utf8);
   return originalText;
 };
+
+// Safely parse and normalize login info stored in the `loginInfo` atom.
+// Supports both the legacy `{ user: { ... } }` envelope and a direct user object.
+export const parseLoginInfo = (loginInfoValue) => {
+  if (!loginInfoValue) return null;
+
+  try {
+    const parsed = JSON.parse(decodeString(loginInfoValue));
+    if (!parsed) return null;
+
+    const user = parsed.user && typeof parsed.user === 'object' ? parsed.user : parsed;
+    return user && typeof user === 'object' ? user : null;
+  } catch (error) {
+    console.error('Failed to parse login info:', error);
+    return null;
+  }
+};
+
+// Normalize CRUD permissions for a specific module.
+// If a permissions object is not present for a module (e.g. `user: null`),
+// the user has no rights for that module.
+export const getNormalizedModulePermissions = (user, moduleKey) => {
+  if (!user || !moduleKey) {
+    return { create: false, read: false, update: false, delete: false };
+  }
+
+  const allPermissions = user.permissions;
+
+  // If the backend doesn't send a permissions object at all,
+  // treat it as "no module-level restrictions".
+  if (!allPermissions || typeof allPermissions !== 'object') {
+    return { create: true, read: true, update: true, delete: true };
+  }
+
+  const modulePermissionsRaw = allPermissions[moduleKey];
+
+  // Explicit `null` (or non-object) means "no access" for that module.
+  if (modulePermissionsRaw == null || typeof modulePermissionsRaw !== 'object') {
+    return { create: false, read: false, update: false, delete: false };
+  }
+
+  const modulePermissions = modulePermissionsRaw;
+
+  return {
+    create: modulePermissions.create === true,
+    read: modulePermissions.read === true,
+    update: modulePermissions.update === true,
+    delete: modulePermissions.delete === true,
+  };
+};
+
+// Convenience helper to check a single CRUD action for a module.
+export const hasModulePermission = (user, moduleKey, action) => {
+  const normalized = getNormalizedModulePermissions(user, moduleKey);
+  if (!['create', 'read', 'update', 'delete'].includes(action)) return true;
+  return Boolean(normalized[action]);
+};
