@@ -1,16 +1,75 @@
 // Packages
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useMemo } from 'react';
+import { useAtomValue } from 'jotai';
+// APIs
+import { ZatcaReportDownloadRequest } from '../../../requests';
 
 //Utils
+import { auth } from '../../../atoms';
 import { Footer } from '../../../components';
+import { showToast, decodeString } from '../../../utils';
 
 function ZatcaReports() {
+  const authValue = useAtomValue(auth);
+  const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
   const [filters, _filters] = useState({
     fromDate: '',
     toDate: '',
     zatcaStatus: '',
   });
+  const [isLoading, setIsLoading] = useState(false);
 
+  // *********** Handlers ***********
+  const handleDownloadReport = async () => {
+    // Require at least one filter before calling the API
+    if (!filters.fromDate && !filters.toDate && !filters.zatcaStatus) {
+      showToast('Please apply at least one filter before downloading the report', 'error');
+      return;
+    }
+
+    if (isLoading) {
+      showToast('Please wait for the previous download to complete', 'error');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const excelBlob = await ZatcaReportDownloadRequest(decodedToken, filters);
+      // Ensure correct MIME type and force download with .xlsx filename
+      const typedBlob =
+        excelBlob && excelBlob.type
+          ? excelBlob
+          : new Blob([excelBlob], {
+              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            });
+
+      const fileURL = window.URL.createObjectURL(typedBlob);
+      const link = document.createElement('a');
+
+      const from = filters.fromDate || 'ALL';
+      const to = filters.toDate || 'ALL';
+      const status = filters.zatcaStatus || 'ALL';
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+
+      link.href = fileURL;
+      link.download = `zatca-invoice-report_${from}_to_${to}_${status}_${timestamp}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('Excel report download started', 'success');
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(fileURL);
+      }, 10000);
+    } catch (error) {
+      showToast(error?.message || 'Failed to download ZATCA report', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // *********** Render Functions ***********
   const PAGE_HEADER = () => (
     <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
       <div className="flex flex-col gap-1">
@@ -40,6 +99,13 @@ function ZatcaReports() {
             <input
               type="date"
               className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+              value={filters.fromDate}
+              onChange={(e) =>
+                _filters((prev) => ({
+                  ...prev,
+                  fromDate: e.target.value,
+                }))
+              }
             />
           </div>
 
@@ -50,6 +116,13 @@ function ZatcaReports() {
             <input
               type="date"
               className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+              value={filters.toDate}
+              onChange={(e) =>
+                _filters((prev) => ({
+                  ...prev,
+                  toDate: e.target.value,
+                }))
+              }
             />
           </div>
 
@@ -59,7 +132,13 @@ function ZatcaReports() {
             </label>
             <select
               className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white pr-8 text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors appearance-none dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-              defaultValue=""
+              value={filters.zatcaStatus || ''}
+              onChange={(e) =>
+                _filters((prev) => ({
+                  ...prev,
+                  zatcaStatus: e.target.value,
+                }))
+              }
             >
               <option value="" disabled>
                 ZATCA Status
@@ -75,9 +154,11 @@ function ZatcaReports() {
             <button
               type="button"
               className="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-sm hover:bg-[#041632] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0b2551]"
+              disabled={isLoading}
+              onClick={handleDownloadReport}
             >
               <span className="material-symbols-outlined text-[18px]">download</span>
-              DOWNLOAD
+              {isLoading ? 'DOWNLOADING...' : 'DOWNLOAD'}
             </button>
           </div>
         </div>

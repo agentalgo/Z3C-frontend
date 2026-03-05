@@ -4,18 +4,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Select from 'react-select';
 import { useAtomValue } from 'jotai';
 
+// APIs
+import { CustomerProfileCreateRequest, CustomerProfileDetailRequest, CustomerProfileTemplatesListRequest, CustomerProfileUpdateRequest } from '../../../requests';
+
 // Utils
 import { Footer } from '../../../components';
 import { showToast, validateSubmissionData, decodeString } from '../../../utils';
 import { auth } from '../../../atoms';
-
-// APIs
-import {
-  CustomerProfileCreateRequest,
-  CustomerProfileDetailRequest,
-  CustomerProfileTemplatesListRequest,
-  CustomerProfileUpdateRequest,
-} from '../../../requests';
 
 const INITIAL_FORM_DATA = {
   data: {

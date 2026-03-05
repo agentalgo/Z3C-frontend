@@ -401,7 +401,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       vat: Number(formData.data.vat) || 15,
       note: formData.data.note,
       currency: 'SAR',
-      // grandTotal: totals.grandTotal,
+      grandTotal: totals.grandTotal,
       lineItems: lineItems.map((item) => {
         const price = Number(item.price) || 0;
         const discountAmount = Number(item.discount_amount) || 0;

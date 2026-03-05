@@ -31,3 +31,4 @@ export { default as CustomerProfileTemplatesListRequest } from './customer-profi
 export { default as InvoiceCreateCreditNoteRequest } from './invoice-create-credit-note.request';
 export { default as InvoiceCreateDebitNoteRequest } from './invoice-create-debit-note.request';
 export { default as InvoiceCheckComplianceRequest } from './invoice-check-compliance-request';
+export { default as ZatcaReportDownloadRequest } from './zatca-report-download.request';
