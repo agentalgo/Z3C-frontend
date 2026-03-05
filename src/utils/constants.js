@@ -31,17 +31,88 @@ export const TOAST_TYPES = {
 };
 
 export const INVOICE_STATUSES = [
-  {name: "DRAFT", canEdit: true, canDelete: true},
-  {name: "REJECTED", canEdit: true, canDelete: true},
-  {name: "PENDING_SUBMISSION", canEdit: false, canDelete: false},
-  {name: "COMPLIANCE_QUEUED", canEdit: false, canDelete: false},
-  {name: "COMPLIANCE_PROCESSING", canEdit: false, canDelete: false},
-  {name: "COMPLIANCE_COMPLETED", canEdit: false, canDelete: false},
-  {name: "SUBMITTED", canEdit: false, canDelete: false},
-  {name: "CLEARANCE_QUEUED", canEdit: false, canDelete: false},
-  {name: "CLEARANCE_PROCESSING", canEdit: false, canDelete: false},
-  {name: "PENDING_CLEARANCE", canEdit: false, canDelete: false},
-  {name: "ACCEPTED", canEdit: false, canDelete: false, canCreateCreditNote: true, canCreateDebitNote: true},
-  {name: "CLEARED", canEdit: false, canDelete: false, canCreateCreditNote: true, canCreateDebitNote: true},
-  {name: "FINALIZED", canEdit: false, canDelete: false, canCreateCreditNote: true, canCreateDebitNote: true},
+  {
+    name: "DRAFT",
+    canEdit: true,
+    canDelete: true,
+    color: "bg-gray-300"
+  },
+  {
+    name: "REJECTED",
+    canEdit: true,
+    canDelete: true,
+    color: "bg-red-300"
+  },
+  {
+    name: "PENDING_SUBMISSION",
+    canEdit: false,
+    canDelete: false,
+    color: "bg-yellow-300"
+  },
+  {
+    name: "COMPLIANCE_QUEUED",
+    canEdit: false,
+    canDelete: false,
+    color: "bg-yellow-300"
+  },
+  {
+    name: "COMPLIANCE_PROCESSING",
+    canEdit: false,
+    canDelete: false,
+    color: "bg-blue-300"
+  },
+  {
+    name: "COMPLIANCE_COMPLETED",
+    canEdit: false,
+    canDelete: false,
+    color: "bg-green-300"
+  },
+  {
+    name: "SUBMITTED",
+    canEdit: false,
+    canDelete: false,
+    color: "bg-purple-300"
+  },
+  {
+    name: "CLEARANCE_QUEUED",
+    canEdit: false,
+    canDelete: false,
+    color: "bg-gray-300"
+  },
+  {
+    name: "CLEARANCE_PROCESSING",
+    canEdit: false,
+    canDelete: false,
+    color: "bg-orange-300"
+  },
+  {
+    name: "PENDING_CLEARANCE",
+    canEdit: false,
+    canDelete: false,
+    color: "bg-gray-300"
+  },
+  {
+    name: "ACCEPTED",
+    canEdit: false,
+    canDelete: false,
+    canCreateCreditNote: true,
+    canCreateDebitNote: true,
+    color: "bg-green-300"
+  },
+  {
+    name: "CLEARED",
+    canEdit: false,
+    canDelete: false,
+    canCreateCreditNote: true,
+    canCreateDebitNote: true,
+    color: "bg-green-300"
+  },
+  {
+    name: "FINALIZED",
+    canEdit: false,
+    canDelete: false,
+    canCreateCreditNote: true,
+    canCreateDebitNote: true,
+    color: "bg-green-300"
+  }
 ];

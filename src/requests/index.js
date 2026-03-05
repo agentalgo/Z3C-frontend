@@ -30,4 +30,4 @@ export { default as CustomerProfileUpdateRequest } from './customer-profile-upda
 export { default as CustomerProfileTemplatesListRequest } from './customer-profile-templates-list.request';
 export { default as InvoiceCreateCreditNoteRequest } from './invoice-create-credit-note.request';
 export { default as InvoiceCreateDebitNoteRequest } from './invoice-create-debit-note.request';
-
+export { default as InvoiceCheckComplianceRequest } from './invoice-check-compliance-request';

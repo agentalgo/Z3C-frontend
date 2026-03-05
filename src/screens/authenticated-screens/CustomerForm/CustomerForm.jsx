@@ -6,12 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import {
-  CustomerCreateRequest,
-  CustomerDetailRequest,
-  CustomerUpdateRequest,
-  CustomerProfileListRequest,
-} from '../../../requests';
+import { CustomerCreateRequest, CustomerDetailRequest, CustomerUpdateRequest, CustomerProfileListRequest } from '../../../requests';
 
 // Utils
 import { auth } from '../../../atoms';
@@ -116,8 +111,8 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
     if (customerData?.data) {
       const apiData = customerData.data;
       const profile = apiData.customerProfile || {};
-      const profileId = apiData.customerProfileId || profile._id || profile.id || '';
-      const profileLabel = profile.name || profile.profileName || '';
+      const profileId = apiData.customerProfileId?._id || profile._id || profile.id || '';
+      const profileLabel = apiData.customerProfileId?.name || profile.name || profile.profileName || '';
 
       _formData(old => ({
         ...old,

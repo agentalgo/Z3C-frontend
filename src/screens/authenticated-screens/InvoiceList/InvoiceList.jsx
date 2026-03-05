@@ -489,15 +489,12 @@ function InvoicesTableContent({
         enableSorting: true,
         cell: ({ getValue }) => {
           const status = getValue();
-          const statusColors = {
-            CLEARED: 'bg-green-100 text-green-700',
-            REPORTED: 'bg-blue-100 text-blue-700',
-            REJECTED: 'bg-red-100 text-red-700',
-            PENDING: 'bg-amber-100 text-amber-700',
-            DRAFT: 'bg-gray-100 text-gray-700',
-          };
+          const statusConfig = INVOICE_STATUSES.find(
+            (invoiceStatus) => invoiceStatus.name === status
+          );
+          const colorClass = statusConfig?.color || 'bg-gray-500';
           return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${statusColors[status] || 'bg-gray-100 text-gray-700'}`}>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold text-white ${colorClass}`}>
               {status}
             </span>
           );

@@ -7,12 +7,11 @@ import AsyncSelect from 'react-select/async';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { InvoiceCreateRequest, InvoiceDetailRequest, InvoiceUpdateRequest, InvoiceSubmitToZatcaRequest, InvoicePdfDownloadRequest, CustomerListRequest } from '../../../requests';
+import { InvoiceCreateRequest, InvoiceDetailRequest, InvoiceUpdateRequest, InvoiceCheckComplianceRequest, InvoiceSubmitToZatcaRequest, InvoicePdfDownloadRequest, CustomerListRequest } from '../../../requests';
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
-import { showToast, validateSubmissionData, decodeString } from '../../../utils';
-import { INVOICE_STATUSES } from '../../../utils/constants';
+import { showToast, validateSubmissionData, decodeString, INVOICE_STATUSES } from '../../../utils';
 import { auth } from '../../../atoms';
 
 const INITIAL_FORM_DATA = {
@@ -116,7 +115,7 @@ function InvoiceForm() {
 function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   const invoiceData = invoicePromise ? use(invoicePromise) : null;
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
-  const [isLoading, _isLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentStatusConfig = INVOICE_STATUSES.find((status) => status.name === formData.data.status);
   const canEditInvoice = !id || currentStatusConfig?.canEdit;
@@ -158,7 +157,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   useEffect(() => {
     if (invoiceData?.data) {
       const apiData = invoiceData.data;
-      const customer = apiData.customerId || {};      
+      const customer = apiData.customerId || {};
       _formData(old => ({
         ...old,
         data: {
@@ -188,7 +187,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           countryCode: customer.countryCode || 'SA',
           note: apiData.note || '',
           vat: apiData.vat || 15,
-          status: apiData.status || '', 
+          status: apiData.status || '',
         },
       }));
 
@@ -402,7 +401,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       vat: Number(formData.data.vat) || 15,
       note: formData.data.note,
       currency: 'SAR',
-      grandTotal: totals.grandTotal,
+      // grandTotal: totals.grandTotal,
       lineItems: lineItems.map((item) => {
         const price = Number(item.price) || 0;
         const discountAmount = Number(item.discount_amount) || 0;
@@ -416,39 +415,14 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           taxExempt: !!item.taxExempt,
           taxExemptReason: item.taxExemptReason || '',
         };
-      }),      
+      }),
     };
   };
 
-  const handleSubmitForm = (e) => {
+  const handleSubmitForm = async (e) => {
     if (e) e.preventDefault();
 
-    // Validate both form and line items in parallel
-    if (!handleValidateAll()) {
-      return;
-    }
-
-    _isLoading(true);
-    const payloadData = setSubmitPayload(true);
-    const request = id
-      ? InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData))
-      : InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
-
-    request
-      .then(() => {
-        showToast(id ? 'Invoice updated successfully!' : 'Invoice created successfully!', 'success');
-        navigate('/invoices');
-      })
-      .catch((err) => {
-        showToast(err?.message || (id ? 'Failed to update invoice' : 'Failed to create invoice'), 'error');
-      })
-      .finally(() => {
-        _isLoading(false);
-      });
-  };
-
-  const handleCreateAndSubmitToZatca = async () => {
-    if (isLoading) {
+    if (isSubmitting) {
       showToast('Please wait for the previous request to complete', 'error');
       return;
     }
@@ -459,67 +433,85 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     }
 
     try {
-      _isLoading(true);
+      setIsSubmitting(true);
       const payloadData = setSubmitPayload(true);
-      const response = await InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
-      const createdInvoiceId =
-        response?.data?._id ||
-        response?._id ||
-        response?.id;
 
-      if (!createdInvoiceId) {
-        throw new Error('Invoice created but ID was not returned from server');
+      if (id) {
+        await InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData));
+      } else {
+        await InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
       }
 
-      await InvoiceSubmitToZatcaRequest(decodedToken, createdInvoiceId);
-      showToast('Invoice created and submitted to ZATCA successfully!', 'success');
+      showToast(id ? 'Invoice updated successfully!' : 'Invoice created successfully!', 'success');
       navigate('/invoices');
-    } catch (error) {
-      showToast(error?.message || 'Failed to create and submit invoice to ZATCA', 'error');
+    } catch (err) {
+      showToast(
+        err?.message || (id ? 'Failed to update invoice' : 'Failed to create invoice'),
+        'error'
+      );
     } finally {
-      _isLoading(false);
+      setIsSubmitting(false);
     }
   };
+  const handleCreateInvoice = async () => {
+    const payloadData = setSubmitPayload(true);
+    const response = await InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
+    const createdInvoiceId =
+      response?.data?._id ||
+      response?._id ||
+      response?.id;
 
-  const handleUpdateAndSubmitToZatca = async () => {
-    if (isLoading) {
-      showToast('Please wait for the previous request to complete', 'error');
-      return;
+    if (!createdInvoiceId) {
+      throw new Error('Invoice created but ID was not returned from server');
     }
 
-    // Validate both form and line items in parallel
-    if (!handleValidateAll()) {
-      return;
-    }
-
-    try {
-      _isLoading(true);
-      const payloadData = setSubmitPayload(true);
-      await InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData));
-      await InvoiceSubmitToZatcaRequest(decodedToken, id);
-      showToast('Invoice updated and submitted to ZATCA successfully!', 'success');
-      navigate('/invoices');
-    } catch (error) {
-      showToast(error?.message || 'Failed to update and submit invoice to ZATCA', 'error');
-    } finally {
-      _isLoading(false);
-    }
+    return createdInvoiceId;
   };
 
-  const handleAddLineItem = () => {
-    _lineItems((old) => [...old, { ...INITIAL_LINE_ITEM }]);
+  const handleUpdateInvoice = async () => {
+    const payloadData = setSubmitPayload(true);
+    await InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData));
+    return id;
   };
 
-  const handlePrintPdfOnly = async () => {
+  const handleSubmitToZatca = async (invoiceId) => {
+    const targetId = invoiceId || id;
+    if (!targetId) {
+      throw new Error('Invoice ID is required to submit to ZATCA');
+    }
+    await InvoiceSubmitToZatcaRequest(decodedToken, targetId);
+    return targetId;
+  };
+
+  const handleCheckCompliance = async () => {
     if (!id) return;
 
-    if (isLoading) {
+    if (isSubmitting) {
       showToast('Please wait for the previous request to complete', 'error');
       return;
     }
 
     try {
-      _isLoading(true);
+      setIsSubmitting(true);
+      await InvoiceCheckComplianceRequest(decodedToken, id);
+      showToast('Invoice compliance check queued successfully!', 'success');
+    } catch (error) {
+      showToast(error?.message || 'Failed to queue invoice compliance check', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePrintInvoice = async () => {
+    if (!id) return;
+
+    if (isSubmitting) {
+      showToast('Please wait for the previous request to complete', 'error');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
       const pdfBlob = await InvoicePdfDownloadRequest(decodedToken, id);
       const fileURL = window.URL.createObjectURL(pdfBlob);
       const pdfWindow = window.open(fileURL, '_blank');
@@ -536,14 +528,14 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     } catch (error) {
       showToast(error?.message || 'Failed to download invoice PDF', 'error');
     } finally {
-      _isLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleUpdateAndPrintPdf = async () => {
+  const handleUpdateAndSubmitToZatca = async () => {
     if (!id) return;
 
-    if (isLoading) {
+    if (isSubmitting) {
       showToast('Please wait for the previous request to complete', 'error');
       return;
     }
@@ -553,9 +545,56 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     }
 
     try {
-      _isLoading(true);
-      const payloadData = setSubmitPayload(true);
-      await InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData));
+      setIsSubmitting(true);
+      await handleUpdateInvoice();
+      await handleSubmitToZatca(id);
+      showToast('Invoice updated and submitted to ZATCA successfully!', 'success');
+      navigate('/invoices');
+    } catch (error) {
+      showToast(error?.message || 'Failed to update and submit invoice to ZATCA', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateAndSubmitToZatca = async () => {
+    if (isSubmitting) {
+      showToast('Please wait for the previous request to complete', 'error');
+      return;
+    }
+
+    if (!handleValidateAll()) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const createdInvoiceId = await handleCreateInvoice();
+      await handleSubmitToZatca(createdInvoiceId);
+      showToast('Invoice created and submitted to ZATCA successfully!', 'success');
+      navigate('/invoices');
+    } catch (error) {
+      showToast(error?.message || 'Failed to create and submit invoice to ZATCA', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateAndPrintInvoice = async () => {
+    if (!id) return;
+
+    if (isSubmitting) {
+      showToast('Please wait for the previous request to complete', 'error');
+      return;
+    }
+
+    if (!handleValidateAll()) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await handleUpdateInvoice();
       const pdfBlob = await InvoicePdfDownloadRequest(decodedToken, id);
       const fileURL = window.URL.createObjectURL(pdfBlob);
       const pdfWindow = window.open(fileURL, '_blank');
@@ -572,12 +611,12 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     } catch (error) {
       showToast(error?.message || 'Failed to update invoice and download PDF', 'error');
     } finally {
-      _isLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleCreateAndPrintPdf = async () => {
-    if (isLoading) {
+  const handleCreateAndPrintInvoice = async () => {
+    if (isSubmitting) {
       showToast('Please wait for the previous request to complete', 'error');
       return;
     }
@@ -587,18 +626,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     }
 
     try {
-      _isLoading(true);
-      const payloadData = setSubmitPayload(true);
-      const response = await InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
-      const createdInvoiceId =
-        response?.data?._id ||
-        response?._id ||
-        response?.id;
-
-      if (!createdInvoiceId) {
-        throw new Error('Invoice created but ID was not returned from server');
-      }
-
+      setIsSubmitting(true);
+      const createdInvoiceId = await handleCreateInvoice();
       const pdfBlob = await InvoicePdfDownloadRequest(decodedToken, createdInvoiceId);
       const fileURL = window.URL.createObjectURL(pdfBlob);
       const pdfWindow = window.open(fileURL, '_blank');
@@ -615,9 +644,204 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     } catch (error) {
       showToast(error?.message || 'Failed to create invoice and download PDF', 'error');
     } finally {
-      _isLoading(false);
+      setIsSubmitting(false);
     }
   };
+
+  const handleUpdateAndCheckCompliance = async () => {
+    if (!id) return;
+
+    if (isSubmitting) {
+      showToast('Please wait for the previous request to complete', 'error');
+      return;
+    }
+
+    if (!handleValidateAll()) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await handleUpdateInvoice();
+      await InvoiceCheckComplianceRequest(decodedToken, id);
+      showToast('Invoice updated and compliance check queued successfully!', 'success');
+    } catch (error) {
+      showToast(
+        error?.message || 'Failed to update invoice and queue compliance check',
+        'error'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateAndCheckCompliance = async () => {
+    if (isSubmitting) {
+      showToast('Please wait for the previous request to complete', 'error');
+      return;
+    }
+
+    if (!handleValidateAll()) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const createdInvoiceId = await handleCreateInvoice();
+      await InvoiceCheckComplianceRequest(decodedToken, createdInvoiceId);
+      showToast('Invoice created and compliance check queued successfully!', 'success');
+    } catch (error) {
+      showToast(
+        error?.message || 'Failed to create invoice and queue compliance check',
+        'error'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // const handleCreateAndSubmitToZatca = async () => {
+  //   if (isLoading) {
+  //     showToast('Please wait for the previous request to complete', 'error');
+  //     return;
+  //   }
+
+  //   // Validate both form and line items in parallel
+  //   if (!handleValidateAll()) {
+  //     return;
+  //   }
+
+  //   try {
+  //     _isLoading(true);
+  //     const payloadData = setSubmitPayload(true);
+  //     const response = await InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
+  //     const createdInvoiceId =
+  //       response?.data?._id ||
+  //       response?._id ||
+  //       response?.id;
+
+  //     if (!createdInvoiceId) {
+  //       throw new Error('Invoice created but ID was not returned from server');
+  //     }
+
+  //     await InvoiceSubmitToZatcaRequest(decodedToken, createdInvoiceId);
+  //     showToast('Invoice created and submitted to ZATCA successfully!', 'success');
+  //     navigate('/invoices');
+  //   } catch (error) {
+  //     showToast(error?.message || 'Failed to create and submit invoice to ZATCA', 'error');
+  //   } finally {
+  //     _isLoading(false);
+  //   }
+  // };
+
+  // const handleUpdateAndSubmitToZatca = async () => {
+  //   if (isLoading) {
+  //     showToast('Please wait for the previous request to complete', 'error');
+  //     return;
+  //   }
+
+  //   // Validate both form and line items in parallel
+  //   if (!handleValidateAll()) {
+  //     return;
+  //   }
+
+  //   try {
+  //     _isLoading(true);
+  //     const payloadData = setSubmitPayload(true);
+  //     await InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData));
+  //     await InvoiceSubmitToZatcaRequest(decodedToken, id);
+  //     showToast('Invoice updated and submitted to ZATCA successfully!', 'success');
+  //     navigate('/invoices');
+  //   } catch (error) {
+  //     showToast(error?.message || 'Failed to update and submit invoice to ZATCA', 'error');
+  //   } finally {
+  //     _isLoading(false);
+  //   }
+  // };
+
+  const handleAddLineItem = () => {
+    _lineItems((old) => [...old, { ...INITIAL_LINE_ITEM }]);
+  };
+
+
+  // const handleUpdateAndPrintPdf = async () => {
+  //   if (!id) return;
+
+  //   if (isLoading) {
+  //     showToast('Please wait for the previous request to complete', 'error');
+  //     return;
+  //   }
+
+  //   if (!handleValidateAll()) {
+  //     return;
+  //   }
+
+  //   try {
+  //     _isLoading(true);
+  //     const payloadData = setSubmitPayload(true);
+  //     await InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData));
+  //     const pdfBlob = await InvoicePdfDownloadRequest(decodedToken, id);
+  //     const fileURL = window.URL.createObjectURL(pdfBlob);
+  //     const pdfWindow = window.open(fileURL, '_blank');
+
+  //     if (!pdfWindow) {
+  //       showToast('Please allow popups to view the invoice PDF', 'error');
+  //     } else {
+  //       showToast('Invoice updated and PDF opened in a new tab', 'success');
+  //     }
+
+  //     setTimeout(() => {
+  //       window.URL.revokeObjectURL(fileURL);
+  //     }, 10000);
+  //   } catch (error) {
+  //     showToast(error?.message || 'Failed to update invoice and download PDF', 'error');
+  //   } finally {
+  //     _isLoading(false);
+  //   }
+  // };
+
+  // const handleCreateAndPrintPdf = async () => {
+  //   if (isLoading) {
+  //     showToast('Please wait for the previous request to complete', 'error');
+  //     return;
+  //   }
+
+  //   if (!handleValidateAll()) {
+  //     return;
+  //   }
+
+  //   try {
+  //     _isLoading(true);
+  //     const payloadData = setSubmitPayload(true);
+  //     const response = await InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
+  //     const createdInvoiceId =
+  //       response?.data?._id ||
+  //       response?._id ||
+  //       response?.id;
+
+  //     if (!createdInvoiceId) {
+  //       throw new Error('Invoice created but ID was not returned from server');
+  //     }
+
+  //     const pdfBlob = await InvoicePdfDownloadRequest(decodedToken, createdInvoiceId);
+  //     const fileURL = window.URL.createObjectURL(pdfBlob);
+  //     const pdfWindow = window.open(fileURL, '_blank');
+
+  //     if (!pdfWindow) {
+  //       showToast('Please allow popups to view the invoice PDF', 'error');
+  //     } else {
+  //       showToast('Invoice created and PDF opened in a new tab', 'success');
+  //     }
+
+  //     setTimeout(() => {
+  //       window.URL.revokeObjectURL(fileURL);
+  //     }, 10000);
+  //   } catch (error) {
+  //     showToast(error?.message || 'Failed to create invoice and download PDF', 'error');
+  //   } finally {
+  //     _isLoading(false);
+  //   }
+  // };
 
   const handleFormatLineItemNumericValues = (field, value) => {
     if (value === '') return '';
@@ -1325,25 +1549,26 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   const FOOTER_ACTION_BAR = () => {
     const actionOptions = canEditInvoice
       ? [
-          { value: 'create', label: id ? 'Update' : 'Create' },
-          {
-            value: 'create-check-compliance',
-            label: id ? 'Update and Check Compliance' : 'Create and Check Compliance',
-          },
-          {
-            value: 'create-report-zatca',
-            label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA',
-          },
-          {
-            value: 'print-report-pdf',
-            label: id ? 'Update and Print Pdf' : 'Create and Print Pdf',
-          },
-          { value: 'cancel', label: 'Cancel' },
-        ]
+        { value: 'create', label: id ? 'Update' : 'Create' },
+        {
+          value: 'create-check-compliance',
+          label: id ? 'Update and Check Compliance' : 'Create and Check Compliance',
+        },
+        {
+          value: 'create-report-zatca',
+          label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA',
+        },
+        {
+          value: 'print-report-pdf',
+          label: id ? 'Update and Print Pdf' : 'Create and Print Pdf',
+        },
+        { value: 'cancel', label: 'Cancel' },
+      ]
       : [
-          { value: 'print-report-pdf', label: 'Print Pdf' },
-          { value: 'cancel', label: 'Cancel' },
-        ];
+        { value: 'print-report-pdf', label: 'Print Pdf' },
+        { value: 'check-compliance', label: 'Check Compliance' },
+        { value: 'cancel', label: 'Cancel' },
+      ];
 
     return (
       <Fragment>
@@ -1389,23 +1614,35 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                       }
                       return;
                     }
+                    else if (option.value === 'create-check-compliance') {
+                      if (id) {
+                        handleUpdateAndCheckCompliance();
+                      } else {
+                        handleCreateAndCheckCompliance();
+                      }
+                      return;
+                    }
                     else if (option.value === 'print-report-pdf') {
                       if (id) {
                         if (canEditInvoice) {
-                          handleUpdateAndPrintPdf();
+                          handleUpdateAndPrintInvoice();
                         } else {
-                          handlePrintPdfOnly();
+                          handlePrintInvoice();
                         }
                       } else {
-                        handleCreateAndPrintPdf();
+                        handleCreateAndPrintInvoice();
                       }
+                      return;
+                    }
+                    else if (option.value === 'check-compliance') {
+                      handleCheckCompliance();
                       return;
                     }
                     else {
                       handleSubmitForm();
                     }
                   }}
-                  isDisabled={isLoading || invoiceData?.isError}
+                  isDisabled={isSubmitting || invoiceData?.isError}
                   options={actionOptions}
                   classNamePrefix="react-select"
                   className="react-select-container"
