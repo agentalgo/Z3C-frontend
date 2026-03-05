@@ -6,8 +6,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
-// TODO: replace with real API when available
-// import { CustomerProfileListRequest } from '../../../requests';
+import { CustomerProfileListRequest } from '../../../requests';
 
 // Utils
 import { auth, loginInfo } from '../../../atoms';
@@ -20,40 +19,6 @@ import {
   getNormalizedModulePermissions,
 } from '../../../utils';
 
-// Temporary sample loader using the static payload shape
-const fetchSampleCustomerProfiles = async () => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 300));
-
-  // Sample records based on customer-profile-payload.txt
-  const sample = {
-    _id: 'sample-1',
-    name: 'Corporate',
-    defaultTemplate: 'b2b-invoice-template',
-    invoiceType: 'B2B',
-    paymentTerms: 'Net 30',
-    bankDetails: {
-      bankName: 'Riyad Bank',
-      accountName: 'Z3C Compliance Control Center',
-      accountNumber: '1234567890',
-      iban: 'SA0380000000608010167519',
-      swiftCode: 'RIBLSARI',
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  return {
-    data: [sample],
-    meta: {
-      total: 1,
-      page: 1,
-      limit: DEFAULT_PAGE_SIZE,
-      totalPages: 1,
-    },
-  };
-};
-
 function CustomerProfileList() {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
@@ -61,7 +26,7 @@ function CustomerProfileList() {
 
   const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
   const customerProfilePerms = useMemo(
-    () => getNormalizedModulePermissions(user, 'customerProfile'),
+    () => getNormalizedModulePermissions(user, 'profile'),
     [user]
   );
 
@@ -85,11 +50,19 @@ function CustomerProfileList() {
       sortBy: sorting.length > 0 ? `${sorting[0].id}:${sorting[0].desc ? 'desc' : 'asc'}` : undefined,
     };
 
-    // When real API is ready, replace with:
-    // return CustomerProfileListRequest(decodedToken, params);
-    void decodedToken; // keep eslint happy for now
-    void params;
-    return fetchSampleCustomerProfiles();
+    if (!decodedToken) {
+      return Promise.resolve({
+        data: [],
+        meta: {
+          total: 0,
+          page: params.page || 1,
+          limit: params.limit || DEFAULT_PAGE_SIZE,
+          totalPages: 0,
+        },
+      });
+    }
+
+    return CustomerProfileListRequest(decodedToken, params);
   }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting, reloadKey]);
 
   // *********** Render Functions ***********
@@ -210,10 +183,9 @@ function CustomerProfilesTableContent({
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
   const loginInfoValue = useAtomValue(loginInfo);
-  const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
   const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
   const customerProfilePerms = useMemo(
-    () => getNormalizedModulePermissions(user, 'customerProfile'),
+    () => getNormalizedModulePermissions(user, 'profile'),
     [user]
   );
   const response = use(profilesPromise);
@@ -330,9 +302,6 @@ function CustomerProfilesTableContent({
     ],
     [navigate, customerProfilePerms]
   );
-
-  void decodedToken; // reserved for when real API hooks are added
-  void refreshProfiles;
 
   const table = useReactTable({
     data: data.length > 0 ? data : [],

@@ -158,8 +158,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   useEffect(() => {
     if (invoiceData?.data) {
       const apiData = invoiceData.data;
-      const customer = apiData.customerId || {};
-      console.log(apiData);
+      const customer = apiData.customerId || {};      
       _formData(old => ({
         ...old,
         data: {
@@ -782,7 +781,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Reference Number</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Reference Number *</label>
           <input
             name="referenceNumber"
             type="text"
@@ -817,7 +816,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Payment Terms</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Payment Terms *</label>
           <input
             name="paymentTerms"
             type="text"
@@ -865,7 +864,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">VAT (%)</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">VAT (%) *</label>
           <input
             name="vat"
             type="number"
@@ -893,7 +892,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Registered Name (AsyncSelect) */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Registered Name</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Registered Name *</label>
           <AsyncSelect
             cacheOptions
             defaultOptions
