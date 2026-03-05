@@ -5,11 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import {
-  CompanyProfileCreateRequest,
-  CompanyProfileDetailRequest,
-  CompanyProfileUpdateRequest,
-} from '../../../requests';
+import { CompanyProfileCreateRequest, CompanyProfileDetailRequest, CompanyProfileUpdateRequest } from '../../../requests';
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';

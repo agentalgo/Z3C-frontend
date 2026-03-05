@@ -11,13 +11,7 @@ import { CustomerProfileListRequest } from '../../../requests';
 // Utils
 import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback } from '../../../components';
-import {
-  DEFAULT_PAGE_SIZE,
-  PAGINATION_PAGE_SIZES,
-  decodeString,
-  parseLoginInfo,
-  getNormalizedModulePermissions,
-} from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
 
 function CustomerProfileList() {
   const navigate = useNavigate();
@@ -178,10 +172,8 @@ function CustomerProfilesTableContent({
   _pagination,
   _sorting,
   _rowSelection,
-  refreshProfiles,
 }) {
   const navigate = useNavigate();
-  const authValue = useAtomValue(auth);
   const loginInfoValue = useAtomValue(loginInfo);
   const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
   const customerProfilePerms = useMemo(
