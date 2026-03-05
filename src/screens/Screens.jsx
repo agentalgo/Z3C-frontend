@@ -18,8 +18,11 @@ import {
   InvoiceForm,
   CustomerList,
   CustomerForm,
+  CustomerProfileList,
+  CustomerProfileForm,
   UserManagementList,
   UserManagementForm,
+  ZatcaReports,
 } from './authenticated-screens';
 
 // Unauthenticated Screens
@@ -44,6 +47,8 @@ function Screens() {
     const invoicePerms = getPerms('invoice');
     const customerPerms = getPerms('customer');
     const userPerms = getPerms('user');
+    const customerProfilePerms = getPerms('profile');
+    const zatcaReportsPerms = getPerms('zatcaReporting');
 
     return (
       <div className="min-h-screen bg-[#f5f6f8] dark:bg-[#0f1323] text-[#0d121b] dark:text-[#f8f9fc]">
@@ -55,6 +60,19 @@ function Screens() {
               <Route path="*" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
 
+              <Route path="/zatca-reports" element={<ZatcaReports />} />
+
+              {customerProfilePerms.read && (
+                <>
+                  <Route path="/customer-profile" element={<CustomerProfileList />} />
+                  {customerProfilePerms.create && (
+                    <Route path="/customer-profile/new" element={<CustomerProfileForm />} />
+                  )}
+                  {customerProfilePerms.update && (
+                    <Route path="/customer-profile/:id" element={<CustomerProfileForm />} />
+                  )}
+                </>
+              )}
               {companyProfilePerms.read && (
                 <>
                   <Route path="/company-profile" element={<CompanyProfileList />} />
@@ -87,6 +105,18 @@ function Screens() {
                   )}
                   {customerPerms.update && (
                     <Route path="/customer/:id" element={<CustomerForm />} />
+                  )}
+                </>
+              )}
+
+              {customerProfilePerms.read && (
+                <>
+                  <Route path="/customer-profile" element={<CustomerProfileList />} />
+                  {customerProfilePerms.create && (
+                    <Route path="/customer-profile/new" element={<CustomerProfileForm />} />
+                  )}
+                  {customerProfilePerms.update && (
+                    <Route path="/customer-profile/:id" element={<CustomerProfileForm />} />
                   )}
                 </>
               )}
