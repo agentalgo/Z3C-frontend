@@ -12,10 +12,12 @@ import { InvoiceCreateRequest, InvoiceDetailRequest, InvoiceUpdateRequest, Invoi
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
 import { showToast, validateSubmissionData, decodeString } from '../../../utils';
+import { INVOICE_STATUSES } from '../../../utils/constants';
 import { auth } from '../../../atoms';
 
 const INITIAL_FORM_DATA = {
   data: {
+    status: '',
     invoiceNumber: '',
     customerId: null,
     referenceNumber: '',
@@ -116,6 +118,9 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
   const [isLoading, _isLoading] = useState(false);
 
+  const currentStatusConfig = INVOICE_STATUSES.find((status) => status.name === formData.data.status);
+  const canEditInvoice = !id || currentStatusConfig?.canEdit;
+
   const getItemNetTotal = (item) => {
     const qty = Number(item.quantity) || 0;
     const priceCents = Math.round((Number(item.price) || 0) * 100);
@@ -124,11 +129,10 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
     let totalCents = qty * priceCents;
 
+    // Apply either percentage or amount discount, not both
     if (discountPct > 0) {
       totalCents -= Math.round(totalCents * (discountPct / 100));
-    }
-
-    if (discountAmtCents > 0) {
+    } else if (discountAmtCents > 0) {
       totalCents -= discountAmtCents;
     }
 
@@ -155,7 +159,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     if (invoiceData?.data) {
       const apiData = invoiceData.data;
       const customer = apiData.customerId || {};
-
+      console.log(apiData);
       _formData(old => ({
         ...old,
         data: {
@@ -185,6 +189,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           countryCode: customer.countryCode || 'SA',
           note: apiData.note || '',
           vat: apiData.vat || 15,
+          status: apiData.status || '', 
         },
       }));
 
@@ -388,6 +393,34 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     return formValid && lineItemsValid;
   };
 
+  const setSubmitPayload = (useCents = false) => {
+    return {
+      referenceNumber: formData.data.referenceNumber,
+      customerId: String(formData.data.customerId || ''),
+      paymentType: formData.data.paymentType || 'CASH',
+      paymentTerms: formData.data.paymentTerms,
+      deliveryDate: formData.data.deliveryDate,
+      vat: Number(formData.data.vat) || 15,
+      note: formData.data.note,
+      currency: 'SAR',
+      grandTotal: totals.grandTotal,
+      lineItems: lineItems.map((item) => {
+        const price = Number(item.price) || 0;
+        const discountAmount = Number(item.discount_amount) || 0;
+        return {
+          description: item.description,
+          productCode: item.productCode,
+          quantity: Number(item.quantity) || 0,
+          price: useCents ? price * 100 || 0 : price,
+          discount_amount: useCents ? discountAmount * 100 || 0 : discountAmount,
+          discount_percentage: Number(item.discount_percentage) || 0,
+          taxExempt: !!item.taxExempt,
+          taxExemptReason: item.taxExemptReason || '',
+        };
+      }),      
+    };
+  };
+
   const handleSubmitForm = (e) => {
     if (e) e.preventDefault();
 
@@ -397,29 +430,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     }
 
     _isLoading(true);
-
-    const payloadData = {
-      referenceNumber: formData.data.referenceNumber,
-      customerId: String(formData.data.customerId || ''),
-      paymentType: formData.data.paymentType || 'CASH',
-      paymentTerms: formData.data.paymentTerms,
-      deliveryDate: formData.data.deliveryDate,
-      // grandTotal: totals.grandTotal,  // Temporarily removed
-      currency: 'SAR',
-      lineItems: lineItems.map((item) => ({
-        description: item.description,
-        productCode: item.productCode,
-        quantity: Number(item.quantity) || 0,
-        price: Number(item.price) * 100 || 0, // Send item price in cents
-        discount_amount: Number(item.discount_amount) * 100 || 0, // Send item discount amount in cents
-        discount_percentage: Number(item.discount_percentage) || 0,
-        taxExempt: !!item.taxExempt,
-        taxExemptReason: item.taxExemptReason || '',
-      })),
-      vat: Number(formData.data.vat) || 15,
-      note: formData.data.note,
-    };
-
+    const payloadData = setSubmitPayload(true);
     const request = id
       ? InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData))
       : InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
@@ -450,27 +461,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
     try {
       _isLoading(true);
-      const payloadData = {
-        referenceNumber: formData.data.referenceNumber,
-        customerId: String(formData.data.customerId || ''),
-        paymentType: formData.data.paymentType || 'CASH',
-        paymentTerms: formData.data.paymentTerms,
-        deliveryDate: formData.data.deliveryDate,
-        currency: 'SAR',
-        lineItems: lineItems.map((item) => ({
-          description: item.description,
-          productCode: item.productCode,
-          quantity: Number(item.quantity) || 0,
-          price: Number(item.price) || 0,
-          discount_amount: Number(item.discount_amount) || 0,
-          discount_percentage: Number(item.discount_percentage) || 0,
-          taxExempt: !!item.taxExempt,
-          taxExemptReason: item.taxExemptReason || '',
-        })),
-        vat: Number(formData.data.vat) || 15,
-        note: formData.data.note,
-      };
-
+      const payloadData = setSubmitPayload(true);
       const response = await InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
       const createdInvoiceId =
         response?.data?._id ||
@@ -504,27 +495,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
     try {
       _isLoading(true);
-      const payloadData = {
-        referenceNumber: formData.data.referenceNumber,
-        customerId: String(formData.data.customerId || ''),
-        paymentType: formData.data.paymentType || 'CASH',
-        paymentTerms: formData.data.paymentTerms,
-        deliveryDate: formData.data.deliveryDate,
-        currency: 'SAR',
-        lineItems: lineItems.map((item) => ({
-          description: item.description,
-          productCode: item.productCode,
-          quantity: Number(item.quantity) || 0,
-          price: Number(item.price) || 0,
-          discount_amount: Number(item.discount_amount) || 0,
-          discount_percentage: Number(item.discount_percentage) || 0,
-          taxExempt: !!item.taxExempt,
-          taxExemptReason: item.taxExemptReason || '',
-        })),
-        vat: Number(formData.data.vat) || 15,
-        note: formData.data.note,
-      };
-
+      const payloadData = setSubmitPayload(true);
       await InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData));
       await InvoiceSubmitToZatcaRequest(decodedToken, id);
       showToast('Invoice updated and submitted to ZATCA successfully!', 'success');
@@ -540,9 +511,114 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     _lineItems((old) => [...old, { ...INITIAL_LINE_ITEM }]);
   };
 
-  const handleUpdateAndPrintPdf = () => { };
+  const handlePrintPdfOnly = async () => {
+    if (!id) return;
 
-  const handleCreateAndPrintPdf = () => { };
+    if (isLoading) {
+      showToast('Please wait for the previous request to complete', 'error');
+      return;
+    }
+
+    try {
+      _isLoading(true);
+      const pdfBlob = await InvoicePdfDownloadRequest(decodedToken, id);
+      const fileURL = window.URL.createObjectURL(pdfBlob);
+      const pdfWindow = window.open(fileURL, '_blank');
+
+      if (!pdfWindow) {
+        showToast('Please allow popups to view the invoice PDF', 'error');
+      } else {
+        showToast('Invoice PDF opened in a new tab', 'success');
+      }
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(fileURL);
+      }, 10000);
+    } catch (error) {
+      showToast(error?.message || 'Failed to download invoice PDF', 'error');
+    } finally {
+      _isLoading(false);
+    }
+  };
+
+  const handleUpdateAndPrintPdf = async () => {
+    if (!id) return;
+
+    if (isLoading) {
+      showToast('Please wait for the previous request to complete', 'error');
+      return;
+    }
+
+    if (!handleValidateAll()) {
+      return;
+    }
+
+    try {
+      _isLoading(true);
+      const payloadData = setSubmitPayload(true);
+      await InvoiceUpdateRequest(decodedToken, id, JSON.stringify(payloadData));
+      const pdfBlob = await InvoicePdfDownloadRequest(decodedToken, id);
+      const fileURL = window.URL.createObjectURL(pdfBlob);
+      const pdfWindow = window.open(fileURL, '_blank');
+
+      if (!pdfWindow) {
+        showToast('Please allow popups to view the invoice PDF', 'error');
+      } else {
+        showToast('Invoice updated and PDF opened in a new tab', 'success');
+      }
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(fileURL);
+      }, 10000);
+    } catch (error) {
+      showToast(error?.message || 'Failed to update invoice and download PDF', 'error');
+    } finally {
+      _isLoading(false);
+    }
+  };
+
+  const handleCreateAndPrintPdf = async () => {
+    if (isLoading) {
+      showToast('Please wait for the previous request to complete', 'error');
+      return;
+    }
+
+    if (!handleValidateAll()) {
+      return;
+    }
+
+    try {
+      _isLoading(true);
+      const payloadData = setSubmitPayload(true);
+      const response = await InvoiceCreateRequest(decodedToken, JSON.stringify(payloadData));
+      const createdInvoiceId =
+        response?.data?._id ||
+        response?._id ||
+        response?.id;
+
+      if (!createdInvoiceId) {
+        throw new Error('Invoice created but ID was not returned from server');
+      }
+
+      const pdfBlob = await InvoicePdfDownloadRequest(decodedToken, createdInvoiceId);
+      const fileURL = window.URL.createObjectURL(pdfBlob);
+      const pdfWindow = window.open(fileURL, '_blank');
+
+      if (!pdfWindow) {
+        showToast('Please allow popups to view the invoice PDF', 'error');
+      } else {
+        showToast('Invoice created and PDF opened in a new tab', 'success');
+      }
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(fileURL);
+      }, 10000);
+    } catch (error) {
+      showToast(error?.message || 'Failed to create invoice and download PDF', 'error');
+    } finally {
+      _isLoading(false);
+    }
+  };
 
   const handleFormatLineItemNumericValues = (field, value) => {
     if (value === '') return '';
@@ -1248,6 +1324,28 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
 
   const FOOTER_ACTION_BAR = () => {
+    const actionOptions = canEditInvoice
+      ? [
+          { value: 'create', label: id ? 'Update' : 'Create' },
+          {
+            value: 'create-check-compliance',
+            label: id ? 'Update and Check Compliance' : 'Create and Check Compliance',
+          },
+          {
+            value: 'create-report-zatca',
+            label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA',
+          },
+          {
+            value: 'print-report-pdf',
+            label: id ? 'Update and Print Pdf' : 'Create and Print Pdf',
+          },
+          { value: 'cancel', label: 'Cancel' },
+        ]
+      : [
+          { value: 'print-report-pdf', label: 'Print Pdf' },
+          { value: 'cancel', label: 'Cancel' },
+        ];
+
     return (
       <Fragment>
         <div className="bg-[#f5f6f8] dark:bg-[#0a0e1a] border-t border-[#e7ebf3] dark:border-[#2a3447] p-6">
@@ -1294,7 +1392,11 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                     }
                     else if (option.value === 'print-report-pdf') {
                       if (id) {
-                        handleUpdateAndPrintPdf();
+                        if (canEditInvoice) {
+                          handleUpdateAndPrintPdf();
+                        } else {
+                          handlePrintPdfOnly();
+                        }
                       } else {
                         handleCreateAndPrintPdf();
                       }
@@ -1305,13 +1407,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                     }
                   }}
                   isDisabled={isLoading || invoiceData?.isError}
-                  options={[
-                    { value: 'create', label: id ? 'Update' : 'Create' },
-                    { value: 'create-check-compliance', label: id ? 'Update and Check Compliance' : 'Create and Check Compliance' },
-                    { value: 'create-report-zatca', label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA' },
-                    { value: 'print-report-pdf', label: id ? 'Update and Print Pdf' : 'Create and Print Pdf' },
-                    { value: 'cancel', label: 'Cancel' },
-                  ]}
+                  options={actionOptions}
                   classNamePrefix="react-select"
                   className="react-select-container"
                   styles={{

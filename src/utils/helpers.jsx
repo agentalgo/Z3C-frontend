@@ -5,7 +5,7 @@ import 'react-simple-toasts/dist/theme/dark.css';
 import CryptoJS from "crypto-js";
 
 // Constants
-import { toastTypes, ENCODER } from './constants';
+import { TOAST_TYPES, ENCODER } from './constants';
 
 // Toast Configuration
 toastConfig({
@@ -18,7 +18,7 @@ toastConfig({
 
 // Toast Helper Function
 export const showToast = (message, type = 'info', options = {}) => {
-  const config = toastTypes[type] || toastTypes.info;
+  const config = TOAST_TYPES[type] || TOAST_TYPES.info;
 
   return toast(message, {
     ...options,

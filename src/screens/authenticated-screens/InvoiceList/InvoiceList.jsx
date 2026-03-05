@@ -346,8 +346,19 @@ function InvoicesTableContent({
   const handlePrintInvoice = async (invoiceId) => {
     if (!invoiceId) return;
     try {
-      const response = await InvoicePdfDownloadRequest(decodedToken, invoiceId);
-      console.log(response);
+      const pdfBlob = await InvoicePdfDownloadRequest(decodedToken, invoiceId);
+      const fileURL = window.URL.createObjectURL(pdfBlob);
+
+      const pdfWindow = window.open(fileURL, '_blank');
+
+      if (!pdfWindow) {
+        showToast('Please allow popups to view the invoice PDF', 'error');
+      }
+
+      // Revoke the object URL after some time to free memory
+      setTimeout(() => {
+        window.URL.revokeObjectURL(fileURL);
+      }, 10000);
     } catch (error) {
       showToast(error?.message || 'Failed to download invoice PDF', 'error');
     }
