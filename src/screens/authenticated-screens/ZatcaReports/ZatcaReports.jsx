@@ -21,9 +21,8 @@ function ZatcaReports() {
 
   // *********** Handlers ***********
   const handleDownloadReport = async () => {
-    // Require at least one filter before calling the API
-    if (!filters.fromDate && !filters.toDate && !filters.zatcaStatus) {
-      showToast('Please apply at least one filter before downloading the report', 'error');
+    if (!filters.fromDate || !filters.toDate) {
+      showToast('From Date and To Date are required to download the report', 'error');
       return;
     }
 
@@ -94,10 +93,11 @@ function ZatcaReports() {
         <div className="flex flex-col lg:flex-row items-stretch lg:items-end gap-4">
           <div className="flex-1 flex flex-col gap-2">
             <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">
-              From Date
+              From Date <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
+              required
               className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
               value={filters.fromDate}
               onChange={(e) =>
@@ -111,10 +111,11 @@ function ZatcaReports() {
 
           <div className="flex-1 flex flex-col gap-2">
             <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">
-              To Date
+              To Date <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
+              required
               className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
               value={filters.toDate}
               onChange={(e) =>
@@ -153,8 +154,8 @@ function ZatcaReports() {
           <div className="w-full lg:w-auto flex lg:inline-flex justify-stretch lg:justify-end">
             <button
               type="button"
-              className="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-sm hover:bg-[#041632] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0b2551]"
-              disabled={isLoading}
+              className="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-bold shadow-sm hover:bg-[#041632] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0b2551] disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading || !filters.fromDate || !filters.toDate}
               onClick={handleDownloadReport}
             >
               <span className="material-symbols-outlined text-[18px]">download</span>
