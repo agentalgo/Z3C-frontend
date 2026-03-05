@@ -320,27 +320,31 @@ function CustomersTableContent({
 
           if (!canEdit && !canDelete) return null;
 
+          const handleChange = (e) => {
+            const value = e.target.value;
+            if (!value) return;
+
+            if (value === 'edit') {
+              navigate(`/customer/${row.original._id}`);
+            } else if (value === 'delete') {
+              handleOpenDeleteModal(row.original._id);
+            }
+
+            e.target.value = '';
+          };
+
           return (
-            <div className="flex items-center gap-2">
-              {canEdit && (
-                <button
-                  onClick={() => navigate(`/customer/${row.original._id}`)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[16px]">edit</span>
-                  Edit
-                </button>
-              )}
-              {canDelete && (
-                <button
-                  onClick={() => handleOpenDeleteModal(row.original._id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-red-200 dark:border-red-500/60 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[16px]">delete</span>
-                  Delete
-                </button>
-              )}
-            </div>
+            <select
+              defaultValue=""
+              onChange={handleChange}
+              className="px-3 py-1.5 text-sm rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer"
+            >
+              <option value="" disabled>
+                Action
+              </option>
+              {canEdit && <option value="edit">Edit</option>}
+              {canDelete && <option value="delete">Delete</option>}
+            </select>
           );
         },
         enableSorting: false,
@@ -372,14 +376,22 @@ function CustomersTableContent({
 
   const CUSTOMER_TABLE = () => (
     <div className="overflow-x-auto">
-      <table className="w-full text-left min-w-[1400px]">
+              <table className="w-full text-left min-w-[1400px]">
         <thead className="bg-[#f8f9fc] dark:bg-[#1a253a] text-[#4c669a] dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className={`px-6 py-4 ${header.column.getCanSort() ? 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800' : ''} transition-colors ${header.id === 'select' ? 'w-12' : ''}`}
+                  className={`px-6 py-4 ${
+                    header.column.getCanSort()
+                      ? 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800'
+                      : ''
+                  } transition-colors ${header.id === 'select' ? 'w-12' : ''} ${
+                    header.id === 'actions'
+                      ? 'sticky right-0 bg-[#f8f9fc] dark:bg-[#1a253a] z-20 w-32 text-right'
+                      : ''
+                  }`}
                   onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
                 >
                   <div className="flex items-center gap-2">
@@ -412,7 +424,16 @@ function CustomersTableContent({
                 className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${row.getIsSelected() ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={`px-6 py-4 text-sm text-[#0d121b] dark:text-white ${cell.column.id === 'select' ? 'w-12' : ''}`}>
+                  <td
+                    key={cell.id}
+                    className={`px-6 py-4 text-sm text-[#0d121b] dark:text-white ${
+                      cell.column.id === 'select' ? 'w-12' : ''
+                    } ${
+                      cell.column.id === 'actions'
+                        ? 'sticky right-0 bg-white dark:bg-[#161f30] z-10 w-32 text-right'
+                        : ''
+                    }`}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}

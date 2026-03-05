@@ -6,12 +6,12 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { InvoiceListRequest, InvoiceDeleteRequest, InvoicePdfDownloadRequest } from '../../../requests';
+import { InvoiceListRequest, InvoiceDeleteRequest, InvoicePdfDownloadRequest, InvoiceCreateCreditNoteRequest, InvoiceCreateDebitNoteRequest } from '../../../requests';
 
 // Utils 
 import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, showToast, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, showToast, parseLoginInfo, getNormalizedModulePermissions, INVOICE_STATUSES } from '../../../utils';
 
 function InvoiceList() {
   const navigate = useNavigate();
@@ -344,6 +344,92 @@ function InvoicesTableContent({
       });
   }, [decodedToken, selectedInvoiceId, refreshInvoices]);
 
+  const setNotePayloadForInvoice = (invoice) => {
+    if (!invoice) return null;
+
+    const {
+      lineItems = [],
+      vat,
+      paymentType,
+      paymentTerms,
+      deliveryDate,
+      currency,
+      note,
+    } = invoice;
+
+    if (!Array.isArray(lineItems) || lineItems.length === 0) {
+      return null;
+    }
+
+    return {
+      noteReason: 'CANCELLATION_OR_TERMINATION',
+      lineItems: lineItems.map((item) => ({
+        description: item.description,
+        productCode: item.productCode,
+        quantity: item.quantity,
+        price: item.price,
+        discount_amount: item.discount_amount,
+        discount_percentage: item.discount_percentage,
+        taxExempt: item.taxExempt,
+        taxExemptReason: item.taxExemptReason,
+      })),
+      vat: vat ?? 15,
+      paymentType: paymentType || 'CASH',
+      paymentTerms: paymentTerms || '',
+      deliveryDate: deliveryDate || '',
+      currency: currency || 'SAR',
+      note: note || '',
+    };
+  };
+
+  const handleCreateCreditNote = useCallback(
+    async (invoice) => {
+      if (!invoice?._id) {
+        return;
+      }
+
+      const payload = setNotePayloadForInvoice(invoice);
+
+      if (!payload) {
+        showToast('Cannot create credit note: invoice has no line items.', 'error');
+        return;
+      }
+
+      try {
+        await InvoiceCreateCreditNoteRequest(decodedToken, invoice._id, JSON.stringify(payload));
+        showToast('Credit note created successfully!', 'success');
+        refreshInvoices?.();
+      } catch (error) {
+        showToast(error?.message || 'Failed to create credit note', 'error');
+      }
+    },
+    [decodedToken, refreshInvoices]
+  );
+
+  const handleCreateDebitNote = useCallback(
+    async (invoice) => {
+      if (!invoice?._id) {
+        return;
+      }
+
+      const payload = setNotePayloadForInvoice(invoice);
+
+      if (!payload) {
+        showToast('Cannot create debit note: invoice has no line items.', 'error');
+        return;
+      }
+
+      try {
+        await InvoiceCreateDebitNoteRequest(decodedToken, invoice._id, JSON.stringify(payload));
+        showToast('Debit note created successfully!', 'success');
+        refreshInvoices?.();
+      } catch (error) {
+        showToast(error?.message || 'Failed to create debit note', 'error');
+      }
+    },
+    [decodedToken, refreshInvoices]
+  );
+
   const handlePrintInvoice = async (invoiceId) => {
     if (!invoiceId) return;
     try {
@@ -483,43 +569,56 @@ function InvoicesTableContent({
         cell: ({ row }) => {
           const canEdit = invoicePerms.update;
           const canDelete = invoicePerms.delete;
+          const statusConfig = INVOICE_STATUSES.find(
+            (status) => status.name === row.original.status
+          );
+          const canCreateCreditNote = !!statusConfig?.canCreateCreditNote;
+          const canCreateDebitNote = !!statusConfig?.canCreateDebitNote;
+          const hasAnyActions = canEdit || canDelete || canCreateCreditNote || canCreateDebitNote;
 
-          if (!canEdit && !canDelete) return null;
+          if (!hasAnyActions) return null;
+
+          const handleChange = (e) => {
+            const value = e.target.value;
+            if (!value) return;
+
+            if (value === 'edit') {
+              navigate(`/invoices/${row.original._id}`);
+            } else if (value === 'print') {
+              handlePrintInvoice(row.original._id);
+            } else if (value === 'credit-note') {
+              handleCreateCreditNote(row.original);
+            } else if (value === 'debit-note') {
+              handleCreateDebitNote(row.original);
+            } else if (value === 'delete') {
+              handleOpenDeleteModal(row.original._id);
+            }
+
+            // reset back to placeholder
+            e.target.value = '';
+          };
 
           return (
-            <div className="flex items-center gap-2">
-              {canEdit && (
-                <button
-                  onClick={() => navigate(`/invoices/${row.original._id}`)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[16px]">edit</span>
-                  Edit
-                </button>
-              )}
-              <button
-                onClick={() => handlePrintInvoice(row.original._id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-[#e7ebf3] dark:border-[#2a3447] text-xs font-semibold text-[#4c669a] hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm"
-              >
-                <span className="material-symbols-outlined text-[16px]">print</span>
-                Print
-              </button>
-              {canDelete && (
-                <button
-                  onClick={() => handleOpenDeleteModal(row.original._id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-[#161f30] border border-red-200 dark:border-red-500/60 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shadow-sm"
-                >
-                  <span className="material-symbols-outlined text-[16px]">delete</span>
-                  Delete
-                </button>
-              )}
-            </div>
+            <select
+              defaultValue=""
+              onChange={handleChange}
+              className="px-3 py-1.5 text-sm rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer"
+            >
+              <option value="" disabled>
+                Action
+              </option>
+              {canEdit && <option value="edit">Edit</option>}
+              <option value="print">Print</option>
+              {canCreateCreditNote && <option value="credit-note">Create Credit Note </option>}
+              {canCreateDebitNote && <option value="debit-note">Create Debit Note</option>}
+              {canDelete && <option value="delete">Delete</option>}
+            </select>
           );
         },
         enableSorting: false,
       },
     ],
-    [navigate, handleOpenDeleteModal, invoicePerms]
+    [navigate, handleOpenDeleteModal, invoicePerms, handleCreateCreditNote, handleCreateDebitNote]
   );
 
   const table = useReactTable({
@@ -552,7 +651,7 @@ function InvoicesTableContent({
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className={`px-6 py-4 ${header.column.getCanSort() ? 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800' : ''} transition-colors ${header.id === 'select' ? 'w-12' : ''}`}
+                  className={`px-6 py-4 ${header.column.getCanSort() ? 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800' : ''} transition-colors ${header.id === 'select' ? 'w-12' : ''} ${header.id === 'actions' ? 'sticky right-0 bg-[#f8f9fc] dark:bg-[#1a253a] z-20 w-24 text-right' : ''}`}
                   onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
                 >
                   <div className="flex items-center gap-2">
@@ -585,7 +684,14 @@ function InvoicesTableContent({
                 className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${row.getIsSelected() ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={`px-6 py-4 text-sm text-[#0d121b] dark:text-white ${cell.column.id === 'select' ? 'w-12' : ''}`}>
+                  <td
+                    key={cell.id}
+                    className={`px-6 py-4 text-sm text-[#0d121b] dark:text-white ${cell.column.id === 'select' ? 'w-12' : ''} ${
+                      cell.column.id === 'actions'
+                        ? 'sticky right-0 bg-white dark:bg-[#161f30] z-20 w-32 text-right'
+                        : ''
+                    }`}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}

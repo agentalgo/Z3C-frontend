@@ -1,11 +1,17 @@
 // Packages
 import { Fragment, useState, use, useMemo, useEffect, Suspense } from 'react';
+import AsyncSelect from 'react-select/async';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { CustomerCreateRequest, CustomerDetailRequest, CustomerUpdateRequest } from '../../../requests';
+import {
+  CustomerCreateRequest,
+  CustomerDetailRequest,
+  CustomerUpdateRequest,
+  CustomerProfileListRequest,
+} from '../../../requests';
 
 // Utils
 import { auth } from '../../../atoms';
@@ -30,6 +36,7 @@ const INITIAL_FORM_DATA = {
     cityNameAr: '',
     postalZone: '',
     countryCode: '',
+    customerProfileId: ''
   },
   validations: {
     streetName: { isRequired: true, label: 'Street Name' },
@@ -103,10 +110,15 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
   const customerData = customerPromise ? use(customerPromise) : null;
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
   const [isLoading, _isLoading] = useState(false);
+  const [selectedCustomerProfile, _selectedCustomerProfile] = useState(null);
 
   useEffect(() => {
     if (customerData?.data) {
       const apiData = customerData.data;
+      const profile = apiData.customerProfile || {};
+      const profileId = apiData.customerProfileId || profile._id || profile.id || '';
+      const profileLabel = profile.name || profile.profileName || '';
+
       _formData(old => ({
         ...old,
         data: {
@@ -127,8 +139,18 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
           cityNameAr: apiData.cityNameAr || '',
           postalZone: apiData.postalZone || '',
           countryCode: apiData.countryCode || '',
+          customerProfileId: profileId ? String(profileId) : '',
         },
       }));
+
+      if (profileId) {
+        _selectedCustomerProfile({
+          value: String(profileId),
+          label: profileLabel || `Profile ${profileId}`,
+        });
+      } else {
+        _selectedCustomerProfile(null);
+      }
     } else if (customerData?.isError) {
       _formData({ ...INITIAL_FORM_DATA });
     }
@@ -141,6 +163,48 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
       data: {
         ...old.data,
         [e.target.name]: e.target.value,
+      },
+    }));
+  };
+
+  const loadCustomerProfileOptions = (inputValue) => {
+    if (!decodedToken) {
+      return Promise.resolve([]);
+    }
+
+    return CustomerProfileListRequest(decodedToken, { limit: 50, search: inputValue })
+      .then((response) => {
+        const profiles = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
+        return profiles.map((profile) => ({
+          value: profile._id || profile.id,
+          label: profile.name || profile.profileName || 'Unnamed Profile',
+          data: profile,
+        })).filter((option) => option.value);
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error('Error loading customer profiles:', error);
+        return [];
+      });
+  };
+
+  const handleCustomerProfileChange = (selectedOption) => {
+    _selectedCustomerProfile(selectedOption);
+
+    const profileId = selectedOption
+      ? String(
+        selectedOption.value ||
+        selectedOption?.data?._id ||
+        selectedOption?.data?.id ||
+        '',
+      )
+      : '';
+
+    _formData((old) => ({
+      ...old,
+      data: {
+        ...old.data,
+        customerProfileId: profileId,
       },
     }));
   };
@@ -182,7 +246,8 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
         registrationName: formData.data.registrationName,
         registrationNameAr: formData.data.registrationNameAr,
         email: formData.data.email,
-        phone: formData.data.phone
+        phone: formData.data.phone,
+        customerProfileId: formData.data.customerProfileId || undefined,
       };
 
       const request = id
@@ -279,6 +344,40 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
           {formData.errors.phone && (
             <span className="text-xs text-tomato">{formData.errors.phone}</span>
           )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Customer Profile (Optional)</label>
+          <AsyncSelect
+            cacheOptions
+            defaultOptions
+            isClearable
+            loadOptions={loadCustomerProfileOptions}
+            onChange={handleCustomerProfileChange}
+            value={selectedCustomerProfile}
+            placeholder="Select or search customer profile..."
+            classNames={{
+              control: (state) =>
+                `!px-2 !py-0.5 !rounded-lg !border !bg-white dark:!bg-[#161f30] !shadow-none hover:!border-primary focus:!border-primary !transition-colors ${
+                  state.isFocused
+                    ? '!border-primary !ring-1 !ring-primary'
+                    : '!border-[#e7ebf3] dark:!border-[#2a3447]'
+                }`,
+              menu: () =>
+                '!bg-white dark:!bg-[#161f30] !border !border-[#e7ebf3] dark:!border-[#2a3447] !rounded-lg !shadow-lg !mt-1 !z-50',
+              option: (state) =>
+                `!px-4 !py-2 !cursor-pointer !text-sm ${
+                  state.isSelected
+                    ? '!bg-primary !text-white'
+                    : state.isFocused
+                      ? '!bg-gray-50 dark:!bg-gray-800 !text-[#0d121b] dark:!text-white'
+                      : '!text-[#0d121b] dark:!text-white'
+                }`,
+              input: () => '!text-sm !text-[#0d121b] dark:!text-white',
+              singleValue: () => '!text-sm !text-[#0d121b] dark:!text-white',
+              placeholder: () => '!text-sm !text-[#4c669a]',
+            }}
+          />
         </div>
 
         <div className="flex flex-col gap-2">
