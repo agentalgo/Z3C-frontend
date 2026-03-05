@@ -5,5 +5,8 @@ export { default as InvoiceList } from './InvoiceList/InvoiceList';
 export { default as InvoiceForm } from './InvoiceForm/InvoiceForm';
 export { default as CustomerList } from './CustomerList/CustomerList';
 export { default as CustomerForm } from './CustomerForm/CustomerForm';
+export { default as CustomerProfileList } from './CustomerProfileList/CustomerProfileList';
+export { default as CustomerProfileForm } from './CustomerProfileForm/CustomerProfileForm';
 export { default as UserManagementList } from './UserManagementList/UserManagementList';
 export { default as UserManagementForm } from './UserManagementForm/UserManagementForm';
+export { default as ZatcaReports } from './ZatcaReports/ZatcaReports';

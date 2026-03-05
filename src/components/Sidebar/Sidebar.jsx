@@ -13,10 +13,12 @@ import { decodeString, parseLoginInfo, getNormalizedModulePermissions } from '..
 const navigation = [
   { label: 'Dashboard', icon: 'dashboard', path: '/', permissionKey: 'zatcaReporting' },
   // { label: 'Company Profile', icon: 'business', path: '/company-profile', permissionKey: 'companyProfile' },
-  { label: 'Invoices', icon: 'description', path: '/invoices', permissionKey: 'invoice' },
   { label: 'Customer', icon: 'people', path: '/customer', permissionKey: 'customer' },
+  { label: 'Customer Profiles', icon: 'account_balance', path: '/customer-profile', permissionKey: 'profile' },
+  { label: 'Invoices', icon: 'description', path: '/invoices', permissionKey: 'invoice' },
   { label: 'User Management', icon: 'manage_accounts', path: '/user-management', permissionKey: 'user' },
-]
+  { label: 'Zatca Reports', icon: 'summarize', path: '/zatca-reports', permissionKey: 'zatcaReporting' },
+];
 
 function Sidebar() {
   const [token, _token] = useAtom(auth);

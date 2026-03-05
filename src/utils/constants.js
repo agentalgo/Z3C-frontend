@@ -9,7 +9,7 @@ export const PAGINATION_PAGE_SIZES = [20, 50, 100];
 export const DEFAULT_PAGE_SIZE = 20;
 
 // Toast Type Configurations
-export const toastTypes = {
+export const TOAST_TYPES = {
   success: {
     icon: 'check_circle',
     iconColor: 'text-green-500',
@@ -29,3 +29,20 @@ export const toastTypes = {
     bgColor: 'bg-blue-50 dark:bg-blue-900/20',
   },
 };
+
+export const INVOICE_STATUSES = [
+  {name: "DRAFT", canEdit: true, canDelete: true},
+  {name: "REJECTED", canEdit: true, canDelete: true},
+  {name: "PENDING_SUBMISSION", canEdit: false, canDelete: false},
+  {name: "COMPLIANCE_QUEUED", canEdit: false, canDelete: false},
+  {name: "COMPLIANCE_PROCESSING", canEdit: false, canDelete: false},
+  {name: "COMPLIANCE_COMPLETED", canEdit: false, canDelete: false},
+  {name: "SUBMITTED", canEdit: false, canDelete: false},
+  {name: "CLEARANCE_QUEUED", canEdit: false, canDelete: false},
+  {name: "CLEARANCE_PROCESSING", canEdit: false, canDelete: false},
+  {name: "ACCEPTED", canEdit: false, canDelete: false},
+  {name: "PENDING_CLEARANCE", canEdit: false, canDelete: false},
+  {name: "CLEARED", canEdit: false, canDelete: false},
+  {name: "FINALIZED", canEdit: false, canDelete: false},
+];
+

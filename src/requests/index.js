@@ -23,3 +23,9 @@ export { default as UserUpdateRequest } from './user-update.request';
 export { default as CompanyProfileCreateRequest } from './company-profile-create.request';
 export { default as CompanyProfileDetailRequest } from './company-profile-detail.request';
 export { default as CompanyProfileUpdateRequest } from './company-profile-update.request';
+export { default as CustomerProfileCreateRequest } from './customer-profile-create.request';
+export { default as CustomerProfileDetailRequest } from './customer-profile-detail.request';
+export { default as CustomerProfileListRequest } from './customer-profile-list.request';
+export { default as CustomerProfileUpdateRequest } from './customer-profile-update.request';
+export { default as CustomerProfileTemplatesListRequest } from './customer-profile-templates-list.request';
+

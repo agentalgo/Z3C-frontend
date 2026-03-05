@@ -126,7 +126,8 @@ function InvoiceList() {
 
       <div className="flex flex-col sm:flex-row gap-3">
         {selectedRowCount > 0 && (
-          <div className="relative">
+          // Temporarily hidden actions dropdown
+          <div className="relative opacity-0">
             <button
               onClick={() => _isActionsOpen(!isActionsOpen)}
               className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-primary bg-primary/10 text-sm font-medium text-primary hover:bg-primary/20 transition-colors w-full sm:w-auto"
@@ -138,7 +139,7 @@ function InvoiceList() {
               </span>
             </button>
 
-            {isActionsOpen && (
+            {isActionsOpen && (              
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
                 <div className="py-1">
                   <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -241,7 +242,7 @@ function InvoiceList() {
             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 w-full sm:w-auto"
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
-            Create
+            Create Invoice
           </button>
         )}
       </div>
@@ -346,8 +347,19 @@ function InvoicesTableContent({
   const handlePrintInvoice = async (invoiceId) => {
     if (!invoiceId) return;
     try {
-      const response = await InvoicePdfDownloadRequest(decodedToken, invoiceId);
-      console.log(response);
+      const pdfBlob = await InvoicePdfDownloadRequest(decodedToken, invoiceId);
+      const fileURL = window.URL.createObjectURL(pdfBlob);
+
+      const pdfWindow = window.open(fileURL, '_blank');
+
+      if (!pdfWindow) {
+        showToast('Please allow popups to view the invoice PDF', 'error');
+      }
+
+      // Revoke the object URL after some time to free memory
+      setTimeout(() => {
+        window.URL.revokeObjectURL(fileURL);
+      }, 10000);
     } catch (error) {
       showToast(error?.message || 'Failed to download invoice PDF', 'error');
     }
