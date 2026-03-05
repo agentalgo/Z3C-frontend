@@ -40,9 +40,8 @@ export const INVOICE_STATUSES = [
   {name: "SUBMITTED", canEdit: false, canDelete: false},
   {name: "CLEARANCE_QUEUED", canEdit: false, canDelete: false},
   {name: "CLEARANCE_PROCESSING", canEdit: false, canDelete: false},
-  {name: "ACCEPTED", canEdit: false, canDelete: false},
   {name: "PENDING_CLEARANCE", canEdit: false, canDelete: false},
-  {name: "CLEARED", canEdit: false, canDelete: false},
-  {name: "FINALIZED", canEdit: false, canDelete: false},
+  {name: "ACCEPTED", canEdit: false, canDelete: false, canCreateCreditNote: true, canCreateDebitNote: true},
+  {name: "CLEARED", canEdit: false, canDelete: false, canCreateCreditNote: true, canCreateDebitNote: true},
+  {name: "FINALIZED", canEdit: false, canDelete: false, canCreateCreditNote: true, canCreateDebitNote: true},
 ];
-
