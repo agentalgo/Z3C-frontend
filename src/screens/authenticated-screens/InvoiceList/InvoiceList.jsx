@@ -547,7 +547,7 @@ function InvoicesTableContent({
         cell: ({ row }) => row.original.createdBy?.username || 'N/A'
       },
       {
-        accessorKey: 'grandTotal',
+        accessorKey: 'totalsInSAR.grandTotal',
         header: 'Grand Total',
         enableSorting: true,
         cell: ({ getValue, row }) => {

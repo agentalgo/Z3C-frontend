@@ -63,8 +63,8 @@ export const INVOICE_STATUSES = [
   },
   {
     name: "COMPLIANCE_COMPLETED",
-    canEdit: false,
-    canDelete: false,
+    canEdit: true,
+    canDelete: true,
     color: "bg-green-300"
   },
   {

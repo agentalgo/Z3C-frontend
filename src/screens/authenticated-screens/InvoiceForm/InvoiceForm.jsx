@@ -145,9 +145,13 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       (acc, item) => acc + Math.round(getItemNetTotal(item) * 100),
       0
     );
+    const taxableCents = lineItems.reduce(
+      (acc, item) => item.taxExempt ? acc : acc + Math.round(getItemNetTotal(item) * 100),
+      0
+    );
     const subtotal = (totalCents / 100).toFixed(2);
     const vatPercentage = Number(formData.data.vat) || 15;
-    const vatCents = Math.round(totalCents * (vatPercentage / 100));
+    const vatCents = Math.round(taxableCents * (vatPercentage / 100));
     const vatAmount = (vatCents / 100).toFixed(2);
     const grandTotal = (totalCents + vatCents) / 100;
 
