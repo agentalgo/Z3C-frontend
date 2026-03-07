@@ -4,7 +4,8 @@ const ZatcaReportDownloadRequest = (token, params = {}) => {
   const queryParams = new URLSearchParams();
   if (params.fromDate) queryParams.append('fromDate', params.fromDate);
   if (params.toDate) queryParams.append('toDate', params.toDate);
-  if (params.zatcaStatus) queryParams.append('zatcaStatus', params.zatcaStatus);
+  // Default to ALL when not selected to match API expectation (same as curl)
+  queryParams.append('zatcaStatus', params.zatcaStatus || 'ALL');
 
   const queryString = queryParams.toString();
   const url = getApiUrl(`/reports/invoices/excel${queryString ? `?${queryString}` : ''}`);

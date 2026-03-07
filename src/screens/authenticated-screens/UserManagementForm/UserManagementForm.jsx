@@ -13,7 +13,7 @@ import { Footer, ErrorFallback } from '../../../components';
 import { showToast, validateSubmissionData, decodeString } from '../../../utils';
 import { auth } from '../../../atoms';
 
-const PERMISSION_MODULES = ['invoice', 'customer', 'profile', 'companyProfile', 'zatcaReporting'];
+const PERMISSION_MODULES = ['invoice', 'customer', 'profile', 'companyProfile', 'zatcaReporting', 'user'];
 const USER_ROLES = ["Admin", "Manager", "Accountant", "Viewer"];
 
 const INITIAL_FORM_DATA = {
@@ -255,6 +255,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           profile: buildModulePermissions('profile'),
           companyProfile: buildModulePermissions('companyProfile'),
           zatcaReporting: buildModulePermissions('zatcaReporting'),
+          user: buildModulePermissions('user'),
         },
       };
 
@@ -368,6 +369,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
             { value: 'profile', label: 'Profile' },
             { value: 'companyProfile', label: 'Company Profile' },
             { value: 'zatcaReporting', label: 'ZATCA Reporting' },
+            { value: 'user', label: 'User Management' },
           ]}
           value={formData.data.permissions.map((perm) => {
             const option = {
@@ -376,12 +378,13 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
               profile: 'Profile',
               companyProfile: 'Company Profile',
               zatcaReporting: 'ZATCA Reporting',
+              user: 'User Management',
             }[perm] || perm;
             return {
               value: perm,
               label: option,
             };
-          })}          
+          })}
         />
         {formData.errors.permissions && (
           <span className="text-xs text-tomato">{formData.errors.permissions}</span>
