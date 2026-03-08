@@ -320,8 +320,10 @@ function InvoicesTableContent({
   const [selectedInvoiceId, _selectedInvoiceId] = useState(null);
   const [isDeleting, _isDeleting] = useState(false);
   const [actionBusyId, _actionBusyId] = useState(null);
-  const [isZatcaResponseModalOpen, _isZatcaResponseModalOpen] = useState(false);
-  const [zatcaResponseToShow, _zatcaResponseToShow] = useState(null);
+  const [isComplianceResponseModalOpen, _isComplianceResponseModalOpen] = useState(false);
+  const [complianceResponseToShow, _complianceResponseToShow] = useState(null);
+  const [isClearanceResponseModalOpen, _isClearanceResponseModalOpen] = useState(false);
+  const [clearanceResponseToShow, _clearanceResponseToShow] = useState(null);
 
   // *********** Handlers ***********
 
@@ -371,15 +373,26 @@ function InvoicesTableContent({
     _selectedInvoiceId(null);
   };
 
-  const handleOpenZatcaResponseModal = (invoice) => {
+  const handleOpenComplianceResponseModal = (invoice) => {
     const raw = invoice?.compliance?.zatcaResponse;
-    _zatcaResponseToShow(typeof raw === 'string' ? raw : raw != null ? JSON.stringify(raw) : null);
-    _isZatcaResponseModalOpen(true);
+    _complianceResponseToShow(typeof raw === 'string' ? raw : raw != null ? JSON.stringify(raw) : null);
+    _isComplianceResponseModalOpen(true);
   };
 
-  const handleCloseZatcaResponseModal = () => {
-    _isZatcaResponseModalOpen(false);
-    _zatcaResponseToShow(null);
+  const handleCloseComplianceResponseModal = () => {
+    _isComplianceResponseModalOpen(false);
+    _complianceResponseToShow(null);
+  };
+
+  const handleOpenClearanceResponseModal = (invoice) => {
+    const raw = invoice?.clearance?.zatcaResponse;
+    _clearanceResponseToShow(typeof raw === 'string' ? raw : raw != null ? JSON.stringify(raw) : null);
+    _isClearanceResponseModalOpen(true);
+  };
+
+  const handleCloseClearanceResponseModal = () => {
+    _isClearanceResponseModalOpen(false);
+    _clearanceResponseToShow(null);
   };
 
   const handleConfirmDelete = useCallback(() => {
@@ -638,8 +651,10 @@ function InvoicesTableContent({
               navigate(`/invoices/${row.original._id}`);
             } else if (value === 'print') {
               handlePrintInvoice(row.original._id);
-            } else if (value === 'zatca-response') {
-              handleOpenZatcaResponseModal(row.original);
+            } else if (value === 'compliance-response') {
+              handleOpenComplianceResponseModal(row.original);
+            } else if (value === 'clearance-response') {
+              handleOpenClearanceResponseModal(row.original);
             } else if (value === 'credit-note') {
               handleCreateCreditNote(row.original);
             } else if (value === 'debit-note') {
@@ -668,7 +683,12 @@ function InvoicesTableContent({
               </option>
               <option value="view">View</option>
               <option value="print">Print</option>
-              <option value="zatca-response">View ZATCA Response</option>
+              {(row.original.compliance && Object.keys(row.original.compliance).length > 0) && (
+                <option value="compliance-response">View Compliance Response</option>
+              )}
+              {(row.original.clearance && Object.keys(row.original.clearance).length > 0) && (
+                <option value="clearance-response">View ZATCA Response</option>
+              )}
               {canReportToZatca && <option value="report-zatca">Report to ZATCA</option>}
               <option value="check-compliance">Check Compliance</option>
               {canCreateCreditNote && <option value="credit-note">Create Credit Note </option>}
@@ -683,7 +703,8 @@ function InvoicesTableContent({
     [
       navigate,
       handleOpenDeleteModal,
-      handleOpenZatcaResponseModal,
+      handleOpenComplianceResponseModal,
+      handleOpenClearanceResponseModal,
       invoicePerms,
       handleCreateCreditNote,
       handleCreateDebitNote,
@@ -732,6 +753,34 @@ function InvoicesTableContent({
       out = str;
     }
     return normalizeLineEndings(out);
+  };
+
+  const parseClearanceResponse = (str) => {
+    if (str == null || str === '') return null;
+    try {
+      const parsed = typeof str === 'string' ? JSON.parse(str) : str;
+      if (!parsed || typeof parsed !== 'object') return null;
+      const vr = parsed.validationResults;
+      if (!vr) return null;
+      const extractMessages = (arr) =>
+        Array.isArray(arr)
+          ? arr.map((m) => ({
+              code: m.code || '',
+              category: m.category || '',
+              message: m.message || '',
+              status: m.status || '',
+            }))
+          : [];
+      return {
+        status: vr.status || '',
+        clearanceStatus: parsed.clearanceStatus || '',
+        infoMessages: extractMessages(vr.infoMessages),
+        warningMessages: extractMessages(vr.warningMessages),
+        errorMessages: extractMessages(vr.errorMessages),
+      };
+    } catch {
+      return null;
+    }
   };
 
   const table = useReactTable({
@@ -910,10 +959,10 @@ function InvoicesTableContent({
     />
   );
 
-  const ZATCA_RESPONSE_MODAL = () => {
-    if (!isZatcaResponseModalOpen) return null;
-    const structured = parseZatcaResponse(zatcaResponseToShow);
-    const fallbackContent = formatZatcaResponseForDisplay(zatcaResponseToShow) ?? 'No ZATCA response available for this invoice.';
+  const COMPLIANCE_RESPONSE_MODAL = () => {
+    if (!isComplianceResponseModalOpen) return null;
+    const structured = parseZatcaResponse(complianceResponseToShow);
+    const fallbackContent = formatZatcaResponseForDisplay(complianceResponseToShow) ?? 'No compliance response available for this invoice.';
 
     const modalBody = structured ? (
       <div className="space-y-4">
@@ -980,12 +1029,12 @@ function InvoicesTableContent({
       <Fragment>
         <div
           className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-          onClick={handleCloseZatcaResponseModal}
+          onClick={handleCloseComplianceResponseModal}
         />
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-white dark:bg-[#161f30] shadow-2xl border border-[#e7ebf3] dark:border-[#2a3447]">
             <div className="px-6 py-4 border-b border-[#e7ebf3] dark:border-[#2a3447] flex-shrink-0">
-              <h3 className="text-lg font-bold text-[#0d121b] dark:text-white">Zatca Response</h3>
+              <h3 className="text-lg font-bold text-[#0d121b] dark:text-white">Compliance Response</h3>
             </div>
             <div className="px-6 py-4 overflow-auto flex-1 min-h-0">
               {modalBody}
@@ -993,7 +1042,158 @@ function InvoicesTableContent({
             <div className="px-6 py-4 flex justify-end border-t border-[#e7ebf3] dark:border-[#2a3447] bg-[#f8f9fc] dark:bg-[#1a253a] rounded-b-2xl flex-shrink-0">
               <button
                 type="button"
-                onClick={handleCloseZatcaResponseModal}
+                onClick={handleCloseComplianceResponseModal}
+                className="inline-flex justify-center rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] px-4 py-2.5 text-sm font-medium text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </Fragment>
+    );
+  };
+
+  const ZATCA_RESPONSE_MODAL = () => {
+    if (!isClearanceResponseModalOpen) return null;
+    const structured = parseClearanceResponse(clearanceResponseToShow);
+    const fallbackContent = formatZatcaResponseForDisplay(clearanceResponseToShow) ?? 'No ZATCA response available for this invoice.';
+
+    const MessageList = ({ messages, colorClass, bgClass, borderClass, headerBgClass, headerBorderClass, icon, title, textClass }) => (
+      <div className={`rounded-lg border ${borderClass} ${bgClass} overflow-hidden`}>
+        <div className={`px-3 py-2 ${headerBgClass} border-b ${headerBorderClass} flex items-center gap-2`}>
+          <span className={`material-symbols-outlined ${colorClass} text-[18px]`}>{icon}</span>
+          <span className={`text-sm font-bold ${textClass}`}>{title}</span>
+          <span className={`ml-auto text-xs font-semibold ${textClass} opacity-70`}>{messages.length}</span>
+        </div>
+        <ul className="divide-y divide-current divide-opacity-10 px-0">
+          {messages.map((m, i) => (
+            <li key={i} className={`px-3 py-2.5 ${textClass}`}>
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                {m.code && (
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold font-mono ${headerBgClass} border ${headerBorderClass} ${textClass}`}>
+                    {m.code}
+                  </span>
+                )}
+                {m.category && (
+                  <span className="text-[11px] font-medium opacity-60">{m.category}</span>
+                )}
+                {m.status && (
+                  <span className="text-[10px] font-bold opacity-50 ml-auto">{m.status}</span>
+                )}
+              </div>
+              <p className="text-sm break-words">{m.message}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+
+    const statusColorMap = {
+      PASS: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+      WARNING: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+      ERROR: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+    };
+    const clearanceColorMap = {
+      CLEARED: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+      NOT_CLEARED: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+    };
+
+    const modalBody = structured ? (
+      <div className="space-y-4">
+        {/* Status badges */}
+        <div className="flex flex-wrap items-center gap-3">
+          {structured.clearanceStatus && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-[#4c669a] dark:text-gray-400 uppercase tracking-wide">Clearance</span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${clearanceColorMap[structured.clearanceStatus] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>
+                {structured.clearanceStatus}
+              </span>
+            </div>
+          )}
+          {structured.status && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-[#4c669a] dark:text-gray-400 uppercase tracking-wide">Validation</span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${statusColorMap[structured.status] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>
+                {structured.status}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Error Messages */}
+        {structured.errorMessages.length > 0 && (
+          <MessageList
+            messages={structured.errorMessages}
+            colorClass="text-red-600 dark:text-red-400"
+            bgClass="bg-red-50 dark:bg-red-950/30"
+            borderClass="border-red-200 dark:border-red-800/60"
+            headerBgClass="bg-red-100 dark:bg-red-900/40"
+            headerBorderClass="border-red-200 dark:border-red-800/60"
+            textClass="text-red-800 dark:text-red-200"
+            icon="error"
+            title="Errors"
+          />
+        )}
+
+        {/* Warning Messages */}
+        {structured.warningMessages.length > 0 && (
+          <MessageList
+            messages={structured.warningMessages}
+            colorClass="text-amber-600 dark:text-amber-400"
+            bgClass="bg-amber-50 dark:bg-amber-950/20"
+            borderClass="border-amber-200 dark:border-amber-800/60"
+            headerBgClass="bg-amber-100 dark:bg-amber-900/40"
+            headerBorderClass="border-amber-200 dark:border-amber-800/60"
+            textClass="text-amber-800 dark:text-amber-200"
+            icon="warning"
+            title="Warnings"
+          />
+        )}
+
+        {/* Info Messages */}
+        {structured.infoMessages.length > 0 && (
+          <MessageList
+            messages={structured.infoMessages}
+            colorClass="text-blue-600 dark:text-blue-400"
+            bgClass="bg-blue-50 dark:bg-blue-950/20"
+            borderClass="border-blue-200 dark:border-blue-800/60"
+            headerBgClass="bg-blue-100 dark:bg-blue-900/40"
+            headerBorderClass="border-blue-200 dark:border-blue-800/60"
+            textClass="text-blue-800 dark:text-blue-200"
+            icon="info"
+            title="Info"
+          />
+        )}
+
+        {structured.errorMessages.length === 0 && structured.warningMessages.length === 0 && structured.infoMessages.length === 0 && (
+          <p className="text-sm text-[#4c669a] dark:text-gray-400 italic">No messages in this response.</p>
+        )}
+      </div>
+    ) : (
+      <pre className="text-sm text-[#0d121b] dark:text-gray-200 whitespace-pre-wrap break-words font-mono bg-[#f8f9fc] dark:bg-[#0f1323] rounded-lg p-4 border border-[#e7ebf3] dark:border-[#2a3447]">
+        {fallbackContent}
+      </pre>
+    );
+
+    return (
+      <Fragment>
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          onClick={handleCloseClearanceResponseModal}
+        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-white dark:bg-[#161f30] shadow-2xl border border-[#e7ebf3] dark:border-[#2a3447]">
+            <div className="px-6 py-4 border-b border-[#e7ebf3] dark:border-[#2a3447] flex-shrink-0">
+              <h3 className="text-lg font-bold text-[#0d121b] dark:text-white">ZATCA Response</h3>
+            </div>
+            <div className="px-6 py-4 overflow-auto flex-1 min-h-0">
+              {modalBody}
+            </div>
+            <div className="px-6 py-4 flex justify-end border-t border-[#e7ebf3] dark:border-[#2a3447] bg-[#f8f9fc] dark:bg-[#1a253a] rounded-b-2xl flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleCloseClearanceResponseModal}
                 className="inline-flex justify-center rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] px-4 py-2.5 text-sm font-medium text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
                 Close
@@ -1010,6 +1210,7 @@ function InvoicesTableContent({
       {INVOICES_TABLE()}
       {PAGINATION_SECTION()}
       {CONFIRM_DELETE_MODAL()}
+      {COMPLIANCE_RESPONSE_MODAL()}
       {ZATCA_RESPONSE_MODAL()}
     </div>
   );
