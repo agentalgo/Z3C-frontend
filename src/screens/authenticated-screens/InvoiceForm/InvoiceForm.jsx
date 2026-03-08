@@ -18,6 +18,7 @@ const INITIAL_FORM_DATA = {
   data: {
     status: '',
     invoiceNumber: '',
+    invoiceType: '',
     customerId: null,
     referenceNumber: '',
     paymentType: '',
@@ -167,6 +168,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         data: {
           ...old.data,
           invoiceNumber: apiData.invoiceNumber || '',
+          invoiceType: apiData.invoiceType || '',
           referenceNumber: apiData.referenceNumber || '',
           paymentType: apiData.paymentType || '',
           paymentTerms: apiData.paymentTerms || '',
@@ -1006,6 +1008,18 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           {formData.errors.invoiceNumber && (
             <span className="text-xs text-tomato">{formData.errors.invoiceNumber}</span>
           )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Invoice Type</label>
+          <input
+            name="invoiceType"
+            type="text"
+            readOnly
+            value={formData.data.invoiceType || ''}
+            placeholder="—"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-gray-50 dark:bg-[#1a2332] text-sm text-[#0d121b] dark:text-white cursor-not-allowed dark:border-[#2a3447]"
+          />
         </div>
 
         <div className="flex flex-col gap-2">

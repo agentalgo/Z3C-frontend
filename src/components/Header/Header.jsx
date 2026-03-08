@@ -66,8 +66,7 @@ function Header() {
         <div
           className="bg-center bg-no-repeat aspect-square bg-cover rounded-full border-2 border-primary/20 h-10 w-10"
           style={{
-            backgroundImage:
-              'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAD6MYPHhaG0KwwmK-scZ-vaHh2mMsGe8P8sraZRwsAuWieQDFpAmdDnotcTgLw__zOPuFGKjrm_rTMpaZoWRftoX-fQY9QigJqs2cn-T9KkFlaJGI7cFs4e0SSi5t6NTieOeWy1Q4pfegQA5B860riKe-jO_KU8LJpWTQ20LzJ1vVZDd-88Oft0eXqUUj27CMOt5pEOWMy7vN4R5ZhmuFemtGNmfv8SYCv8esOc1RwR-DmWcl2RcZbNMSMPhxOJTaDxD2Gma_oP74")',
+            backgroundImage: `url("${user?.profilePicture || '/images/profile_pic.png'}")`,
           }}
           role="img"
           aria-label="User avatar"

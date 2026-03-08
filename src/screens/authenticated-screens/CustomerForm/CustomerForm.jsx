@@ -38,18 +38,22 @@ const INITIAL_FORM_DATA = {
     streetNameAr: { isRequired: true, label: 'Street Name (Arabic)' },
     address: { isRequired: true, label: 'Full Address' },
     addressAr: { isRequired: true, label: 'Full Address (Arabic)' },
-    buildingNumber: { isRequired: true, label: 'Building Number' },
+    buildingNumber: { isRequired: true, label: 'Building Number', regex: /^\d{4}$/ },
     cityName: { isRequired: true, label: 'City Name' },
     cityNameAr: { isRequired: true, label: 'City Name (Arabic)' },
     postalZone: { isRequired: true, regex: /^\d{5}$/, label: 'Postal Zone' },
     countryCode: { isRequired: true, exact: 2, label: 'Country Code' },
-    customerVAT: { isRequired: true, label: 'Customer VAT' },
     registrationName: { isRequired: true, label: 'Registered Name' },
     registrationNameAr: { isRequired: true, label: 'Registered Name (Arabic)' },
     email: {
       isRequired: true,
       regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
       label: 'Email',
+    },
+    customerVAT: {
+      isRequired: true,
+      label: 'Customer VAT',
+      regex: /^3\d{13}3$/,
     },
   },
   errors: {},
@@ -153,11 +157,19 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
 
   // *********** Handlers ***********
   const handleChangeFormData = (e) => {
+    let value = e.target.value;
+    if (e.target.name === 'customerVAT') {
+      value = value.replace(/\D/g, '').slice(0, 15);
+    } else if (e.target.name === 'postalZone') {
+      value = value.replace(/\D/g, '').slice(0, 5);
+    } else if (e.target.name === 'buildingNumber') {
+      value = value.replace(/\D/g, '').slice(0, 4);
+    }
     _formData(old => ({
       ...old,
       data: {
         ...old.data,
-        [e.target.name]: e.target.value,
+        [e.target.name]: value,
       },
     }));
   };
@@ -376,13 +388,15 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Customer VAT</label>
+          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Customer VAT *</label>
           <input
             type="text"
+            inputMode="numeric"
+            maxLength={15}
             name="customerVAT"
             value={formData.data.customerVAT || ''}
             onChange={handleChangeFormData}
-            placeholder="300012345600003"
+            placeholder="330000000000003"
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
           />
           {formData.errors.customerVAT && (
@@ -467,9 +481,11 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Building Number</label>
+          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Building Number *</label>
           <input
             type="text"
+            inputMode="numeric"
+            maxLength={4}
             name="buildingNumber"
             value={formData.data.buildingNumber || ''}
             onChange={handleChangeFormData}
@@ -549,6 +565,7 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
           <label className="text-sm font-medium text-[#0d121b] dark:text-white">Postal Zone *</label>
           <input
             type="text"
+            inputMode="numeric"
             maxLength={5}
             name="postalZone"
             value={formData.data.postalZone || ''}
