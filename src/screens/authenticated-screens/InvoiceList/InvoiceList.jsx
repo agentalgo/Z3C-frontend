@@ -320,6 +320,8 @@ function InvoicesTableContent({
   const [selectedInvoiceId, _selectedInvoiceId] = useState(null);
   const [isDeleting, _isDeleting] = useState(false);
   const [actionBusyId, _actionBusyId] = useState(null);
+  const [isZatcaResponseModalOpen, _isZatcaResponseModalOpen] = useState(false);
+  const [zatcaResponseToShow, _zatcaResponseToShow] = useState(null);
 
   // *********** Handlers ***********
 
@@ -367,6 +369,17 @@ function InvoicesTableContent({
     if (isDeleting) return;
     _isDeleteModalOpen(false);
     _selectedInvoiceId(null);
+  };
+
+  const handleOpenZatcaResponseModal = (invoice) => {
+    const raw = invoice?.compliance?.zatcaResponse;
+    _zatcaResponseToShow(typeof raw === 'string' ? raw : raw != null ? JSON.stringify(raw) : null);
+    _isZatcaResponseModalOpen(true);
+  };
+
+  const handleCloseZatcaResponseModal = () => {
+    _isZatcaResponseModalOpen(false);
+    _zatcaResponseToShow(null);
   };
 
   const handleConfirmDelete = useCallback(() => {
@@ -610,7 +623,6 @@ function InvoicesTableContent({
           const statusConfig = INVOICE_STATUSES.find(
             (status) => status.name === row.original.status
           );
-          const canEdit = invoicePerms.update && (statusConfig?.canEdit !== false);
           const canDelete = invoicePerms.delete && !!statusConfig?.canDelete;
           const canReportToZatca = !!statusConfig?.canSubmitToZatca;
           const canCreateCreditNote = !!statusConfig?.canCreateCreditNote;
@@ -622,10 +634,12 @@ function InvoicesTableContent({
             const value = e.target.value;
             if (!value) return;
 
-            if (value === 'edit') {
+            if (value === 'view') {
               navigate(`/invoices/${row.original._id}`);
             } else if (value === 'print') {
               handlePrintInvoice(row.original._id);
+            } else if (value === 'zatca-response') {
+              handleOpenZatcaResponseModal(row.original);
             } else if (value === 'credit-note') {
               handleCreateCreditNote(row.original);
             } else if (value === 'debit-note') {
@@ -652,8 +666,9 @@ function InvoicesTableContent({
               <option value="" disabled>
                 {isBusy ? '...' : 'Action'}
               </option>
-              {canEdit && <option value="edit">Edit</option>}
+              <option value="view">View</option>
               <option value="print">Print</option>
+              <option value="zatca-response">View ZATCA Response</option>
               {canReportToZatca && <option value="report-zatca">Report to ZATCA</option>}
               <option value="check-compliance">Check Compliance</option>
               {canCreateCreditNote && <option value="credit-note">Create Credit Note </option>}
@@ -668,6 +683,7 @@ function InvoicesTableContent({
     [
       navigate,
       handleOpenDeleteModal,
+      handleOpenZatcaResponseModal,
       invoicePerms,
       handleCreateCreditNote,
       handleCreateDebitNote,
@@ -676,6 +692,47 @@ function InvoicesTableContent({
       actionBusyId,
     ]
   );
+
+  const normalizeLineEndings = (str) => {
+    if (str == null || typeof str !== 'string') return '';
+    return str
+      .replace(/\\r\\n/g, '\n')
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\n')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .trim();
+  };
+
+  const parseZatcaResponse = (str) => {
+    if (str == null || str === '') return null;
+    try {
+      const parsed = JSON.parse(str);
+      if (parsed && typeof parsed === 'object' && ('valid' in parsed || 'errors' in parsed || 'warnings' in parsed || 'sdkOutput' in parsed)) {
+        return {
+          valid: Boolean(parsed.valid),
+          errors: Array.isArray(parsed.errors) ? parsed.errors : [],
+          warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
+          sdkOutput: typeof parsed.sdkOutput === 'string' ? parsed.sdkOutput : (parsed.sdkOutput != null ? String(parsed.sdkOutput) : ''),
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const formatZatcaResponseForDisplay = (str) => {
+    if (str == null || str === '') return null;
+    let out;
+    try {
+      const parsed = JSON.parse(str);
+      out = JSON.stringify(parsed, null, 2);
+    } catch {
+      out = str;
+    }
+    return normalizeLineEndings(out);
+  };
 
   const table = useReactTable({
     data: data.length > 0 ? data : [],
@@ -853,11 +910,107 @@ function InvoicesTableContent({
     />
   );
 
+  const ZATCA_RESPONSE_MODAL = () => {
+    if (!isZatcaResponseModalOpen) return null;
+    const structured = parseZatcaResponse(zatcaResponseToShow);
+    const fallbackContent = formatZatcaResponseForDisplay(zatcaResponseToShow) ?? 'No ZATCA response available for this invoice.';
+
+    const modalBody = structured ? (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-[#4c669a] dark:text-gray-400">Status</span>
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+              structured.valid
+                ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+            }`}
+          >
+            {structured.valid ? 'Valid' : 'Invalid'}
+          </span>
+        </div>
+
+        {structured.errors.length > 0 && (
+          <div className="rounded-lg border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-950/30 overflow-hidden">
+            <div className="px-3 py-2 bg-red-100 dark:bg-red-900/40 border-b border-red-200 dark:border-red-800/60 flex items-center gap-2">
+              <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-[18px]">error</span>
+              <span className="text-sm font-bold text-red-800 dark:text-red-200">Errors</span>
+            </div>
+            <ul className="px-3 py-2 list-disc list-inside space-y-1 text-sm text-red-800 dark:text-red-200">
+              {structured.errors.map((msg, i) => (
+                <li key={i} className="break-words">{msg}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {structured.warnings.length > 0 && (
+          <div className="rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/20 overflow-hidden">
+            <div className="px-3 py-2 bg-amber-100 dark:bg-amber-900/40 border-b border-amber-200 dark:border-amber-800/60 flex items-center gap-2">
+              <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-[18px]">warning</span>
+              <span className="text-sm font-bold text-amber-800 dark:text-amber-200">Warnings</span>
+            </div>
+            <ul className="px-3 py-2 list-disc list-inside space-y-1 text-sm text-amber-800 dark:text-amber-200">
+              {structured.warnings.map((msg, i) => (
+                <li key={i} className="break-words">{msg}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {structured.sdkOutput ? (
+          <div className="rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-[#f8f9fc] dark:bg-[#0f1323] overflow-hidden">
+            <div className="px-3 py-2 bg-[#e7ebf3] dark:bg-[#1a253a] border-b border-[#e7ebf3] dark:border-[#2a3447] flex items-center gap-2">
+              <span className="material-symbols-outlined text-[#4c669a] dark:text-gray-400 text-[18px]">terminal</span>
+              <span className="text-sm font-bold text-[#0d121b] dark:text-white">SDK Output</span>
+            </div>
+            <pre className="px-3 py-2 text-xs text-[#0d121b] dark:text-gray-200 whitespace-pre-wrap break-words font-mono max-h-48 overflow-auto">
+              {normalizeLineEndings(structured.sdkOutput)}
+            </pre>
+          </div>
+        ) : null}
+      </div>
+    ) : (
+      <pre className="text-sm text-[#0d121b] dark:text-gray-200 whitespace-pre-wrap break-words font-mono bg-[#f8f9fc] dark:bg-[#0f1323] rounded-lg p-4 border border-[#e7ebf3] dark:border-[#2a3447]">
+        {fallbackContent}
+      </pre>
+    );
+
+    return (
+      <Fragment>
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          onClick={handleCloseZatcaResponseModal}
+        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-white dark:bg-[#161f30] shadow-2xl border border-[#e7ebf3] dark:border-[#2a3447]">
+            <div className="px-6 py-4 border-b border-[#e7ebf3] dark:border-[#2a3447] flex-shrink-0">
+              <h3 className="text-lg font-bold text-[#0d121b] dark:text-white">Zatca Response</h3>
+            </div>
+            <div className="px-6 py-4 overflow-auto flex-1 min-h-0">
+              {modalBody}
+            </div>
+            <div className="px-6 py-4 flex justify-end border-t border-[#e7ebf3] dark:border-[#2a3447] bg-[#f8f9fc] dark:bg-[#1a253a] rounded-b-2xl flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleCloseZatcaResponseModal}
+                className="inline-flex justify-center rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] px-4 py-2.5 text-sm font-medium text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </Fragment>
+    );
+  };
+
   return (
     <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-sm overflow-hidden">
       {INVOICES_TABLE()}
       {PAGINATION_SECTION()}
       {CONFIRM_DELETE_MODAL()}
+      {ZATCA_RESPONSE_MODAL()}
     </div>
   );
 }
