@@ -165,19 +165,19 @@ function CustomersTableContent({
   const customerPerms = useMemo(() => getNormalizedModulePermissions(user, 'customer'), [user]);
   const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
   const response = use(customersPromise);
-  const data = response?.data || [];
-  const meta = response?.meta || {
-    total: 0,
-    page: 1,
-    limit: 20,
-    totalPages: 0,
-  };
+  // API returns { data: [...] | { data: [], meta }, meta: { total, page, limit, totalPages } }
+  const data = Array.isArray(response?.data) ? response.data : Array.isArray(response?.data?.data) ? response.data.data : [];
+  const meta = response?.meta ?? response?.data?.meta ?? {};
+  const total = meta.total ?? 0;
+  const page = meta.page ?? 1;
+  const limit = meta.limit ?? DEFAULT_PAGE_SIZE;
+  const totalPages = meta.totalPages ?? (Math.ceil(total / limit) || 1);
 
   const paginationInfo = {
-    totalCount: meta.total,
-    totalPages: meta.totalPages,
-    hasNextPage: meta.page < meta.totalPages,
-    hasPreviousPage: meta.page > 1,
+    totalCount: total,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPreviousPage: page > 1,
   };
 
   const [isDeleteModalOpen, _isDeleteModalOpen] = useState(false);

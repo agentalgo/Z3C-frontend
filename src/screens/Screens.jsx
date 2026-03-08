@@ -9,6 +9,9 @@ import { auth, loginInfo } from '../atoms';
 import { Sidebar, Header } from '../components';
 import { parseLoginInfo, getNormalizedModulePermissions } from '../utils';
 
+// Unauthenticated Screens
+import { Login, ResetPassword } from './unauthenticated-screens';
+
 // Authenticated Screens
 import {
   Dashboard,
@@ -25,9 +28,6 @@ import {
   ZatcaReports,
   AuditLogging,
 } from './authenticated-screens';
-
-// Unauthenticated Screens
-import { Login, ResetPassword } from './unauthenticated-screens';
 
 function Screens() {
   const authValue = useAtomValue(auth);
@@ -59,7 +59,6 @@ function Screens() {
           <main className="flex-1 flex flex-col overflow-y-auto">
             <Header />
             <Routes>
-              <Route path="*" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
 
               <Route path="/zatca-reports" element={<ZatcaReports />} />
@@ -138,6 +137,8 @@ function Screens() {
                   )}
                 </>
               )}
+
+              <Route path="*" element={<Dashboard />} />
             </Routes>
           </main>
         </div>
