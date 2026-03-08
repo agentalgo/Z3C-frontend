@@ -32,3 +32,5 @@ export { default as InvoiceCreateCreditNoteRequest } from './invoice-create-cred
 export { default as InvoiceCreateDebitNoteRequest } from './invoice-create-debit-note.request';
 export { default as InvoiceCheckComplianceRequest } from './invoice-check-compliance-request';
 export { default as ZatcaReportDownloadRequest } from './zatca-report-download.request';
+export { default as AuditListRequest } from './audit-list.request';
+export { default as AuditRecentRequest } from './audit-recent.request';

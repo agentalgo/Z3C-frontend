@@ -23,6 +23,7 @@ import {
   UserManagementList,
   UserManagementForm,
   ZatcaReports,
+  AuditLogging,
 } from './authenticated-screens';
 
 // Unauthenticated Screens
@@ -49,6 +50,7 @@ function Screens() {
     const userPerms = getPerms('user');
     const customerProfilePerms = getPerms('profile');
     const zatcaReportsPerms = getPerms('zatcaReporting');
+    const auditPerms = getPerms('audit');
 
     return (
       <div className="min-h-screen bg-[#f5f6f8] dark:bg-[#0f1323] text-[#0d121b] dark:text-[#f8f9fc]">
@@ -61,6 +63,10 @@ function Screens() {
               <Route path="/dashboard" element={<Dashboard />} />
 
               <Route path="/zatca-reports" element={<ZatcaReports />} />
+
+              {(auditPerms.read || user?.isAdmin === true) && (
+                <Route path="/audit-logging" element={<AuditLogging />} />
+              )}
 
               {customerProfilePerms.read && (
                 <>

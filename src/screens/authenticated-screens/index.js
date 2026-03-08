@@ -10,3 +10,4 @@ export { default as CustomerProfileForm } from './CustomerProfileForm/CustomerPr
 export { default as UserManagementList } from './UserManagementList/UserManagementList';
 export { default as UserManagementForm } from './UserManagementForm/UserManagementForm';
 export { default as ZatcaReports } from './ZatcaReports/ZatcaReports';
+export { default as AuditLogging } from './AuditLogging/AuditLogging';
