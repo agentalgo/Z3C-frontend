@@ -1,5 +1,11 @@
 // Packages
-import { Fragment, useState, useRef, useEffect } from 'react';
+import { Fragment, useMemo, useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAtomValue } from 'jotai';
+
+// Utils
+import { loginInfo } from '../../atoms';
+import { parseLoginInfo, getNormalizedModulePermissions } from '../../utils';
 
 function formatDisplayDate(iso) {
   if (!iso) return '';
@@ -12,14 +18,24 @@ function formatDisplayDate(iso) {
 }
 
 function PageHeader({ from, to, onDateChange }) {
+  const navigate = useNavigate();
+  const loginInfoValue = useAtomValue(loginInfo);
+  const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
+  const invoicePerms = useMemo(() => getNormalizedModulePermissions(user, 'invoice'), [user]);
+  const canAccessInvoiceCreate = Boolean(invoicePerms.create);
+
   const [pickerOpen, _pickerOpen] = useState(false);
   const [draftFrom, _draftFrom] = useState(from ?? '');
   const [draftTo, _draftTo] = useState(to ?? '');
   const pickerRef = useRef(null);
 
   // Sync drafts when parent updates date range externally
-  useEffect(() => { _draftFrom(from ?? ''); }, [from]);
-  useEffect(() => { _draftTo(to ?? ''); }, [to]);
+  useEffect(() => {
+    _draftFrom(from ?? '');
+  }, [from]);
+  useEffect(() => {
+    _draftTo(to ?? '');
+  }, [to]);
 
   // Close picker when clicking outside
   useEffect(() => {
@@ -40,9 +56,8 @@ function PageHeader({ from, to, onDateChange }) {
     _pickerOpen(false);
   }
 
-  const dateLabel = from && to
-    ? `${formatDisplayDate(from)} – ${formatDisplayDate(to)}`
-    : 'Select date range';
+  const dateLabel =
+    from && to ? `${formatDisplayDate(from)} – ${formatDisplayDate(to)}` : 'Select date range';
 
   const TITLE_SECTION = () => (
     <div className="space-y-1">
@@ -111,10 +126,16 @@ function PageHeader({ from, to, onDateChange }) {
         </button>
         {pickerOpen && DATE_PICKER_DROPDOWN()}
       </div>
-      <button className="flex items-center gap-2 px-4 h-10 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all shadow-md">
-        <span className="material-symbols-outlined text-[18px]">add</span>
-        <span>New Submission</span>
-      </button>
+      {canAccessInvoiceCreate && (
+        <button
+          type="button"
+          onClick={() => navigate('/invoices/new')}
+          className="flex items-center gap-2 px-4 h-10 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all shadow-md"
+        >
+          <span className="material-symbols-outlined text-[18px]">add</span>
+          <span>New Submission</span>
+        </button>
+      )}
     </div>
   );
 

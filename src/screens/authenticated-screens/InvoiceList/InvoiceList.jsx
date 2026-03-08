@@ -6,7 +6,15 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { InvoiceListRequest, InvoiceDeleteRequest, InvoicePdfDownloadRequest, InvoiceCreateCreditNoteRequest, InvoiceCreateDebitNoteRequest } from '../../../requests';
+import {
+  InvoiceListRequest,
+  InvoiceDeleteRequest,
+  InvoicePdfDownloadRequest,
+  InvoiceCreateCreditNoteRequest,
+  InvoiceCreateDebitNoteRequest,
+  InvoiceSubmitToZatcaRequest,
+  InvoiceCheckComplianceRequest,
+} from '../../../requests';
 
 // Utils 
 import { auth, loginInfo } from '../../../atoms';
@@ -311,8 +319,43 @@ function InvoicesTableContent({
   const [isDeleteModalOpen, _isDeleteModalOpen] = useState(false);
   const [selectedInvoiceId, _selectedInvoiceId] = useState(null);
   const [isDeleting, _isDeleting] = useState(false);
+  const [actionBusyId, _actionBusyId] = useState(null);
 
   // *********** Handlers ***********
+
+  const handleReportToZatca = useCallback(
+    async (invoiceId) => {
+      if (!invoiceId || actionBusyId) return;
+      try {
+        _actionBusyId(invoiceId);
+        await InvoiceSubmitToZatcaRequest(decodedToken, invoiceId);
+        showToast('Invoice submitted to ZATCA successfully!', 'success');
+        refreshInvoices?.();
+      } catch (err) {
+        showToast(err?.message || 'Failed to submit invoice to ZATCA', 'error');
+      } finally {
+        _actionBusyId(null);
+      }
+    },
+    [decodedToken, actionBusyId, refreshInvoices]
+  );
+
+  const handleCheckCompliance = useCallback(
+    async (invoiceId) => {
+      if (!invoiceId || actionBusyId) return;
+      try {
+        _actionBusyId(invoiceId);
+        await InvoiceCheckComplianceRequest(decodedToken, invoiceId);
+        showToast('Invoice compliance check queued successfully!', 'success');
+        refreshInvoices?.();
+      } catch (err) {
+        showToast(err?.message || 'Failed to queue invoice compliance check', 'error');
+      } finally {
+        _actionBusyId(null);
+      }
+    },
+    [decodedToken, actionBusyId, refreshInvoices]
+  );
 
   const handleOpenDeleteModal = (invoiceId) => {
     if (!invoiceId) return;
@@ -564,16 +607,16 @@ function InvoicesTableContent({
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => {
-          const canEdit = invoicePerms.update;
-          const canDelete = invoicePerms.delete;
           const statusConfig = INVOICE_STATUSES.find(
             (status) => status.name === row.original.status
           );
+          const canEdit = invoicePerms.update && (statusConfig?.canEdit !== false);
+          const canDelete = invoicePerms.delete && !!statusConfig?.canDelete;
+          const canReportToZatca = !!statusConfig?.canSubmitToZatca;
           const canCreateCreditNote = !!statusConfig?.canCreateCreditNote;
           const canCreateDebitNote = !!statusConfig?.canCreateDebitNote;
-          const hasAnyActions = canEdit || canDelete || canCreateCreditNote || canCreateDebitNote;
 
-          if (!hasAnyActions) return null;
+          const isBusy = !!actionBusyId;
 
           const handleChange = (e) => {
             const value = e.target.value;
@@ -589,6 +632,10 @@ function InvoicesTableContent({
               handleCreateDebitNote(row.original);
             } else if (value === 'delete') {
               handleOpenDeleteModal(row.original._id);
+            } else if (value === 'report-zatca') {
+              handleReportToZatca(row.original._id);
+            } else if (value === 'check-compliance') {
+              handleCheckCompliance(row.original._id);
             }
 
             // reset back to placeholder
@@ -599,13 +646,16 @@ function InvoicesTableContent({
             <select
               defaultValue=""
               onChange={handleChange}
-              className="px-3 py-1.5 text-sm rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer"
+              disabled={isBusy}
+              className="px-3 py-1.5 text-sm rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="" disabled>
-                Action
+                {isBusy ? '...' : 'Action'}
               </option>
               {canEdit && <option value="edit">Edit</option>}
               <option value="print">Print</option>
+              {canReportToZatca && <option value="report-zatca">Report to ZATCA</option>}
+              <option value="check-compliance">Check Compliance</option>
               {canCreateCreditNote && <option value="credit-note">Create Credit Note </option>}
               {canCreateDebitNote && <option value="debit-note">Create Debit Note</option>}
               {canDelete && <option value="delete">Delete</option>}
@@ -615,7 +665,16 @@ function InvoicesTableContent({
         enableSorting: false,
       },
     ],
-    [navigate, handleOpenDeleteModal, invoicePerms, handleCreateCreditNote, handleCreateDebitNote]
+    [
+      navigate,
+      handleOpenDeleteModal,
+      invoicePerms,
+      handleCreateCreditNote,
+      handleCreateDebitNote,
+      handleReportToZatca,
+      handleCheckCompliance,
+      actionBusyId,
+    ]
   );
 
   const table = useReactTable({

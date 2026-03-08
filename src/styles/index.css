@@ -71,3 +71,59 @@ body {
     background-color: #4b5563;
   }
 }
+
+/* react-select dark theme (Default Template, Invoice Type, etc.) */
+.dark .react-select__control {
+  background-color: #161f30 !important;
+  border-color: #2a3447 !important;
+  color: #fff;
+}
+
+.dark .react-select__single-value,
+.dark .react-select__input-container {
+  color: #fff !important;
+}
+
+.dark .react-select__input-container input {
+  color: #fff !important;
+}
+
+.dark .react-select__placeholder {
+  color: #9ca3af !important;
+}
+
+.dark .react-select__menu {
+  background-color: #161f30 !important;
+  border: 1px solid #2a3447;
+}
+
+.dark .react-select__menu-list {
+  background-color: #161f30;
+}
+
+.dark .react-select__option {
+  background-color: #161f30 !important;
+  color: #fff !important;
+}
+
+.dark .react-select__option--is-focused {
+  background-color: #20293a !important;
+}
+
+.dark .react-select__option--is-selected {
+  background-color: #2a3447 !important;
+}
+
+.dark .react-select__dropdown-indicator,
+.dark .react-select__clear-indicator {
+  color: #9ca3af !important;
+}
+
+.dark .react-select__dropdown-indicator:hover,
+.dark .react-select__clear-indicator:hover {
+  color: #fff !important;
+}
+
+.dark .react-select__indicator-separator {
+  background-color: #2a3447 !important;
+}
