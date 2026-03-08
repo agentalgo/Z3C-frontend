@@ -320,9 +320,17 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         validationData
       );
 
-      if (!itemValid) {
+      const errors = { ...itemErrors };
+
+      // discount_percentage must not exceed 100%
+      const discountPct = Number(item.discount_percentage) || 0;
+      if (discountPct > 100) {
+        errors.discount_percentage = 'Discount percentage cannot exceed 100%';
+      }
+
+      if (!itemValid || Object.keys(errors).length > 0) {
         allValid = false;
-        lineItemErrors[index] = itemErrors;
+        lineItemErrors[index] = errors;
       }
     });
 
@@ -874,6 +882,14 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         sanitized = `${intPart}.${decimalPart.slice(0, 2)}`;
       }
 
+      // Cap discount_percentage at 100%
+      if (field === 'discount_percentage') {
+        const num = parseFloat(sanitized);
+        if (!Number.isNaN(num) && num > 100) {
+          sanitized = '100';
+        }
+      }
+
       return sanitized;
     }
 
@@ -918,17 +934,17 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           };
         }
 
-        // Handle discount_percentage change - update discount_amount
+        // Handle discount_percentage change - update discount_amount (cap at 100%)
         if (field === 'discount_percentage') {
           const discountPercentage = formattedValue;
-          const discountPctNum = Number(discountPercentage) || 0;
+          const discountPctNum = Math.min(Number(discountPercentage) || 0, 100);
           const discountAmountCents = lineTotalCents > 0
             ? Math.round(lineTotalCents * (discountPctNum / 100))
             : 0;
           const discountAmount = discountAmountCents / 100;
           return {
             ...item,
-            discount_percentage: discountPercentage,
+            discount_percentage: String(discountPctNum) === String(Number(discountPercentage) || 0) ? discountPercentage : String(discountPctNum),
             discount_amount: parseFloat(discountAmount.toFixed(2)).toString() || '0',
           };
         }
