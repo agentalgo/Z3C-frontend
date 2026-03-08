@@ -153,7 +153,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     const vatPercentage = Number(formData.data.vat) || 15;
     const vatCents = Math.round(taxableCents * (vatPercentage / 100));
     const vatAmount = (vatCents / 100).toFixed(2);
-    const grandTotal = (totalCents + vatCents) / 100;
+    const grandTotal = ((totalCents + vatCents) / 100).toFixed(2);
 
     return { subtotal, vatAmount, grandTotal };
   }, [lineItems, formData.data.vat]);
@@ -405,7 +405,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       vat: Number(formData.data.vat) || 15,
       note: formData.data.note,
       currency: 'SAR',
-      grandTotal: useCents ? Math.round(totals.grandTotal * 100) : totals.grandTotal,
+      grandTotal: totals.grandTotal,
       lineItems: lineItems.map((item) => {
         const price = Number(item.price) || 0;
         const discountAmount = Number(item.discount_amount) || 0;
@@ -1589,7 +1589,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
               </div>
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold text-[#0d121b] dark:text-gray-300 uppercase">Grand Total</span>
-                <span className="text-2xl font-black text-primary">{Number(totals.grandTotal).toFixed(2)} SAR</span>
+                <span className="text-2xl font-black text-primary">{totals.grandTotal} SAR</span>
               </div>
             </div>
 
