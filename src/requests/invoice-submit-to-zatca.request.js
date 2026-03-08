@@ -5,7 +5,7 @@ const InvoiceSubmitToZatcaRequest = (token, invoiceId) => {
         ...defaultHeaders,
         'Authorization': `Bearer ${token}`
     };
-    return fetch(getApiUrl(`/invoices/${invoiceId}/submit`), {
+    return fetch(getApiUrl(`/invoices/${invoiceId}/queue-clearance`), {
         method: 'POST',
         headers: headers,
     })
