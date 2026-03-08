@@ -126,18 +126,11 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     const qty = Number(item.quantity) || 0;
     const priceCents = Math.round((Number(item.price) || 0) * 100);
     const discountAmtCents = Math.round((Number(item.discount_amount) || 0) * 100);
-    const discountPct = Number(item.discount_percentage) || 0;
 
-    let totalCents = qty * priceCents;
-
-    // Apply either percentage or amount discount, not both
-    if (discountPct > 0) {
-      totalCents -= Math.round(totalCents * (discountPct / 100));
-    } else if (discountAmtCents > 0) {
-      totalCents -= discountAmtCents;
-    }
-
-    return Math.max(0, totalCents) / 100;
+    // Formula: (price - discount_amount) × qty
+    // discount_amount is always synced from discount_percentage when percentage is used
+    const discountedPriceCents = priceCents - discountAmtCents;
+    return Math.max(0, discountedPriceCents * qty) / 100;
   };
 
   const [lineItems, _lineItems] = useState([]);
@@ -918,14 +911,13 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
         // Work in integer cents for accurate 2-decimal math
         const priceCents = Math.round(price * 100);
-        const lineTotalCents = quantity * priceCents;
 
-        // Handle discount_amount change - update discount_percentage
+        // Handle discount_amount change - percentage is based on unit price
         if (field === 'discount_amount') {
           const discountAmount = formattedValue;
           const discountAmountCents = Math.round((Number(discountAmount) || 0) * 100);
-          const discountPercentage = lineTotalCents > 0
-            ? (discountAmountCents / lineTotalCents) * 100
+          const discountPercentage = priceCents > 0
+            ? (discountAmountCents / priceCents) * 100
             : 0;
           return {
             ...item,
@@ -934,12 +926,12 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           };
         }
 
-        // Handle discount_percentage change - update discount_amount (cap at 100%)
+        // Handle discount_percentage change - amount is based on unit price
         if (field === 'discount_percentage') {
           const discountPercentage = formattedValue;
           const discountPctNum = Math.min(Number(discountPercentage) || 0, 100);
-          const discountAmountCents = lineTotalCents > 0
-            ? Math.round(lineTotalCents * (discountPctNum / 100))
+          const discountAmountCents = priceCents > 0
+            ? Math.round(priceCents * (discountPctNum / 100))
             : 0;
           const discountAmount = discountAmountCents / 100;
           return {
@@ -949,7 +941,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           };
         }
 
-        // Handle quantity or price change - recalculate discount_amount if discount_percentage exists
+        // Handle quantity or price change - recalculate discount_amount from percentage based on new unit price
         if (field === 'quantity' || field === 'price') {
           const updatedItem = {
             ...item,
@@ -957,20 +949,14 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           };
           const currentDiscountPercentage = Number(item.discount_percentage) || 0;
           if (currentDiscountPercentage > 0) {
-            const newQuantity = field === 'quantity'
-              ? (formattedValue === '' ? 0 : Number(formattedValue) || 0)
-              : quantity;
             const newPrice = field === 'price'
               ? (formattedValue === '' ? 0 : Number(formattedValue) || 0)
               : price;
-
             const newPriceCents = Math.round(newPrice * 100);
-            const newLineTotalCents = newQuantity * newPriceCents;
-            const recalculatedDiscountAmountCents = newLineTotalCents > 0
-              ? Math.round(newLineTotalCents * (currentDiscountPercentage / 100))
+            const recalculatedDiscountAmountCents = newPriceCents > 0
+              ? Math.round(newPriceCents * (currentDiscountPercentage / 100))
               : 0;
-            const recalculatedDiscountAmount = recalculatedDiscountAmountCents / 100;
-            updatedItem.discount_amount = parseFloat(recalculatedDiscountAmount.toFixed(2)).toString() || '0';
+            updatedItem.discount_amount = parseFloat((recalculatedDiscountAmountCents / 100).toFixed(2)).toString() || '0';
           }
           return updatedItem;
         }
