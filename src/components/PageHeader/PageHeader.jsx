@@ -1,7 +1,19 @@
 // Packages
-import { Fragment } from 'react';
+import { Fragment, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAtomValue } from 'jotai';
+
+// Utils
+import { loginInfo } from '../../atoms';
+import { parseLoginInfo, getNormalizedModulePermissions } from '../../utils';
 
 function PageHeader() {
+  const navigate = useNavigate();
+  const loginInfoValue = useAtomValue(loginInfo);
+  const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
+  const invoicePerms = useMemo(() => getNormalizedModulePermissions(user, 'invoice'), [user]);
+  const canAccessInvoiceCreate = Boolean(invoicePerms.create);
+
   const TITLE_SECTION = () => (
     <div className="space-y-1">
       <h2 className="text-[#0d121b] dark:text-white text-3xl font-black tracking-tight">
@@ -17,10 +29,16 @@ function PageHeader() {
         <span className="material-symbols-outlined text-[18px]">calendar_today</span>
         <span>Oct 01 - Oct 31, 2023</span>
       </button>
-      <button className="flex items-center gap-2 px-4 h-10 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all shadow-md">
-        <span className="material-symbols-outlined text-[18px]">add</span>
-        <span>New Submission</span>
-      </button>
+      {canAccessInvoiceCreate && (
+        <button
+          type="button"
+          onClick={() => navigate('/invoices/new')}
+          className="flex items-center gap-2 px-4 h-10 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all shadow-md"
+        >
+          <span className="material-symbols-outlined text-[18px]">add</span>
+          <span>New Submission</span>
+        </button>
+      )}
     </div>
   );
 

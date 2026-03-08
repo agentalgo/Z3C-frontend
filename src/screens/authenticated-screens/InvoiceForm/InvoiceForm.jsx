@@ -120,6 +120,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
   const currentStatusConfig = INVOICE_STATUSES.find((status) => status.name === formData.data.status);
   const canEditInvoice = !id || currentStatusConfig?.canEdit;
+  const canSubmitToZatca = !id || currentStatusConfig?.canSubmitToZatca;
 
   const getItemNetTotal = (item) => {
     const qty = Number(item.quantity) || 0;
@@ -1565,28 +1566,32 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
 
   const FOOTER_ACTION_BAR = () => {
-    const actionOptions = canEditInvoice
-      ? [
-        { value: 'create', label: id ? 'Update' : 'Create' },
-        {
-          value: 'create-check-compliance',
-          label: id ? 'Update and Check Compliance' : 'Create and Check Compliance',
-        },
-        {
-          value: 'create-report-zatca',
-          label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA',
-        },
-        {
-          value: 'print-report-pdf',
-          label: id ? 'Update and Print Pdf' : 'Create and Print Pdf',
-        },
-        { value: 'cancel', label: 'Cancel' },
-      ]
-      : [
-        { value: 'print-report-pdf', label: 'Print Pdf' },
-        { value: 'check-compliance', label: 'Check Compliance' },
-        { value: 'cancel', label: 'Cancel' },
-      ];
+    const editModeOptions = [
+      { value: 'create', label: id ? 'Update' : 'Create' },
+      {
+        value: 'create-check-compliance',
+        label: id ? 'Update and Check Compliance' : 'Create and Check Compliance',
+      },
+      ...(canSubmitToZatca
+        ? [
+            {
+              value: 'create-report-zatca',
+              label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA',
+            },
+          ]
+        : []),
+      {
+        value: 'print-report-pdf',
+        label: id ? 'Update and Print Pdf' : 'Create and Print Pdf',
+      },
+      { value: 'cancel', label: 'Cancel' },
+    ];
+    const viewModeOptions = [
+      { value: 'print-report-pdf', label: 'Print Pdf' },
+      { value: 'check-compliance', label: 'Check Compliance' },
+      { value: 'cancel', label: 'Cancel' },
+    ];
+    const actionOptions = canEditInvoice ? editModeOptions : viewModeOptions;
 
     return (
       <Fragment>
