@@ -640,6 +640,7 @@ function InvoicesTableContent({
           const canReportToZatca = !!statusConfig?.canSubmitToZatca;
           const canCreateCreditNote = !!statusConfig?.canCreateCreditNote;
           const canCreateDebitNote = !!statusConfig?.canCreateDebitNote;
+          const canCheckCompliance = !!statusConfig?.canCheckCompliance;
 
           const isBusy = !!actionBusyId;
 
@@ -690,7 +691,7 @@ function InvoicesTableContent({
                 <option value="clearance-response">View ZATCA Response</option>
               )}
               {canReportToZatca && <option value="report-zatca">Report to ZATCA</option>}
-              <option value="check-compliance">Check Compliance</option>
+              {canCheckCompliance && <option value="check-compliance">Check Compliance</option>}
               {canCreateCreditNote && <option value="credit-note">Create Credit Note </option>}
               {canCreateDebitNote && <option value="debit-note">Create Debit Note</option>}
               {canDelete && <option value="delete">Delete</option>}

@@ -36,6 +36,7 @@ export const INVOICE_STATUSES = [
     canEdit: true,
     canDelete: true,
     canSubmitToZatca: true,
+    canCheckCompliance: true,
     color: "bg-gray-300"
   },
   {
@@ -43,6 +44,7 @@ export const INVOICE_STATUSES = [
     canEdit: true,
     canDelete: true,
     canSubmitToZatca: true,
+    canCheckCompliance: true,
     color: "bg-red-300"
   },
   {
@@ -50,6 +52,7 @@ export const INVOICE_STATUSES = [
     canEdit: false,
     canDelete: false,
     canSubmitToZatca: false,
+    canCheckCompliance: false,
     color: "bg-yellow-300"
   },
   {
@@ -57,6 +60,7 @@ export const INVOICE_STATUSES = [
     canEdit: false,
     canDelete: false,
     canSubmitToZatca: false,
+    canCheckCompliance: false,
     color: "bg-blue-300"
   },
   {
@@ -64,6 +68,7 @@ export const INVOICE_STATUSES = [
     canEdit: true,
     canDelete: true,
     canSubmitToZatca: true,
+    canCheckCompliance: true,
     color: "bg-green-300"
   },
   {
@@ -71,12 +76,14 @@ export const INVOICE_STATUSES = [
     canEdit: false,
     canDelete: false,
     canSubmitToZatca: false,
+    canCheckCompliance: false,
     color: "bg-gray-300"
   },
   {
     name: "CLEARANCE_PROCESSING",
     canEdit: false,
     canDelete: false,
+    canCheckCompliance: false,
     canSubmitToZatca: false,
     color: "bg-orange-300"
   },
@@ -84,6 +91,7 @@ export const INVOICE_STATUSES = [
     name: "REPORTED",
     canEdit: false,
     canDelete: false,
+    canCheckCompliance: true,
     canSubmitToZatca: false,
     canCreateCreditNote: true,
     canCreateDebitNote: true,
@@ -94,6 +102,7 @@ export const INVOICE_STATUSES = [
     canEdit: false,
     canDelete: false,
     canSubmitToZatca: false,
+    canCheckCompliance: false,
     canCreateCreditNote: true,
     canCreateDebitNote: true,
     color: "bg-green-300"
