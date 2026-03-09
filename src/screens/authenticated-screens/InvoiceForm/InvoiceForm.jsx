@@ -121,6 +121,9 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   const currentStatusConfig = INVOICE_STATUSES.find((status) => status.name === formData.data.status);
   const canEditInvoice = !id || currentStatusConfig?.canEdit;
   const canSubmitToZatca = !id || currentStatusConfig?.canSubmitToZatca;
+  const canCheckComplianceForExistingInvoice = !!currentStatusConfig?.canCheckCompliance;
+  const canCheckComplianceForDraft = !!INVOICE_STATUSES.find((status) => status.name === 'DRAFT')?.canCheckCompliance;
+  const canCheckComplianceAction = id ? canCheckComplianceForExistingInvoice : canCheckComplianceForDraft;
 
   const getItemNetTotal = (item) => {
     const qty = Number(item.quantity) || 0;
@@ -1570,10 +1573,14 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   const FOOTER_ACTION_BAR = () => {
     const editModeOptions = [
       { value: 'create', label: id ? 'Update' : 'Create' },
-      {
-        value: 'create-check-compliance',
-        label: id ? 'Update and Check Compliance' : 'Create and Check Compliance',
-      },
+      ...(canCheckComplianceAction
+        ? [
+            {
+              value: 'create-check-compliance',
+              label: id ? 'Update and Check Compliance' : 'Create and Check Compliance',
+            },
+          ]
+        : []),
       ...(canSubmitToZatca
         ? [
             {
@@ -1590,7 +1597,9 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     ];
     const viewModeOptions = [
       { value: 'print-report-pdf', label: 'Print Pdf' },
-      { value: 'check-compliance', label: 'Check Compliance' },
+      ...(canCheckComplianceAction
+        ? [{ value: 'check-compliance', label: 'Check Compliance' }]
+        : []),
       { value: 'cancel', label: 'Cancel' },
     ];
     const actionOptions = canEditInvoice ? editModeOptions : viewModeOptions;
