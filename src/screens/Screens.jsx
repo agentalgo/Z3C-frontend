@@ -73,20 +73,17 @@ function Screens() {
                   {customerProfilePerms.create && (
                     <Route path="/customer-profile/new" element={<CustomerProfileForm />} />
                   )}
-                  {customerProfilePerms.update && (
-                    <Route path="/customer-profile/:id" element={<CustomerProfileForm />} />
-                  )}
+                  <Route path="/customer-profile/:id" element={<CustomerProfileForm />} />
                 </>
               )}
+
               {companyProfilePerms.read && (
                 <>
                   <Route path="/company-profile" element={<CompanyProfileList />} />
                   {companyProfilePerms.create && (
                     <Route path="/company-profile/new" element={<CompanyProfileForm />} />
                   )}
-                  {companyProfilePerms.update && (
-                    <Route path="/company-profile/:id" element={<CompanyProfileForm />} />
-                  )}
+                  <Route path="/company-profile/:id" element={<CompanyProfileForm />} />
                 </>
               )}
 
@@ -96,9 +93,7 @@ function Screens() {
                   {invoicePerms.create && (
                     <Route path="/invoices/new" element={<InvoiceForm />} />
                   )}
-                  {invoicePerms.update && (
-                    <Route path="/invoices/:id" element={<InvoiceForm />} />
-                  )}
+                  <Route path="/invoices/:id" element={<InvoiceForm />} />
                 </>
               )}
 
@@ -108,21 +103,7 @@ function Screens() {
                   {customerPerms.create && (
                     <Route path="/customer/new" element={<CustomerForm />} />
                   )}
-                  {customerPerms.update && (
-                    <Route path="/customer/:id" element={<CustomerForm />} />
-                  )}
-                </>
-              )}
-
-              {customerProfilePerms.read && (
-                <>
-                  <Route path="/customer-profile" element={<CustomerProfileList />} />
-                  {customerProfilePerms.create && (
-                    <Route path="/customer-profile/new" element={<CustomerProfileForm />} />
-                  )}
-                  {customerProfilePerms.update && (
-                    <Route path="/customer-profile/:id" element={<CustomerProfileForm />} />
-                  )}
+                  <Route path="/customer/:id" element={<CustomerForm />} />
                 </>
               )}
 
@@ -132,9 +113,7 @@ function Screens() {
                   {userPerms.create && (
                     <Route path="/user-management/new" element={<UserManagementForm />} />
                   )}
-                  {userPerms.update && (
-                    <Route path="/user-management/:id" element={<UserManagementForm />} />
-                  )}
+                  <Route path="/user-management/:id" element={<UserManagementForm />} />
                 </>
               )}
 

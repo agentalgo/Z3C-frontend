@@ -10,11 +10,38 @@ import { UserCreateRequest, UserDetailRequest, UserUpdateRequest } from '../../.
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
-import { showToast, validateSubmissionData, decodeString } from '../../../utils';
-import { auth } from '../../../atoms';
+import { showToast, validateSubmissionData, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
+import { auth, loginInfo } from '../../../atoms';
 
-const PERMISSION_MODULES = ['invoice', 'customer', 'profile', 'companyProfile', 'zatcaReporting', 'user'];
+const PERMISSION_MODULES = ['invoice', 'customer', 'profile', 'companyProfile', 'user', 'zatcaReporting', 'audit'];
+const READ_ONLY_MODULES = ['zatcaReporting', 'audit'];
+const MODULE_LABELS = {
+  invoice: 'Invoice',
+  customer: 'Customer',
+  profile: 'Customer Profile',
+  companyProfile: 'Company Profile',
+  zatcaReporting: 'ZATCA Reporting',
+  audit: 'Audit Log',
+  user: 'User Management',
+};
+const CRUD_ACTIONS = ['read', 'create', 'update', 'delete'];
 const USER_ROLES = ["Admin", "Manager", "Accountant", "Viewer"];
+
+const getEmptyPermissions = () =>
+  PERMISSION_MODULES.reduce((acc, module) => {
+    acc[module] = { read: false, create: false, update: false, delete: false };
+    return acc;
+  }, {});
+
+const getAllPermissions = () =>
+  PERMISSION_MODULES.reduce((acc, module) => {
+    if (READ_ONLY_MODULES.includes(module)) {
+      acc[module] = { read: true, create: false, update: false, delete: false };
+    } else {
+      acc[module] = { read: true, create: true, update: true, delete: true };
+    }
+    return acc;
+  }, {});
 
 const INITIAL_FORM_DATA = {
   data: {
@@ -22,7 +49,7 @@ const INITIAL_FORM_DATA = {
     email: '',
     password: '',
     confirmPassword: '',
-    permissions: [],
+    permissions: getEmptyPermissions(),
     role: 'Admin',
     isActive: true,
     isAdmin: false,
@@ -30,7 +57,6 @@ const INITIAL_FORM_DATA = {
   validations: {
     password: { isRequired: true, regex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/ },
     username: { isRequired: true, label: "User Name" },
-    permissions: { isRequired: true, isArray: true, label: "Permissions" },
     email: { isRequired: true, regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/ },
   },
   errors: {},
@@ -84,6 +110,8 @@ function UserManagementForm() {
 
 function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) {
   const userData = userPromise ? use(userPromise) : null;
+  const loginInfoValue = useAtomValue(loginInfo);
+  const userPerms = useMemo(() => getNormalizedModulePermissions(parseLoginInfo(loginInfoValue), 'user'), [loginInfoValue]);
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
   const [isLoading, _isLoading] = useState(false);
   const [isShowPassword, _isShowPassword] = useState(false);
@@ -100,19 +128,20 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           username: apiData.username || '',
           email: apiData.email || '',
           permissions: (() => {
-            // Prefer permissions object from API if available
             if (apiData.permissions && typeof apiData.permissions === 'object') {
-              const selected = PERMISSION_MODULES.filter((module) => {
-                const modPerm = apiData.permissions[module];
-                if (!modPerm) return false;
-                return !!(modPerm.create || modPerm.read || modPerm.update || modPerm.delete);
-              });
-              if (selected.length > 0) return selected;
+              return PERMISSION_MODULES.reduce((acc, module) => {
+                const mp = apiData.permissions[module] || {};
+                const isReadOnlyModule = READ_ONLY_MODULES.includes(module);
+                acc[module] = {
+                  read: !!mp.read,
+                  create: isReadOnlyModule ? false : !!mp.create,
+                  update: isReadOnlyModule ? false : !!mp.update,
+                  delete: isReadOnlyModule ? false : !!mp.delete,
+                };
+                return acc;
+              }, {});
             }
-            // Fallback to roles/assignedRoles if backend still returns those
-            if (Array.isArray(apiData.roles)) return apiData.roles;
-            if (Array.isArray(apiData.assignedRoles)) return apiData.assignedRoles;
-            return old.data.permissions || [];
+            return getEmptyPermissions();
           })(),
           role: apiData.role && USER_ROLES.includes(apiData.role) ? apiData.role : 'Admin',
           isActive: typeof apiData.isActive === 'string'
@@ -121,12 +150,11 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           isAdmin: typeof apiData.isAdmin === 'string'
             ? apiData.isAdmin === 'Yes'
             : !!apiData.isAdmin,
-          password: '', // Don't pre-fill password for security
+          password: '',
           confirmPassword: '',
         },
         validations: {
           ...old.validations,
-          // Password not required in edit mode unless user wants to change it
           password: { isRequired: false, label: "Password" },
           confirmPassword: { isRequired: false, label: "Confirm Password" },
         }
@@ -134,7 +162,6 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     } else if (userData?.isError) {
       _formData({ ...INITIAL_FORM_DATA });
     } else if (!id) {
-      // Create mode - reset to a clean, empty form and ensure password is required
       _formData({ ...INITIAL_FORM_DATA });
     }
   }, [userData, id]);
@@ -157,33 +184,66 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
       data: {
         ...old.data,
         isAdmin: isAdminChecked,
-        // When isAdmin is checked, automatically select all permissions
-        permissions: isAdminChecked ? [...PERMISSION_MODULES] : old.data.permissions,
+        permissions: isAdminChecked ? getAllPermissions() : old.data.permissions,
       },
     }));
   };
 
   const handleToggleIsActive = (e) => {
-    const isActiveChecked = e.target.checked;
+    _formData(old => ({
+      ...old,
+      data: { ...old.data, isActive: e.target.checked },
+    }));
+  };
+
+  const handleTogglePermission = (module, action) => {
     _formData(old => ({
       ...old,
       data: {
         ...old.data,
-        isActive: isActiveChecked,
+        permissions: {
+          ...old.data.permissions,
+          [module]: {
+            ...old.data.permissions[module],
+            [action]: !old.data.permissions[module][action],
+          },
+        },
       },
     }));
   };
 
-  const handleChangePermissions = (selectedOptions) => {
-    const values = Array.isArray(selectedOptions)
-      ? selectedOptions.map((opt) => opt.value)
-      : [];
-
+  const handleToggleModuleAll = (module, value) => {
+    const isReadOnlyModule = READ_ONLY_MODULES.includes(module);
     _formData(old => ({
       ...old,
       data: {
         ...old.data,
-        permissions: values,
+        permissions: {
+          ...old.data.permissions,
+          [module]: isReadOnlyModule
+            ? {
+                read: value,
+                create: false,
+                update: false,
+                delete: false,
+              }
+            : {
+                read: value,
+                create: value,
+                update: value,
+                delete: value,
+              },
+        },
+      },
+    }));
+  };
+
+  const handleToggleAllPermissions = (value) => {
+    _formData(old => ({
+      ...old,
+      data: {
+        ...old.data,
+        permissions: value ? getAllPermissions() : getEmptyPermissions(),
       },
     }));
   };
@@ -217,46 +277,39 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
   const handleSubmitForm = (e) => {
     if (e) e.preventDefault();
 
-    // Check password match if provided
     if (formData.data.password && formData.data.password !== formData.data.confirmPassword) {
       showToast('Passwords do not match', 'error');
+      return;
+    }
+
+    const hasAnyPermission = PERMISSION_MODULES.some((module) => {
+      const mp = formData.data.permissions[module];
+      return mp && (mp.read || mp.create || mp.update || mp.delete);
+    });
+    if (!hasAnyPermission) {
+      showToast('Please grant at least one permission', 'error');
       return;
     }
 
     if (handleValidateForm()) {
       _isLoading(true);
 
-      const selectedPermissions = Array.isArray(formData.data.permissions)
-        ? formData.data.permissions
-        : [];
-
-      // Helper to build CRUD permissions for a module
-      const buildModulePermissions = (module) => {
-        const enabled = selectedPermissions.includes(module);
-        return {
-          create: enabled,
-          read: enabled,
-          update: enabled,
-          delete: enabled,
-        };
-      };
-
-      // Build payload based on backend sample schema from `user-create-sample-payload.txt`
       const payload = {
         username: formData.data.username,
         email: formData.data.email,
-        // Backend sample shows `isActive` as a boolean
         isActive: !!formData.data.isActive,
         isAdmin: !!formData.data.isAdmin,
         role: formData.data.role || 'Admin',
-        permissions: {
-          invoice: buildModulePermissions('invoice'),
-          customer: buildModulePermissions('customer'),
-          profile: buildModulePermissions('profile'),
-          companyProfile: buildModulePermissions('companyProfile'),
-          zatcaReporting: buildModulePermissions('zatcaReporting'),
-          user: buildModulePermissions('user'),
-        },
+        permissions: PERMISSION_MODULES.reduce((acc, module) => {
+          const mp = formData.data.permissions[module] || {};
+          acc[module] = {
+            read: !!mp.read,
+            create: !!mp.create,
+            update: !!mp.update,
+            delete: !!mp.delete,
+          };
+          return acc;
+        }, {}),
       };
 
       if (formData.data.password) {
@@ -355,40 +408,88 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
         />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-[#0d121b] dark:text-white">Permissions *</label>
-        <Select
-          isMulti
-          name="permissions"
-          classNamePrefix="react-select"
-          className="text-sm"
-          onChange={handleChangePermissions}
-          options={[
-            { value: 'invoice', label: 'Invoice' },
-            { value: 'customer', label: 'Customer' },
-            { value: 'profile', label: 'Profile' },
-            { value: 'companyProfile', label: 'Company Profile' },
-            { value: 'zatcaReporting', label: 'ZATCA Reporting' },
-            { value: 'user', label: 'User Management' },
-          ]}
-          value={formData.data.permissions.map((perm) => {
-            const option = {
-              invoice: 'Invoice',
-              customer: 'Customer',
-              profile: 'Profile',
-              companyProfile: 'Company Profile',
-              zatcaReporting: 'ZATCA Reporting',
-              user: 'User Management',
-            }[perm] || perm;
-            return {
-              value: perm,
-              label: option,
-            };
-          })}
-        />
-        {formData.errors.permissions && (
-          <span className="text-xs text-tomato">{formData.errors.permissions}</span>
-        )}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Permissions *</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => handleToggleAllPermissions(true)}
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              Grant All
+            </button>
+            <span className="text-xs text-[#4c669a]">·</span>
+            <button
+              type="button"
+              onClick={() => handleToggleAllPermissions(false)}
+              className="text-xs font-semibold text-[#4c669a] hover:text-[#0d121b] dark:hover:text-white hover:underline"
+            >
+              Revoke All
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-[#f8f9fc] dark:bg-[#1a253a]">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider w-48">
+                  Module
+                </th>
+                {CRUD_ACTIONS.map((action) => (
+                  <th key={action} className="px-4 py-3 text-center text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">
+                    {action.charAt(0).toUpperCase() + action.slice(1)}
+                  </th>
+                ))}
+                <th className="px-4 py-3 text-center text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">
+                  All
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#e7ebf3] dark:divide-[#2a3447]">
+              {PERMISSION_MODULES.map((module) => {
+                const mp = formData.data.permissions[module] || {};
+                const moduleActions = READ_ONLY_MODULES.includes(module) ? ['read'] : CRUD_ACTIONS;
+                const allChecked = moduleActions.every((a) => !!mp[a]);
+                const someChecked = moduleActions.some((a) => !!mp[a]);
+
+                return (
+                  <tr key={module} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
+                    <td className="px-4 py-3 text-sm font-medium text-[#0d121b] dark:text-white">
+                      {MODULE_LABELS[module]}
+                    </td>
+                    {CRUD_ACTIONS.map((action) => (
+                      <td key={action} className="px-4 py-3 text-center">
+                        {READ_ONLY_MODULES.includes(module) && action !== 'read' ? (
+                          <span className="text-[11px] text-[#9ca3af] italic">N/A</span>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={!!mp[action]}
+                            onChange={() => handleTogglePermission(module, action)}
+                            className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
+                          />
+                        )}
+                      </td>
+                    ))}
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={allChecked}
+                        ref={(el) => {
+                          if (el) el.indeterminate = someChecked && !allChecked;
+                        }}
+                        onChange={(e) => handleToggleModuleAll(module, e.target.checked)}
+                        className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -405,16 +506,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
               onFocus={() => _isReadOnly(false)}
               onBlur={() => _isReadOnly(true)}
               className="w-full px-4 py-2.5 pr-10 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-            />
-            <button
-              type="button"
-              onClick={() => _isShowPassword(!isShowPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4c669a] hover:text-[#0d121b] dark:hover:text-white"
-            >
-              <span className="material-symbols-outlined text-[20px]">
-                {isShowPassword ? 'visibility_off' : 'visibility'}
-              </span>
-            </button>
+            />          
           </div>
           {formData.errors.password && (
             <span className="text-xs text-tomato">
@@ -438,16 +530,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
               placeholder="••••••••"
               autoComplete="off"
               className="w-full px-4 py-2.5 pr-10 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-            />
-            <button
-              type="button"
-              onClick={() => _isShowConfirmPassword(!isShowConfirmPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4c669a] hover:text-[#0d121b] dark:hover:text-white"
-            >
-              <span className="material-symbols-outlined text-[20px]">
-                {isShowConfirmPassword ? 'visibility_off' : 'visibility'}
-              </span>
-            </button>
+            />        
           </div>
           {formData.errors.confirmPassword && (
             <span className="text-xs text-tomato">{formData.errors.confirmPassword}</span>
@@ -489,14 +572,16 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
 
   const FORM_ACTIONS = () => (
     <div className="flex gap-3 pt-6">
-      <button
-        type="submit"
-        disabled={isLoading || userData?.isError}
-        onClick={handleSubmitForm}
-        className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isLoading ? 'SAVING...' : 'SAVE'}
-      </button>
+      {(!id || userPerms.update) && (
+        <button
+          type="submit"
+          disabled={isLoading || userData?.isError}
+          onClick={handleSubmitForm}
+          className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'SAVING...' : 'SAVE'}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => navigate('/user-management')}
