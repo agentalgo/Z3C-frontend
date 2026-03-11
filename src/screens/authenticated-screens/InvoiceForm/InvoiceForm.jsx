@@ -11,8 +11,8 @@ import { InvoiceCreateRequest, InvoiceDetailRequest, InvoiceUpdateRequest, Invoi
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
-import { showToast, validateSubmissionData, decodeString, INVOICE_STATUSES } from '../../../utils';
-import { auth } from '../../../atoms';
+import { showToast, validateSubmissionData, decodeString, INVOICE_STATUSES, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
+import { auth, loginInfo } from '../../../atoms';
 
 const INITIAL_FORM_DATA = {
   data: {
@@ -115,11 +115,13 @@ function InvoiceForm() {
 
 function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   const invoiceData = invoicePromise ? use(invoicePromise) : null;
+  const loginInfoValue = useAtomValue(loginInfo);
+  const invoicePerms = useMemo(() => getNormalizedModulePermissions(parseLoginInfo(loginInfoValue), 'invoice'), [loginInfoValue]);
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentStatusConfig = INVOICE_STATUSES.find((status) => status.name === formData.data.status);
-  const canEditInvoice = !id || currentStatusConfig?.canEdit;
+  const canEditInvoice = (!id || currentStatusConfig?.canEdit) && (!id || invoicePerms.update);
   const canSubmitToZatca = !id || currentStatusConfig?.canSubmitToZatca;
   const canCheckComplianceForExistingInvoice = !!currentStatusConfig?.canCheckCompliance;
   const canCheckComplianceForDraft = !!INVOICE_STATUSES.find((status) => status.name === 'DRAFT')?.canCheckCompliance;

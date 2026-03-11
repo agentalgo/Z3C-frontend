@@ -9,9 +9,9 @@ import { useAtomValue } from 'jotai';
 import { CustomerCreateRequest, CustomerDetailRequest, CustomerUpdateRequest, CustomerProfileListRequest } from '../../../requests';
 
 // Utils
-import { auth } from '../../../atoms';
+import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback } from '../../../components';
-import { showToast, validateSubmissionData, decodeString } from '../../../utils';
+import { showToast, validateSubmissionData, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
 
 const INITIAL_FORM_DATA = {
   data: {
@@ -107,6 +107,8 @@ function CustomerForm() {
 
 function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
   const customerData = customerPromise ? use(customerPromise) : null;
+  const loginInfoValue = useAtomValue(loginInfo);
+  const customerPerms = useMemo(() => getNormalizedModulePermissions(parseLoginInfo(loginInfoValue), 'customer'), [loginInfoValue]);
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
   const [isLoading, _isLoading] = useState(false);
   const [selectedCustomerProfile, _selectedCustomerProfile] = useState(null);
@@ -599,14 +601,16 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
 
   const FORM_ACTIONS = () => (
     <div className="flex gap-3 pt-6">
-      <button
-        type="submit"
-        disabled={isLoading || customerData?.isError}
-        onClick={handleSubmitForm}
-        className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed min-w-[100px]"
-      >
-        {isLoading ? 'SAVING...' : 'SAVE'}
-      </button>
+      {(!id || customerPerms.update) && (
+        <button
+          type="submit"
+          disabled={isLoading || customerData?.isError}
+          onClick={handleSubmitForm}
+          className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed min-w-[100px]"
+        >
+          {isLoading ? 'SAVING...' : 'SAVE'}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => navigate('/customer')}

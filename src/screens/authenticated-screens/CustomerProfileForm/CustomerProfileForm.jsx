@@ -9,8 +9,8 @@ import { CustomerProfileCreateRequest, CustomerProfileDetailRequest, CustomerPro
 
 // Utils
 import { Footer } from '../../../components';
-import { showToast, validateSubmissionData, decodeString } from '../../../utils';
-import { auth } from '../../../atoms';
+import { showToast, validateSubmissionData, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
+import { auth, loginInfo } from '../../../atoms';
 
 const INITIAL_FORM_DATA = {
   data: {
@@ -46,7 +46,9 @@ function CustomerProfileForm() {
   const [isLoading, _isLoading] = useState(false);
   const [isProfileLoading, _isProfileLoading] = useState(false);
   const authValue = useAtomValue(auth);
+  const loginInfoValue = useAtomValue(loginInfo);
   const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
+  const customerProfilePerms = useMemo(() => getNormalizedModulePermissions(parseLoginInfo(loginInfoValue), 'profile'), [loginInfoValue]);
   const [templateOptions, _templateOptions] = useState([]);
   const [isTemplateLoading, _isTemplateLoading] = useState(false);
 
@@ -424,14 +426,16 @@ function CustomerProfileForm() {
 
   const FORM_ACTIONS = () => (
     <div className="flex gap-3 pt-6">
-      <button
-        type="submit"
-        disabled={isLoading}
-        onClick={handleSubmitForm}
-        className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isLoading ? 'SAVING...' : 'SAVE'}
-      </button>
+      {(!id || customerProfilePerms.update) && (
+        <button
+          type="submit"
+          disabled={isLoading}
+          onClick={handleSubmitForm}
+          className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'SAVING...' : 'SAVE'}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => navigate(-1)}

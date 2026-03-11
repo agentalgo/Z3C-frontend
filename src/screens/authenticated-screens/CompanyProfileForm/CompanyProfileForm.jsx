@@ -9,8 +9,8 @@ import { CompanyProfileCreateRequest, CompanyProfileDetailRequest, CompanyProfil
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
-import { showToast, validateSubmissionData, decodeString } from '../../../utils';
-import { auth } from '../../../atoms';
+import { showToast, validateSubmissionData, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
+import { auth, loginInfo } from '../../../atoms';
 
 const INITIAL_FORM_DATA = {
   data: {
@@ -109,6 +109,8 @@ function CompanyProfileForm() {
 
 function CompanyProfileFormContent({ id, profilePromise, decodedToken, navigate }) {
   const profileData = profilePromise ? use(profilePromise) : null;
+  const loginInfoValue = useAtomValue(loginInfo);
+  const companyProfilePerms = useMemo(() => getNormalizedModulePermissions(parseLoginInfo(loginInfoValue), 'companyProfile'), [loginInfoValue]);
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
   const [isLoading, _isLoading] = useState(false);
 
@@ -663,14 +665,16 @@ function CompanyProfileFormContent({ id, profilePromise, decodedToken, navigate 
 
   const FORM_ACTIONS = () => (
     <div className="flex gap-3 pt-6">
-      <button
-        type="submit"
-        disabled={isLoading || profileData?.isError}
-        onClick={handleSubmitForm}
-        className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {isLoading ? 'SAVING...' : 'SAVE'}
-      </button>
+      {(!id || companyProfilePerms.update) && (
+        <button
+          type="submit"
+          disabled={isLoading || profileData?.isError}
+          onClick={handleSubmitForm}
+          className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'SAVING...' : 'SAVE'}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => navigate('/company-profile')}
