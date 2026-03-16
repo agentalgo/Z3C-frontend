@@ -16,6 +16,159 @@ import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString } from '../../..
 const DETAILS_TRUNCATE_LEN = 80;
 const DETAILS_SEP = ' · ';
 
+// --- json-diff output helpers (supports both _old/_new and __old/__new)
+function isDiffModified(val) {
+  if (val == null || typeof val !== 'object' || Array.isArray(val)) return false;
+  return ('_old' in val && '_new' in val) || ('__old' in val && '__new' in val);
+}
+function getOldNew(val) {
+  if (val == null || typeof val !== 'object') return [undefined, undefined];
+  const oldVal = val._old ?? val.__old;
+  const newVal = val._new ?? val.__new;
+  return [oldVal, newVal];
+}
+function keyKind(key) {
+  if (typeof key !== 'string') return null;
+  if (key.endsWith('_deleted')) return 'deleted';
+  if (key.endsWith('_added')) return 'added';
+  return null;
+}
+function keyDisplayName(key) {
+  const k = keyKind(key);
+  if (k === 'deleted') return key.slice(0, -8); // strip _deleted
+  if (k === 'added') return key.slice(0, -6);   // strip _added
+  return key;
+}
+
+function formatDiffValue(val) {
+  if (val === null) return 'null';
+  if (val === undefined) return '—';
+  if (typeof val === 'string') return `"${val}"`;
+  if (typeof val === 'object' && !Array.isArray(val) && isDiffModified(val)) {
+    const [o, n] = getOldNew(val);
+    return { type: 'modified', old: o, new: n };
+  }
+  if (Array.isArray(val)) return { type: 'array', items: val };
+  if (typeof val === 'object') return { type: 'object', value: val };
+  return String(val);
+}
+
+function DiffViewer({ value, depth = 0 }) {
+  const indent = depth * 16;
+  const fmt = formatDiffValue(value);
+
+  if (fmt?.type === 'modified') {
+    const [oldStr, newStr] = [fmt.old, fmt.new].map((v) =>
+      v === null || v === undefined ? String(v) : typeof v === 'object' ? JSON.stringify(v) : String(v)
+    );
+    return (
+      <span className="inline-flex flex-wrap items-baseline gap-1">
+        <span className="text-red-600 dark:text-red-400 line-through font-medium" title="Previous value">
+          {oldStr}
+        </span>
+        <span className="text-[#4c669a] dark:text-gray-500 select-none">→</span>
+        <span className="text-emerald-600 dark:text-emerald-400 font-medium" title="New value">
+          {newStr}
+        </span>
+      </span>
+    );
+  }
+
+  if (fmt?.type === 'array' && Array.isArray(fmt.items)) {
+    return (
+      <div className="mt-1 space-y-1">
+        {fmt.items.map((item, i) => {
+          if (Array.isArray(item) && item.length >= 2) {
+            const [op, val] = item;
+            const isDel = op === '-';
+            const isAdd = op === '+';
+            const isMod = op === '~';
+            return (
+              <div key={i} className="flex items-start gap-2 font-mono text-xs" style={{ paddingLeft: indent + 8 }}>
+                <span
+                  className={`shrink-0 w-5 text-center rounded ${
+                    isDel ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300' : ''
+                  } ${isAdd ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : ''} ${
+                    isMod ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' : ''
+                  } ${op === ' ' ? 'text-gray-400 dark:text-gray-500' : ''}`}
+                >
+                  {op}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <DiffViewer value={val} depth={depth + 1} />
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div key={i} className="font-mono text-xs" style={{ paddingLeft: indent + 8 }}>
+              <DiffViewer value={item} depth={depth + 1} />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (fmt?.type === 'object' && fmt.value && typeof fmt.value === 'object' && !Array.isArray(fmt.value)) {
+    const entries = Object.entries(fmt.value);
+    return (
+      <div className="mt-1 space-y-1.5" style={{ paddingLeft: indent }}>
+        {entries.map(([k, v]) => {
+          const kind = keyKind(k);
+          const displayKey = keyDisplayName(k);
+          const isDeleted = kind === 'deleted';
+          const isAdded = kind === 'added';
+          const valFmt = formatDiffValue(v);
+          const isNestedObj = valFmt?.type === 'object' || valFmt?.type === 'array';
+          return (
+            <div key={k} className="font-mono text-xs">
+              <div className="flex items-start gap-2 flex-wrap">
+                <span
+                  className={`shrink-0 font-semibold ${
+                    isDeleted ? 'text-red-600 dark:text-red-400' : ''
+                  } ${isAdded ? 'text-emerald-600 dark:text-emerald-400' : ''} ${
+                    !isDeleted && !isAdded ? 'text-[#0d121b] dark:text-gray-200' : ''
+                  }`}
+                >
+                  {displayKey}
+                  {isDeleted && (
+                    <span className="ml-1.5 text-[10px] uppercase tracking-wide text-red-500 dark:text-red-400 font-normal">
+                      removed
+                    </span>
+                  )}
+                  {isAdded && (
+                    <span className="ml-1.5 text-[10px] uppercase tracking-wide text-emerald-500 dark:text-emerald-400 font-normal">
+                      added
+                    </span>
+                  )}
+                  <span className="text-gray-400 dark:text-gray-500 mx-0.5">:</span>
+                </span>
+                <div className="min-w-0 flex-1 break-words">
+                  {isNestedObj ? <DiffViewer value={v} depth={depth + 1} /> : null}
+                  {!isNestedObj && isDiffModified(v) ? <DiffViewer value={v} depth={depth + 1} /> : null}
+                  {!isNestedObj && !isDiffModified(v) && (
+                    <span
+                      className={
+                        isDeleted ? 'text-red-600/90 dark:text-red-400/90' : isAdded ? 'text-emerald-600/90 dark:text-emerald-400/90' : 'text-[#374151] dark:text-gray-400'
+                      }
+                    >
+                      {typeof v === 'object' && v !== null ? <DiffViewer value={v} depth={depth + 1} /> : String(v)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (typeof value === 'object' && value !== null) return <span className="text-[#374151] dark:text-gray-400">{JSON.stringify(value)}</span>;
+  return <span className="text-[#374151] dark:text-gray-400">{String(value)}</span>;
+}
+
 function getMergedDetails(row) {
   if (!row) return '';
   const { activityDescription, newValue } = row;
@@ -398,12 +551,15 @@ function UserFilterAsync({ usersPromise, selectedUserId, _selectedUserId, onAppl
 }
 
 function DetailsModal({ row, onClose }) {
-  const str = getMergedDetails(row);
+  const activityDescription = row?.activityDescription != null ? String(row.activityDescription).trim() : '';
+  const newValue = row?.newValue;
+  const hasStructuredDiff = newValue != null && typeof newValue === 'object' && !Array.isArray(newValue);
+  const fallbackStr = getMergedDetails(row);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div
-        className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+        className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-xl max-w-3xl w-full max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#e7ebf3] dark:border-[#2a3447]">
@@ -416,10 +572,31 @@ function DetailsModal({ row, onClose }) {
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
-        <div className="p-6 overflow-auto flex-1">
-          <pre className="text-xs text-[#0d121b] dark:text-gray-300 whitespace-pre-wrap break-words font-mono">
-            {str || 'No details'}
-          </pre>
+        <div className="p-6 overflow-auto flex-1 min-h-0">
+          {activityDescription && (
+            <p className="text-sm text-[#4c669a] dark:text-gray-400 mb-4 pb-3 border-b border-[#e7ebf3] dark:border-[#2a3447]">
+              {activityDescription}
+            </p>
+          )}
+          {hasStructuredDiff ? (
+            <div className="rounded-lg bg-[#f8fafc] dark:bg-[#1e293b] border border-[#e2e8f0] dark:border-[#334155] p-4">
+              <div className="flex gap-3 mb-3 text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-4 h-3 rounded bg-red-100 dark:bg-red-900/50 border border-red-200 dark:border-red-800" />
+                  Previous / removed
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-4 h-3 rounded bg-emerald-100 dark:bg-emerald-900/50 border border-emerald-200 dark:border-emerald-800" />
+                  New / added
+                </span>
+              </div>
+              <DiffViewer value={newValue} depth={0} />
+            </div>
+          ) : (
+            <pre className="text-xs text-[#0d121b] dark:text-gray-300 whitespace-pre-wrap break-words font-mono">
+              {fallbackStr || 'No details'}
+            </pre>
+          )}
         </div>
       </div>
     </div>
