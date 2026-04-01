@@ -6,6 +6,8 @@ const UserListRequest = async (token, params = {}) => {
   if (params.limit) queryParams.append('limit', params.limit);
   if (params.search) queryParams.append('search', params.search);
   if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+  if (params.isActive !== undefined) queryParams.append('isActive', params.isActive);
+  if (params.isAdmin !== undefined) queryParams.append('isAdmin', params.isAdmin);
 
   const queryString = queryParams.toString();
   const url = getApiUrl(`/users${queryString ? `?${queryString}` : ''}`);
