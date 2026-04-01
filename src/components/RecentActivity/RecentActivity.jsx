@@ -58,7 +58,7 @@ const SKELETON_ROW = () => (
   </tr>
 );
 
-function RecentActivity({ submissions, loading }) {
+function RecentActivity({ submissions, loading, showViewAll = false, onViewAll }) {
   const list = Array.isArray(submissions) ? submissions : (submissions?.data?.data ?? submissions?.data ?? []);
   const rows = Array.isArray(list) ? list.map(normalizeSubmission) : [];
 
@@ -111,7 +111,15 @@ function RecentActivity({ submissions, loading }) {
   const HEADER_SECTION = () => (
     <div className="p-6 border-b border-[#e7ebf3] dark:border-[#2a3447] flex justify-between items-center">
       <h4 className="text-lg font-bold">Recent Submissions</h4>
-      <button className="text-primary text-sm font-bold hover:underline">View All</button>
+      {showViewAll && (
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="text-primary text-sm font-bold hover:underline"
+        >
+          View All
+        </button>
+      )}
     </div>
   );
 

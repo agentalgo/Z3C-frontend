@@ -148,7 +148,7 @@ function InvoiceList() {
             </button>
 
             {isActionsOpen && (              
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
+              <div className="absolute right-0 mt-2 z-30 w-48 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
                 <div className="py-1">
                   <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                     <span className="material-symbols-outlined text-[18px]">send</span>
@@ -185,7 +185,7 @@ function InvoiceList() {
           </button>
 
           {isFilterOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
+            <div className="absolute right-0 mt-2 z-30 w-64 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
               <div className="p-4 space-y-4">
                 <div>
                   <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">ZATCA Status</label>

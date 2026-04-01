@@ -1,6 +1,7 @@
 // Packages
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
+import { useNavigate } from 'react-router-dom';
 
 // APIs
 import {
@@ -10,8 +11,8 @@ import {
 } from '../../../requests';
 
 // Utils
-import { auth } from '../../../atoms';
-import { decodeString } from '../../../utils';
+import { auth, loginInfo } from '../../../atoms';
+import { decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
 import {
   PageHeader,
   KpiStats,
@@ -32,6 +33,13 @@ function getDefaultDateRange() {
 
 function Dashboard() {
   const authValue = useAtomValue(auth);
+  const loginInfoValue = useAtomValue(loginInfo);
+  const navigate = useNavigate();
+
+  const invoicePerms = useMemo(
+    () => getNormalizedModulePermissions(parseLoginInfo(loginInfoValue), 'invoice'),
+    [loginInfoValue]
+  );
 
   const [dateRange, _dateRange] = useState(getDefaultDateRange);
   const [kpiStats, _kpiStats] = useState(null);
@@ -79,7 +87,12 @@ function Dashboard() {
           <TrendChart trends={trends} loading={loadingTrends} />
         </div>
       </div>
-      <RecentActivity submissions={recentSubmissions} loading={loadingRecent} />
+      <RecentActivity
+        submissions={recentSubmissions}
+        loading={loadingRecent}
+        showViewAll={invoicePerms.read}
+        onViewAll={() => navigate('/invoices')}
+      />
     </div>
   );
 
