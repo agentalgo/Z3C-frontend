@@ -32,6 +32,12 @@ function UserManagementList() {
   const [rowSelection, _rowSelection] = useState({});
   const [reloadKey, _reloadKey] = useState(0);
 
+  // Filters state
+  const [filters, _filters] = useState({
+    isActive: '',
+    isAdmin: '',
+  });
+
   const usersPromise = useMemo(() => {
     const decodedToken = decodeString(authValue);
     const params = {
@@ -39,10 +45,28 @@ function UserManagementList() {
       limit: pagination.pageSize,
       search: appliedSearchQuery || undefined,
       sortBy: sorting.length > 0 ? `${sorting[0].id}:${sorting[0].desc ? 'desc' : 'asc'}` : undefined,
+      isActive: filters.isActive !== '' ? filters.isActive === 'true' : undefined,
+      isAdmin: filters.isAdmin !== '' ? filters.isAdmin === 'true' : undefined,
     };
 
     return UserListRequest(decodedToken, params);
-  }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting, reloadKey]);
+  }, [authValue, pagination.pageIndex, pagination.pageSize, appliedSearchQuery, sorting, filters, reloadKey]);
+
+  // *********** Handlers ***********
+
+  const handleFilterChange = (key, value) => {
+    _filters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const resetFilters = () => {
+    _filters({ isActive: '', isAdmin: '' });
+    _pagination((prev) => ({ ...prev, pageIndex: 0 }));
+  };
+
+  const applyFilters = () => {
+    _pagination((prev) => ({ ...prev, pageIndex: 0 }));
+    _isFilterOpen(false);
+  };
 
   // *********** Render Functions ***********
 
@@ -92,16 +116,63 @@ function UserManagementList() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          onClick={() => _isFilterOpen(!isFilterOpen)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm font-medium text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full sm:w-auto"
-        >
-          <span className="material-symbols-outlined text-[20px]">filter_list</span>
-          Filters
-          <span className="material-symbols-outlined text-[16px]">
-            {isFilterOpen ? 'expand_less' : 'expand_more'}
-          </span>
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => _isFilterOpen(!isFilterOpen)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm font-medium text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors w-full sm:w-auto"
+          >
+            <span className="material-symbols-outlined text-[20px]">filter_list</span>
+            Filters
+            <span className="material-symbols-outlined text-[16px]">
+              {isFilterOpen ? 'expand_less' : 'expand_more'}
+            </span>
+          </button>
+
+          {isFilterOpen && (
+            <div className="absolute right-0 mt-2 z-30 w-64 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg">
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Status</label>
+                  <select
+                    value={filters.isActive}
+                    onChange={(e) => handleFilterChange('isActive', e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
+                  >
+                    <option value="">All</option>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Role</label>
+                  <select
+                    value={filters.isAdmin}
+                    onChange={(e) => handleFilterChange('isAdmin', e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
+                  >
+                    <option value="">All</option>
+                    <option value="true">Admin</option>
+                    <option value="false">Non-Admin</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 pt-2 border-t border-[#e7ebf3] dark:border-[#2a3447]">
+                  <button
+                    onClick={resetFilters}
+                    className="flex-1 px-3 py-2 text-sm font-medium text-[#4c669a] hover:text-[#0d121b] dark:hover:text-white transition-colors"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    onClick={applyFilters}
+                    className="flex-1 px-3 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {userPerms.create && (
           <button
