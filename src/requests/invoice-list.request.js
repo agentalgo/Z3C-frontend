@@ -6,9 +6,11 @@ const InvoiceListRequest = async (token, params = {}) => {
   if (params.limit) queryParams.append('limit', params.limit);
   if (params.search) queryParams.append('search', params.search);
   if (params.sortBy) queryParams.append('sortBy', params.sortBy);
-  if (params.zatcaStatus) queryParams.append('zatcaStatus', params.zatcaStatus);
-  if (params.type) queryParams.append('type', params.type);
-  if (params.invoicePaid) queryParams.append('invoicePaid', params.invoicePaid);
+  if (params.status) queryParams.append('status', params.status);
+  if (params.invoiceType) queryParams.append('invoiceType', params.invoiceType);
+  if (params.paymentType) queryParams.append('paymentType', params.paymentType);
+  if (params.fromDate) queryParams.append('fromDate', params.fromDate);
+  if (params.toDate) queryParams.append('toDate', params.toDate);
 
   const queryString = queryParams.toString();
   const url = getApiUrl(`/invoices${queryString ? `?${queryString}` : ''}`);

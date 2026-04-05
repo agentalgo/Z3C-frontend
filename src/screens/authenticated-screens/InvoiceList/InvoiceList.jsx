@@ -21,6 +21,15 @@ import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
 import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, showToast, parseLoginInfo, getNormalizedModulePermissions, INVOICE_STATUSES } from '../../../utils';
 
+const STATUS_FILTER_OPTIONS = [
+  'DRAFT', 'SUBMITTED', 'PENDING_SUBMISSION',
+  'COMPLIANCE_QUEUED', 'COMPLIANCE_PROCESSING', 'COMPLIANCE_COMPLETED', 'COMPLIANCE_FAILED',
+  'PENDING_CLEARANCE', 'CLEARANCE_QUEUED', 'CLEARANCE_PROCESSING',
+  'CLEARED', 'ACCEPTED', 'REJECTED', 'FINALIZED', 'REPORTED',
+];
+const INVOICE_TYPE_FILTER_OPTIONS = ['B2B', 'SIMPLIFIED', 'CREDIT_NOTE', 'DEBIT_NOTE'];
+const PAYMENT_TYPE_FILTER_OPTIONS = ['CASH', 'CREDIT_CARD', 'BANK_TRANSFER', 'CHECK', 'BANK_CARD', 'OTHER'];
+
 function InvoiceList() {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
@@ -43,9 +52,11 @@ function InvoiceList() {
 
   // Filters state
   const [filters, _filters] = useState({
-    zatcaStatus: '',
-    type: '',
-    invoicePaid: '',
+    status: '',
+    invoiceType: '',
+    paymentType: '',
+    fromDate: '',
+    toDate: '',
   });
 
   const invoicesPromise = useMemo(() => {
@@ -55,9 +66,11 @@ function InvoiceList() {
       limit: pagination.pageSize,
       search: appliedSearchQuery || undefined,
       sortBy: sorting.length > 0 ? `${sorting[0].id}:${sorting[0].desc ? 'desc' : 'asc'}` : undefined,
-      zatcaStatus: filters.zatcaStatus || undefined,
-      type: filters.type || undefined,
-      invoicePaid: filters.invoicePaid || undefined,
+      status: filters.status || undefined,
+      invoiceType: filters.invoiceType || undefined,
+      paymentType: filters.paymentType || undefined,
+      fromDate: filters.fromDate ? new Date(filters.fromDate).toISOString() : undefined,
+      toDate: filters.toDate ? new Date(`${filters.toDate}T23:59:59`).toISOString() : undefined,
     };
 
     return InvoiceListRequest(decodedToken, params);
@@ -70,12 +83,14 @@ function InvoiceList() {
   const handleFilterChange = (key, value) => {
     _filters((prev) => ({ ...prev, [key]: value }));
   };
-  
+
   const resetFilters = () => {
     _filters({
-      zatcaStatus: '',
-      type: '',
-      invoicePaid: '',
+      status: '',
+      invoiceType: '',
+      paymentType: '',
+      fromDate: '',
+      toDate: '',
     });
     _pagination((prev) => ({ ...prev, pageIndex: 0 }));
   };
@@ -185,45 +200,75 @@ function InvoiceList() {
           </button>
 
           {isFilterOpen && (
-            <div className="absolute right-0 mt-2 z-30 w-64 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
-              <div className="p-4 space-y-4">
+            <div className="absolute right-0 mt-2 z-30 w-72 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg">
+              <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
                 <div>
-                  <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">ZATCA Status</label>
+                  <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Status</label>
                   <select
-                    value={filters.zatcaStatus}
-                    onChange={(e) => handleFilterChange('zatcaStatus', e.target.value)}
+                    value={filters.status}
+                    onChange={(e) => handleFilterChange('status', e.target.value)}
                     className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
                   >
                     <option value="">All</option>
-                    <option value="CLEARED">Cleared</option>
-                    <option value="REPORTED">Reported</option>
-                    <option value="REJECTED">Rejected</option>
-                    <option value="PENDING">Pending</option>
+                    {STATUS_FILTER_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {status.replace(/_/g, ' ')}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Invoice Type</label>
                   <select
-                    value={filters.type}
-                    onChange={(e) => handleFilterChange('type', e.target.value)}
+                    value={filters.invoiceType}
+                    onChange={(e) => handleFilterChange('invoiceType', e.target.value)}
                     className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
                   >
                     <option value="">All</option>
-                    <option value="B2B">B2B</option>
-                    <option value="B2C">B2C</option>
+                    {INVOICE_TYPE_FILTER_OPTIONS.map((type) => (
+                      <option key={type} value={type}>
+                        {type.replace(/_/g, ' ')}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Payment Status</label>
+                  <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Payment Type</label>
                   <select
-                    value={filters.invoicePaid}
-                    onChange={(e) => handleFilterChange('invoicePaid', e.target.value)}
+                    value={filters.paymentType}
+                    onChange={(e) => handleFilterChange('paymentType', e.target.value)}
                     className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
                   >
                     <option value="">All</option>
-                    <option value="Yes">Paid</option>
-                    <option value="No">Unpaid</option>
+                    {PAYMENT_TYPE_FILTER_OPTIONS.map((type) => (
+                      <option key={type} value={type}>
+                        {type.replace(/_/g, ' ')}
+                      </option>
+                    ))}
                   </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Date Range</label>
+                  <div className="mt-1 space-y-2">
+                    <div>
+                      <label className="text-[10px] text-[#4c669a] dark:text-gray-500">From</label>
+                      <input
+                        type="date"
+                        value={filters.fromDate}
+                        onChange={(e) => handleFilterChange('fromDate', e.target.value)}
+                        className="w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[#4c669a] dark:text-gray-500">To</label>
+                      <input
+                        type="date"
+                        value={filters.toDate}
+                        onChange={(e) => handleFilterChange('toDate', e.target.value)}
+                        className="w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-[#e7ebf3] dark:border-[#2a3447]">
                   <button
@@ -677,6 +722,7 @@ function InvoicesTableContent({
               defaultValue=""
               onChange={handleChange}
               disabled={isBusy}
+              style={{ width: '227px' }}
               className="px-3 py-1.5 text-sm rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="" disabled>
