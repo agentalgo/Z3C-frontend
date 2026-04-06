@@ -40,6 +40,17 @@ function keyDisplayName(key) {
   return key;
 }
 
+function isXmlString(val) {
+  return typeof val === 'string' && val.trimStart().startsWith('<?xml');
+}
+
+function isLongOrComplexValue(val) {
+  if (val === null || val === undefined) return false;
+  if (typeof val === 'object') return true;
+  if (typeof val === 'string' && (isXmlString(val) || val.length > 120)) return true;
+  return false;
+}
+
 function formatDiffValue(val) {
   if (val === null) return 'null';
   if (val === undefined) return '—';
@@ -53,12 +64,55 @@ function formatDiffValue(val) {
   return String(val);
 }
 
+function ComplexValueBlock({ val, colorClass }) {
+  if (val === null || val === undefined) {
+    return <span className={`font-mono text-xs ${colorClass}`}>{val === null ? 'null' : '—'}</span>;
+  }
+  if (typeof val === 'object') {
+    return (
+      <pre className={`mt-1 text-xs font-mono whitespace-pre-wrap break-words rounded p-2 max-h-56 overflow-auto border ${colorClass}`}>
+        {JSON.stringify(val, null, 2)}
+      </pre>
+    );
+  }
+  return (
+    <pre className={`mt-1 text-xs font-mono whitespace-pre-wrap break-words rounded p-2 max-h-56 overflow-auto border ${colorClass}`}>
+      {String(val)}
+    </pre>
+  );
+}
+
 function DiffViewer({ value, depth = 0 }) {
   const indent = depth * 16;
   const fmt = formatDiffValue(value);
 
   if (fmt?.type === 'modified') {
-    const [oldStr, newStr] = [fmt.old, fmt.new].map((v) =>
+    const oldVal = fmt.old;
+    const newVal = fmt.new;
+    const isComplex = isLongOrComplexValue(oldVal) || isLongOrComplexValue(newVal);
+
+    if (isComplex) {
+      return (
+        <div className="space-y-2 w-full">
+          <div>
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-red-500 dark:text-red-400">Previous</span>
+            <ComplexValueBlock
+              val={oldVal}
+              colorClass="text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+            />
+          </div>
+          <div>
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-emerald-600 dark:text-emerald-400">New</span>
+            <ComplexValueBlock
+              val={newVal}
+              colorClass="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    const [oldStr, newStr] = [oldVal, newVal].map((v) =>
       v === null || v === undefined ? String(v) : typeof v === 'object' ? JSON.stringify(v) : String(v)
     );
     return (
@@ -165,7 +219,20 @@ function DiffViewer({ value, depth = 0 }) {
     );
   }
 
-  if (typeof value === 'object' && value !== null) return <span className="text-[#374151] dark:text-gray-400">{JSON.stringify(value)}</span>;
+  if (typeof value === 'object' && value !== null) {
+    return (
+      <pre className="mt-1 text-xs font-mono whitespace-pre-wrap break-words rounded p-2 max-h-56 overflow-auto border text-[#374151] dark:text-gray-300 bg-[#f8fafc] dark:bg-[#0f172a] border-[#e2e8f0] dark:border-[#334155]">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    );
+  }
+  if (typeof value === 'string' && (isXmlString(value) || value.length > 120)) {
+    return (
+      <pre className="mt-1 text-xs font-mono whitespace-pre-wrap break-words rounded p-2 max-h-56 overflow-auto border text-[#374151] dark:text-gray-300 bg-[#f8fafc] dark:bg-[#0f172a] border-[#e2e8f0] dark:border-[#334155]">
+        {value}
+      </pre>
+    );
+  }
   return <span className="text-[#374151] dark:text-gray-400">{String(value)}</span>;
 }
 
