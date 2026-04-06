@@ -38,3 +38,4 @@ export { default as AuditRecentRequest } from './audit-recent.request';
 export { default as DashboardKpiStatsRequest } from './dashboard-kpi-stats.request';
 export { default as DashboardSubmissionTrendsRequest } from './dashboard-submission-trends.request';
 export { default as DashboardRecentSubmissionsRequest } from './dashboard-recent-submissions.request';
+export { default as PermissionsFetchRequest } from './permissions-fetch.request';

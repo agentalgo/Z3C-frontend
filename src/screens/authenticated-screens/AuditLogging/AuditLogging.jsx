@@ -248,7 +248,7 @@ function AuditLogging() {
 
   const auditPromise = useMemo(() => {
     const decodedToken = decodeString(authValue);
-    if (!decodedToken) return Promise.resolve({ data: [], total: 0, page: 1, limit: DEFAULT_PAGE_SIZE, totalPages: 0 });
+    if (!decodedToken) return Promise.resolve({ data: [], meta: { total: 0, page: 1, limit: DEFAULT_PAGE_SIZE, totalPages: 0 } });
 
     const sort = sorting.length > 0 ? sorting[0] : { id: 'createdAt', desc: true };
     const params = {
@@ -606,7 +606,7 @@ function DetailsModal({ row, onClose }) {
 function AuditTableContent({ auditPromise, usersPromise, pagination, sorting, _sorting, _pagination, onDetails, onAuditDataLoaded }) {
   const response = use(auditPromise);
   const usersResponse = use(usersPromise);
-  const data = response?.data ?? [];
+  const data = Array.isArray(response?.data) ? response.data : [];
   const onAuditDataLoadedRef = useRef(onAuditDataLoaded);
   onAuditDataLoadedRef.current = onAuditDataLoaded;
   useEffect(() => {
@@ -620,10 +620,11 @@ function AuditTableContent({ auditPromise, usersPromise, pagination, sorting, _s
       return acc;
     }, {});
   }, [usersResponse]);
-  const total = response?.total ?? 0;
-  const page = response?.page ?? 1;
-  const limit = response?.limit ?? DEFAULT_PAGE_SIZE;
-  const totalPages = response?.totalPages ?? (Math.ceil(total / limit) || 1);
+  const meta = response?.meta ?? {};
+  const total = meta.total ?? 0;
+  const page = meta.page ?? 1;
+  const limit = meta.limit ?? DEFAULT_PAGE_SIZE;
+  const totalPages = meta.totalPages ?? (Math.ceil(total / limit) || 1);
 
   const paginationInfo = {
     totalCount: total,
@@ -800,17 +801,22 @@ function AuditTableContent({ auditPromise, usersPromise, pagination, sorting, _s
         <button
           onClick={() => table.previousPage()}
           disabled={!paginationInfo.hasPreviousPage}
-          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">chevron_left</span>
         </button>
         <div className="flex items-center gap-1">
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+          {Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
             let pageNum;
-            if (totalPages <= 5) pageNum = i + 1;
-            else if (pagination.pageIndex + 1 <= 3) pageNum = i + 1;
-            else if (pagination.pageIndex + 1 >= totalPages - 2) pageNum = totalPages - 4 + i;
-            else pageNum = pagination.pageIndex - 1 + i;
+            if (paginationInfo.totalPages <= 5) {
+              pageNum = i + 1;
+            } else if (pagination.pageIndex + 1 <= 3) {
+              pageNum = i + 1;
+            } else if (pagination.pageIndex + 1 >= paginationInfo.totalPages - 2) {
+              pageNum = paginationInfo.totalPages - 4 + i;
+            } else {
+              pageNum = pagination.pageIndex - 1 + i;
+            }
             return (
               <button
                 key={pageNum}
@@ -829,14 +835,14 @@ function AuditTableContent({ auditPromise, usersPromise, pagination, sorting, _s
         <button
           onClick={() => table.nextPage()}
           disabled={!paginationInfo.hasNextPage}
-          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">chevron_right</span>
         </button>
         <button
-          onClick={() => table.setPageIndex(totalPages - 1)}
+          onClick={() => table.setPageIndex(paginationInfo.totalPages - 1)}
           disabled={!paginationInfo.hasNextPage}
-          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">last_page</span>
         </button>
