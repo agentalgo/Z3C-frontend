@@ -40,6 +40,17 @@ function keyDisplayName(key) {
   return key;
 }
 
+function isXmlString(val) {
+  return typeof val === 'string' && val.trimStart().startsWith('<?xml');
+}
+
+function isLongOrComplexValue(val) {
+  if (val === null || val === undefined) return false;
+  if (typeof val === 'object') return true;
+  if (typeof val === 'string' && (isXmlString(val) || val.length > 120)) return true;
+  return false;
+}
+
 function formatDiffValue(val) {
   if (val === null) return 'null';
   if (val === undefined) return '—';
@@ -53,12 +64,55 @@ function formatDiffValue(val) {
   return String(val);
 }
 
+function ComplexValueBlock({ val, colorClass }) {
+  if (val === null || val === undefined) {
+    return <span className={`font-mono text-xs ${colorClass}`}>{val === null ? 'null' : '—'}</span>;
+  }
+  if (typeof val === 'object') {
+    return (
+      <pre className={`mt-1 text-xs font-mono whitespace-pre-wrap break-words rounded p-2 max-h-56 overflow-auto border ${colorClass}`}>
+        {JSON.stringify(val, null, 2)}
+      </pre>
+    );
+  }
+  return (
+    <pre className={`mt-1 text-xs font-mono whitespace-pre-wrap break-words rounded p-2 max-h-56 overflow-auto border ${colorClass}`}>
+      {String(val)}
+    </pre>
+  );
+}
+
 function DiffViewer({ value, depth = 0 }) {
   const indent = depth * 16;
   const fmt = formatDiffValue(value);
 
   if (fmt?.type === 'modified') {
-    const [oldStr, newStr] = [fmt.old, fmt.new].map((v) =>
+    const oldVal = fmt.old;
+    const newVal = fmt.new;
+    const isComplex = isLongOrComplexValue(oldVal) || isLongOrComplexValue(newVal);
+
+    if (isComplex) {
+      return (
+        <div className="space-y-2 w-full">
+          <div>
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-red-500 dark:text-red-400">Previous</span>
+            <ComplexValueBlock
+              val={oldVal}
+              colorClass="text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+            />
+          </div>
+          <div>
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-emerald-600 dark:text-emerald-400">New</span>
+            <ComplexValueBlock
+              val={newVal}
+              colorClass="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    const [oldStr, newStr] = [oldVal, newVal].map((v) =>
       v === null || v === undefined ? String(v) : typeof v === 'object' ? JSON.stringify(v) : String(v)
     );
     return (
@@ -165,7 +219,20 @@ function DiffViewer({ value, depth = 0 }) {
     );
   }
 
-  if (typeof value === 'object' && value !== null) return <span className="text-[#374151] dark:text-gray-400">{JSON.stringify(value)}</span>;
+  if (typeof value === 'object' && value !== null) {
+    return (
+      <pre className="mt-1 text-xs font-mono whitespace-pre-wrap break-words rounded p-2 max-h-56 overflow-auto border text-[#374151] dark:text-gray-300 bg-[#f8fafc] dark:bg-[#0f172a] border-[#e2e8f0] dark:border-[#334155]">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    );
+  }
+  if (typeof value === 'string' && (isXmlString(value) || value.length > 120)) {
+    return (
+      <pre className="mt-1 text-xs font-mono whitespace-pre-wrap break-words rounded p-2 max-h-56 overflow-auto border text-[#374151] dark:text-gray-300 bg-[#f8fafc] dark:bg-[#0f172a] border-[#e2e8f0] dark:border-[#334155]">
+        {value}
+      </pre>
+    );
+  }
   return <span className="text-[#374151] dark:text-gray-400">{String(value)}</span>;
 }
 
@@ -248,7 +315,7 @@ function AuditLogging() {
 
   const auditPromise = useMemo(() => {
     const decodedToken = decodeString(authValue);
-    if (!decodedToken) return Promise.resolve({ data: [], total: 0, page: 1, limit: DEFAULT_PAGE_SIZE, totalPages: 0 });
+    if (!decodedToken) return Promise.resolve({ data: [], meta: { total: 0, page: 1, limit: DEFAULT_PAGE_SIZE, totalPages: 0 } });
 
     const sort = sorting.length > 0 ? sorting[0] : { id: 'createdAt', desc: true };
     const params = {
@@ -316,16 +383,18 @@ function AuditLogging() {
 
   const FILTERS_SECTION = () => (
     <div className="flex flex-wrap items-center gap-2 justify-between">
-      <div className="relative min-w-[180px] max-w-sm w-full sm:w-auto sm:max-w-[280px]">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#4c669a] text-[20px]">search</span>
-        <input
-          type="text"
-          placeholder="Search..."
-          value={searchQuery}
-          onChange={(e) => _searchQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && applySearch()}
-          className="w-full h-[42px] pl-10 pr-4 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white placeholder:text-[#4c669a] focus:ring-2 focus:ring-primary focus:border-primary"
-        />
+      <div className="flex-1 max-w-md">
+        <div className="relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#4c669a] text-[20px]">search</span>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => _searchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && applySearch()}
+            className="w-full h-[42px] pl-10 pr-4 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white placeholder:text-[#4c669a] focus:ring-2 focus:ring-primary focus:border-primary"
+          />
+        </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <button
@@ -552,6 +621,7 @@ function UserFilterAsync({ usersPromise, selectedUserId, _selectedUserId, onAppl
 
 function DetailsModal({ row, onClose }) {
   const activityDescription = row?.activityDescription != null ? String(row.activityDescription).trim() : '';
+  const ipAddress = row?.ipAddress != null ? String(row.ipAddress).trim() : '';
   const newValue = row?.newValue;
   const hasStructuredDiff = newValue != null && typeof newValue === 'object' && !Array.isArray(newValue);
   const fallbackStr = getMergedDetails(row);
@@ -576,6 +646,12 @@ function DetailsModal({ row, onClose }) {
           {activityDescription && (
             <p className="text-sm text-[#4c669a] dark:text-gray-400 mb-4 pb-3 border-b border-[#e7ebf3] dark:border-[#2a3447]">
               {activityDescription}
+            </p>
+          )}
+          {ipAddress && (
+            <p className="text-sm text-[#4c669a] dark:text-gray-400 mb-4">
+              <span className="font-semibold text-[#0d121b] dark:text-white mr-1">IP Address:</span>
+              <span className="font-mono">{ipAddress}</span>
             </p>
           )}
           {hasStructuredDiff ? (
@@ -606,7 +682,7 @@ function DetailsModal({ row, onClose }) {
 function AuditTableContent({ auditPromise, usersPromise, pagination, sorting, _sorting, _pagination, onDetails, onAuditDataLoaded }) {
   const response = use(auditPromise);
   const usersResponse = use(usersPromise);
-  const data = response?.data ?? [];
+  const data = Array.isArray(response?.data) ? response.data : [];
   const onAuditDataLoadedRef = useRef(onAuditDataLoaded);
   onAuditDataLoadedRef.current = onAuditDataLoaded;
   useEffect(() => {
@@ -620,10 +696,11 @@ function AuditTableContent({ auditPromise, usersPromise, pagination, sorting, _s
       return acc;
     }, {});
   }, [usersResponse]);
-  const total = response?.total ?? 0;
-  const page = response?.page ?? 1;
-  const limit = response?.limit ?? DEFAULT_PAGE_SIZE;
-  const totalPages = response?.totalPages ?? (Math.ceil(total / limit) || 1);
+  const meta = response?.meta ?? {};
+  const total = meta.total ?? 0;
+  const page = meta.page ?? 1;
+  const limit = meta.limit ?? DEFAULT_PAGE_SIZE;
+  const totalPages = meta.totalPages ?? (Math.ceil(total / limit) || 1);
 
   const paginationInfo = {
     totalCount: total,
@@ -800,17 +877,22 @@ function AuditTableContent({ auditPromise, usersPromise, pagination, sorting, _s
         <button
           onClick={() => table.previousPage()}
           disabled={!paginationInfo.hasPreviousPage}
-          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">chevron_left</span>
         </button>
         <div className="flex items-center gap-1">
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+          {Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
             let pageNum;
-            if (totalPages <= 5) pageNum = i + 1;
-            else if (pagination.pageIndex + 1 <= 3) pageNum = i + 1;
-            else if (pagination.pageIndex + 1 >= totalPages - 2) pageNum = totalPages - 4 + i;
-            else pageNum = pagination.pageIndex - 1 + i;
+            if (paginationInfo.totalPages <= 5) {
+              pageNum = i + 1;
+            } else if (pagination.pageIndex + 1 <= 3) {
+              pageNum = i + 1;
+            } else if (pagination.pageIndex + 1 >= paginationInfo.totalPages - 2) {
+              pageNum = paginationInfo.totalPages - 4 + i;
+            } else {
+              pageNum = pagination.pageIndex - 1 + i;
+            }
             return (
               <button
                 key={pageNum}
@@ -829,14 +911,14 @@ function AuditTableContent({ auditPromise, usersPromise, pagination, sorting, _s
         <button
           onClick={() => table.nextPage()}
           disabled={!paginationInfo.hasNextPage}
-          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">chevron_right</span>
         </button>
         <button
-          onClick={() => table.setPageIndex(totalPages - 1)}
+          onClick={() => table.setPageIndex(paginationInfo.totalPages - 1)}
           disabled={!paginationInfo.hasNextPage}
-          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">last_page</span>
         </button>

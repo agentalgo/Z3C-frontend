@@ -7,6 +7,7 @@ const CustomerProfileListRequest = async (token, params = {}) => {
   if (params.search) queryParams.append('search', params.search);
   if (params.sortBy) queryParams.append('sortBy', params.sortBy);
   if (params.isActive !== undefined) queryParams.append('isActive', params.isActive);
+  if (params.invoiceType) queryParams.append('invoiceType', params.invoiceType);
 
   const queryString = queryParams.toString();
   const url = getApiUrl(`/customer-profiles${queryString ? `?${queryString}` : ''}`);

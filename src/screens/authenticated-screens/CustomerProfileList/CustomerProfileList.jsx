@@ -13,6 +13,8 @@ import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback } from '../../../components';
 import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
 
+const INVOICE_TYPE_FILTERS = ['B2B', 'SIMPLIFIED', 'CREDIT_NOTE', 'DEBIT_NOTE'];
+
 function CustomerProfileList() {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
@@ -38,6 +40,7 @@ function CustomerProfileList() {
   // Filters state
   const [filters, _filters] = useState({
     isActive: '',
+    invoiceType: '',
   });
 
   const profilesPromise = useMemo(() => {
@@ -48,6 +51,7 @@ function CustomerProfileList() {
       search: appliedSearchQuery || undefined,
       sortBy: sorting.length > 0 ? `${sorting[0].id}:${sorting[0].desc ? 'desc' : 'asc'}` : undefined,
       isActive: filters.isActive !== '' ? filters.isActive === 'true' : undefined,
+      invoiceType: filters.invoiceType || undefined,
     };
 
     if (!decodedToken) {
@@ -72,7 +76,7 @@ function CustomerProfileList() {
   };
 
   const resetFilters = () => {
-    _filters({ isActive: '' });
+    _filters({ isActive: '', invoiceType: '' });
     _pagination((prev) => ({ ...prev, pageIndex: 0 }));
   };
 
@@ -156,6 +160,21 @@ function CustomerProfileList() {
                     <option value="">All</option>
                     <option value="true">Active</option>
                     <option value="false">Inactive</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Invoice type</label>
+                  <select
+                    value={filters.invoiceType}
+                    onChange={(e) => handleFilterChange('invoiceType', e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
+                  >
+                    <option value="">All</option>
+                    {INVOICE_TYPE_FILTERS.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-[#e7ebf3] dark:border-[#2a3447]">

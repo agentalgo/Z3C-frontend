@@ -13,6 +13,8 @@ import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback } from '../../../components';
 import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
 
+const USER_ROLE_FILTERS = ['Admin', 'Accountant', 'Manager', 'Viewer'];
+
 function UserManagementList() {
   const navigate = useNavigate();
   const authValue = useAtomValue(auth);
@@ -35,7 +37,7 @@ function UserManagementList() {
   // Filters state
   const [filters, _filters] = useState({
     isActive: '',
-    isAdmin: '',
+    role: '',
   });
 
   const usersPromise = useMemo(() => {
@@ -46,7 +48,7 @@ function UserManagementList() {
       search: appliedSearchQuery || undefined,
       sortBy: sorting.length > 0 ? `${sorting[0].id}:${sorting[0].desc ? 'desc' : 'asc'}` : undefined,
       isActive: filters.isActive !== '' ? filters.isActive === 'true' : undefined,
-      isAdmin: filters.isAdmin !== '' ? filters.isAdmin === 'true' : undefined,
+      role: filters.role || undefined,
     };
 
     return UserListRequest(decodedToken, params);
@@ -59,7 +61,7 @@ function UserManagementList() {
   };
 
   const resetFilters = () => {
-    _filters({ isActive: '', isAdmin: '' });
+    _filters({ isActive: '', role: '' });
     _pagination((prev) => ({ ...prev, pageIndex: 0 }));
   };
 
@@ -146,13 +148,16 @@ function UserManagementList() {
                 <div>
                   <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">Role</label>
                   <select
-                    value={filters.isAdmin}
-                    onChange={(e) => handleFilterChange('isAdmin', e.target.value)}
+                    value={filters.role}
+                    onChange={(e) => handleFilterChange('role', e.target.value)}
                     className="mt-1 w-full rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#0f1323] text-sm text-[#0d121b] dark:text-white py-2 px-3"
                   >
                     <option value="">All</option>
-                    <option value="true">Admin</option>
-                    <option value="false">Non-Admin</option>
+                    {USER_ROLE_FILTERS.map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex gap-2 pt-2 border-t border-[#e7ebf3] dark:border-[#2a3447]">
