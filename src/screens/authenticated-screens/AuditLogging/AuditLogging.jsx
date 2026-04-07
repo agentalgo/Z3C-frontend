@@ -383,16 +383,18 @@ function AuditLogging() {
 
   const FILTERS_SECTION = () => (
     <div className="flex flex-wrap items-center gap-2 justify-between">
-      <div className="relative min-w-[180px] max-w-sm w-full sm:w-auto sm:max-w-[280px]">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#4c669a] text-[20px]">search</span>
-        <input
-          type="text"
-          placeholder="Search..."
-          value={searchQuery}
-          onChange={(e) => _searchQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && applySearch()}
-          className="w-full h-[42px] pl-10 pr-4 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white placeholder:text-[#4c669a] focus:ring-2 focus:ring-primary focus:border-primary"
-        />
+      <div className="flex-1 max-w-md">
+        <div className="relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#4c669a] text-[20px]">search</span>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => _searchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && applySearch()}
+            className="w-full h-[42px] pl-10 pr-4 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white placeholder:text-[#4c669a] focus:ring-2 focus:ring-primary focus:border-primary"
+          />
+        </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <button
@@ -619,6 +621,7 @@ function UserFilterAsync({ usersPromise, selectedUserId, _selectedUserId, onAppl
 
 function DetailsModal({ row, onClose }) {
   const activityDescription = row?.activityDescription != null ? String(row.activityDescription).trim() : '';
+  const ipAddress = row?.ipAddress != null ? String(row.ipAddress).trim() : '';
   const newValue = row?.newValue;
   const hasStructuredDiff = newValue != null && typeof newValue === 'object' && !Array.isArray(newValue);
   const fallbackStr = getMergedDetails(row);
@@ -643,6 +646,12 @@ function DetailsModal({ row, onClose }) {
           {activityDescription && (
             <p className="text-sm text-[#4c669a] dark:text-gray-400 mb-4 pb-3 border-b border-[#e7ebf3] dark:border-[#2a3447]">
               {activityDescription}
+            </p>
+          )}
+          {ipAddress && (
+            <p className="text-sm text-[#4c669a] dark:text-gray-400 mb-4">
+              <span className="font-semibold text-[#0d121b] dark:text-white mr-1">IP Address:</span>
+              <span className="font-mono">{ipAddress}</span>
             </p>
           )}
           {hasStructuredDiff ? (
