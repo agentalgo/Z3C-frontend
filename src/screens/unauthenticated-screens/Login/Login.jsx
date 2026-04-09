@@ -234,7 +234,7 @@ function Login() {
     <Fragment>
       <div className="text-right">
         <a
-          href="/reset-password"
+          href="/forgot-password"
           className="text-blue-600 text-sm font-medium hover:underline"
         >
           Forgot your password?

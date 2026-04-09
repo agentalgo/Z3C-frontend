@@ -2,7 +2,6 @@
 import { Fragment, useState, useMemo, Suspense, use, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useNavigate, useParams } from 'react-router-dom';
-import Select from 'react-select';
 import { useAtomValue } from 'jotai';
 
 // APIs
@@ -13,8 +12,8 @@ import { Footer, ErrorFallback } from '../../../components';
 import { showToast, validateSubmissionData, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
 import { auth, loginInfo } from '../../../atoms';
 
-const PERMISSION_MODULES = ['invoice', 'customer', 'profile', 'companyProfile', 'user', 'zatcaReporting', 'audit'];
-const READ_ONLY_MODULES = ['zatcaReporting', 'audit'];
+const PERMISSION_MODULES = ['invoice', 'customer', 'profile', 'companyProfile', 'user', 'dashboard', 'zatcaReporting', 'audit'];
+const READ_ONLY_MODULES = ['dashboard', 'zatcaReporting', 'audit'];
 const MODULE_LABELS = {
   invoice: 'Invoice',
   customer: 'Customer',
@@ -23,6 +22,7 @@ const MODULE_LABELS = {
   zatcaReporting: 'ZATCA Reporting',
   audit: 'Audit Log',
   user: 'User Management',
+  dashboard: 'Dashboard',
 };
 const CRUD_ACTIONS = ['read', 'create', 'update', 'delete'];
 const USER_ROLES = ["Admin", "Manager", "Accountant", "Viewer"];
@@ -177,18 +177,6 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     }))
   };
 
-  const handleToggleIsAdmin = (e) => {
-    const isAdminChecked = e.target.checked;
-    _formData(old => ({
-      ...old,
-      data: {
-        ...old.data,
-        isAdmin: isAdminChecked,
-        permissions: isAdminChecked ? getAllPermissions() : old.data.permissions,
-      },
-    }));
-  };
-
   const handleToggleIsActive = (e) => {
     _formData(old => ({
       ...old,
@@ -248,16 +236,6 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     }));
   };
 
-  const handleChangeRole = (selectedOption) => {
-    _formData(old => ({
-      ...old,
-      data: {
-        ...old.data,
-        role: selectedOption ? selectedOption.value : 'Admin',
-      },
-    }));
-  };
-
   const handleValidateForm = () => {
     const { allValid, errors } = validateSubmissionData(formData.data, formData.validations);
     if (!allValid) {
@@ -302,11 +280,12 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
         role: formData.data.role || 'Admin',
         permissions: PERMISSION_MODULES.reduce((acc, module) => {
           const mp = formData.data.permissions[module] || {};
+          const isReadOnlyModule = READ_ONLY_MODULES.includes(module);
           acc[module] = {
             read: !!mp.read,
-            create: !!mp.create,
-            update: !!mp.update,
-            delete: !!mp.delete,
+            create: isReadOnlyModule ? false : !!mp.create,
+            update: isReadOnlyModule ? false : !!mp.update,
+            delete: isReadOnlyModule ? false : !!mp.delete,
           };
           return acc;
         }, {}),
@@ -387,6 +366,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
         </div>
       </div>
 
+      {/* Temporarily hidden role selector
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-[#0d121b] dark:text-white">Role</label>
         <Select
@@ -407,6 +387,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           }}
         />
       </div>
+      */}
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -553,6 +534,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           </label>
         </div>
 
+        {/* Temporarily hidden isAdmin control
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -566,6 +548,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
             Is Admin
           </label>
         </div>
+        */}
       </div>
     </section>
   );

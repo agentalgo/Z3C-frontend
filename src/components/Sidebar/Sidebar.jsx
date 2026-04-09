@@ -11,7 +11,7 @@ import { auth, loginInfo } from '../../atoms';
 import { decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../utils';
 
 const navigation = [
-  { label: 'Dashboard', icon: 'dashboard', path: '/', permissionKey: 'zatcaReporting' },
+  { label: 'Dashboard', icon: 'dashboard', path: '/dashboard', permissionKey: 'dashboard' },
   // { label: 'Company Profile', icon: 'business', path: '/company-profile', permissionKey: 'companyProfile' },
   { label: 'Customer', icon: 'people', path: '/customer', permissionKey: 'customer' },
   { label: 'Customer Profiles', icon: 'account_balance', path: '/customer-profile', permissionKey: 'profile' },
