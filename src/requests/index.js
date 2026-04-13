@@ -3,6 +3,8 @@
 export { fetchPaginatedData } from './mockData.request';
 export { default as LoginRequest } from './login.request';
 export { default as LogoutRequest } from './logout.request';
+export { default as ForgotPasswordRequest } from './forgot-password.request';
+export { default as ResetPasswordRequest } from './reset-password.request';
 export { default as VerifyOtpRequest } from './verify-otp.request';
 export { default as CustomerListRequest } from './customer-list.request';
 export { default as CustomerCreateRequest } from './customer-create.request';
@@ -20,6 +22,7 @@ export { default as UserListRequest } from './user-list.request';
 export { default as UserCreateRequest } from './user-create.request';
 export { default as UserDetailRequest } from './user-detail.request';
 export { default as UserUpdateRequest } from './user-update.request';
+export { default as CustomerProfileDeleteRequest } from './customer-profile-delete.request';
 export { default as CompanyProfileCreateRequest } from './company-profile-create.request';
 export { default as CompanyProfileDetailRequest } from './company-profile-detail.request';
 export { default as CompanyProfileUpdateRequest } from './company-profile-update.request';
@@ -39,3 +42,4 @@ export { default as DashboardKpiStatsRequest } from './dashboard-kpi-stats.reque
 export { default as DashboardSubmissionTrendsRequest } from './dashboard-submission-trends.request';
 export { default as DashboardRecentSubmissionsRequest } from './dashboard-recent-submissions.request';
 export { default as PermissionsFetchRequest } from './permissions-fetch.request';
+export { default as RefreshTokenRequest } from './refresh-token.request';

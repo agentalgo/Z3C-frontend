@@ -11,7 +11,7 @@ import { auth, loginInfo } from '../../atoms';
 import { decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../utils';
 
 const navigation = [
-  { label: 'Dashboard', icon: 'dashboard', path: '/', permissionKey: 'zatcaReporting' },
+  { label: 'Dashboard', icon: 'dashboard', path: '/dashboard', permissionKey: 'dashboard' },
   // { label: 'Company Profile', icon: 'business', path: '/company-profile', permissionKey: 'companyProfile' },
   { label: 'Customer', icon: 'people', path: '/customer', permissionKey: 'customer' },
   { label: 'Customer Profiles', icon: 'account_balance', path: '/customer-profile', permissionKey: 'profile' },
@@ -30,12 +30,8 @@ function Sidebar() {
   const filteredNavigation = useMemo(() => {
     if (!user) return navigation;
 
-    const isAdmin = user.isAdmin === true;
-
     return navigation.filter((item) => {
       if (!item.permissionKey) return true;
-      // Administrators always see Audit Logging even if backend hasn't added permissions.audit yet
-      if (item.permissionKey === 'audit' && isAdmin) return true;
       const perms = getNormalizedModulePermissions(user, item.permissionKey);
       return perms.read;
     });

@@ -10,7 +10,7 @@ import { Sidebar, Header } from '../components';
 import { parseLoginInfo, getNormalizedModulePermissions } from '../utils';
 
 // Unauthenticated Screens
-import { Login, ResetPassword } from './unauthenticated-screens';
+import { Login, ForgotResetPassword } from './unauthenticated-screens';
 
 // Authenticated Screens
 import {
@@ -44,6 +44,7 @@ function Screens() {
   }, []);
 
   const AUTHENTICATED_LAYOUT = () => {
+    const dashboardPerms = getPerms('dashboard');
     const companyProfilePerms = getPerms('companyProfile');
     const invoicePerms = getPerms('invoice');
     const customerPerms = getPerms('customer');
@@ -51,6 +52,21 @@ function Screens() {
     const customerProfilePerms = getPerms('profile');
     const zatcaReportsPerms = getPerms('zatcaReporting');
     const auditPerms = getPerms('audit');
+    const defaultAuthorizedPath = dashboardPerms.read
+      ? '/dashboard'
+      : customerPerms.read
+        ? '/customer'
+        : customerProfilePerms.read
+          ? '/customer-profile'
+          : invoicePerms.read
+            ? '/invoices'
+            : userPerms.read
+              ? '/user-management'
+              : zatcaReportsPerms.read
+                ? '/zatca-reports'
+                : auditPerms.read
+                  ? '/audit-logging'
+                  : '/login';
 
     return (
       <div className="min-h-screen bg-[#f5f6f8] dark:bg-[#0f1323] text-[#0d121b] dark:text-[#f8f9fc]">
@@ -59,11 +75,13 @@ function Screens() {
           <main className="flex-1 flex flex-col overflow-y-auto">
             <Header />
             <Routes>
-              <Route path="/dashboard" element={<Dashboard />} />
+              {dashboardPerms.read && (
+                <Route path="/dashboard" element={<Dashboard />} />
+              )}
 
               <Route path="/zatca-reports" element={<ZatcaReports />} />
 
-              {(auditPerms.read || user?.isAdmin === true) && (
+              {auditPerms.read && (
                 <Route path="/audit-logging" element={<AuditLogging />} />
               )}
 
@@ -117,7 +135,7 @@ function Screens() {
                 </>
               )}
 
-              <Route path="*" element={<Dashboard />} />
+              <Route path="*" element={<Navigate to={defaultAuthorizedPath} replace />} />
             </Routes>
           </main>
         </div>
@@ -129,7 +147,8 @@ function Screens() {
     <div className="min-h-screen bg-[#f5f6f8] dark:bg-[#0f1323] text-[#0d121b] dark:text-[#f8f9fc]">
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/forgot-password" element={<ForgotResetPassword />} />
+        <Route path="/reset-password" element={<Navigate to="/forgot-password" replace />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </div>

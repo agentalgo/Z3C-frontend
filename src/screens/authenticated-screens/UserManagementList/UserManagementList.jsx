@@ -294,23 +294,6 @@ function UsersTableContent({
         ),
       },
       {
-        accessorKey: 'isAdmin',
-        header: 'Is Admin',
-        enableSorting: true,
-        cell: ({ getValue }) => {
-          const isAdmin = getValue();
-          const statusColors = {
-            "false": 'bg-red-100 text-red-700',
-            "true": 'bg-green-100 text-green-700',            
-          };
-          return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${statusColors[isAdmin?.toString()] || 'bg-gray-100 text-gray-700'}`}>
-              {isAdmin?.toString()}
-            </span>
-          );
-        },
-      },
-      {
         accessorKey: 'isActive',
         header: 'Is Active',
         enableSorting: true,

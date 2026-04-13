@@ -1,17 +1,17 @@
 // Packages
-import { Fragment, Suspense, useMemo, useState, use } from 'react';
+import { Fragment, Suspense, useMemo, useState, use, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, flexRender } from '@tanstack/react-table';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { CustomerProfileListRequest } from '../../../requests';
+import { CustomerProfileDeleteRequest, CustomerProfileListRequest } from '../../../requests';
 
 // Utils
 import { auth, loginInfo } from '../../../atoms';
-import { Footer, ErrorFallback } from '../../../components';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
+import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions, showToast } from '../../../utils';
 
 const INVOICE_TYPE_FILTERS = ['B2B', 'SIMPLIFIED', 'CREDIT_NOTE', 'DEBIT_NOTE'];
 
@@ -248,9 +248,12 @@ function CustomerProfilesTableContent({
   _pagination,
   _sorting,
   _rowSelection,
+  refreshProfiles,
 }) {
   const navigate = useNavigate();
+  const authValue = useAtomValue(auth);
   const loginInfoValue = useAtomValue(loginInfo);
+  const decodedToken = useMemo(() => decodeString(authValue), [authValue]);
   const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
   const customerProfilePerms = useMemo(
     () => getNormalizedModulePermissions(user, 'profile'),
@@ -271,6 +274,43 @@ function CustomerProfilesTableContent({
     hasNextPage: page < totalPages,
     hasPreviousPage: page > 1,
   };
+
+  const [isDeleteModalOpen, _isDeleteModalOpen] = useState(false);
+  const [selectedProfileId, _selectedProfileId] = useState(null);
+  const [isDeleting, _isDeleting] = useState(false);
+
+  // *********** Handlers ***********
+
+  const handleOpenDeleteModal = (profileId) => {
+    if (!profileId) return;
+    _selectedProfileId(profileId);
+    _isDeleteModalOpen(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    if (isDeleting) return;
+    _isDeleteModalOpen(false);
+    _selectedProfileId(null);
+  };
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!selectedProfileId) return;
+
+    _isDeleting(true);
+    CustomerProfileDeleteRequest(decodedToken, selectedProfileId)
+      .then(() => {
+        showToast('Customer profile deleted successfully!', 'success');
+        _isDeleteModalOpen(false);
+        _selectedProfileId(null);
+        refreshProfiles?.();
+      })
+      .catch((err) => {
+        showToast(err?.message || 'Failed to delete customer profile', 'error');
+      })
+      .finally(() => {
+        _isDeleting(false);
+      });
+  }, [decodedToken, selectedProfileId, refreshProfiles]);
 
   const columns = useMemo(
     () => [
@@ -309,6 +349,26 @@ function CustomerProfilesTableContent({
         cell: ({ getValue }) => (
           <span>{getValue() || '-'}</span>
         ),
+      },
+      {
+        accessorKey: 'isActive',
+        header: 'Status',
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const isActive = getValue();
+          return (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+              isActive
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
+                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                isActive ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'
+              }`}></span>
+              {isActive ? 'Active' : 'Inactive'}
+            </span>
+          );
+        },
       },
       {
         accessorKey: 'paymentTerms',
@@ -353,7 +413,11 @@ function CustomerProfilesTableContent({
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => {
-          if (!customerProfilePerms.update) return null;
+          const isActive = row.original.isActive;
+          const canEdit = customerProfilePerms.update;
+          const canDelete = customerProfilePerms.delete && isActive;
+
+          if (!canEdit && !canDelete) return null;
 
           const handleChange = (e) => {
             const value = e.target.value;
@@ -361,6 +425,8 @@ function CustomerProfilesTableContent({
 
             if (value === 'edit') {
               navigate(`/customer-profile/${row.original._id}`);
+            } else if (value === 'delete') {
+              handleOpenDeleteModal(row.original._id);
             }
 
             e.target.value = '';
@@ -375,14 +441,15 @@ function CustomerProfilesTableContent({
               <option value="" disabled>
                 Action
               </option>
-              <option value="edit">Edit</option>
+              {canEdit && <option value="edit">Edit</option>}
+              {canDelete && <option value="delete">Delete</option>}
             </select>
           );
         },
         enableSorting: false,
       },
     ],
-    [navigate, customerProfilePerms]
+    [navigate, customerProfilePerms, handleOpenDeleteModal]
   );
 
   const table = useReactTable({
@@ -559,10 +626,24 @@ function CustomerProfilesTableContent({
     </div>
   );
 
+  const CONFIRM_DELETE_MODAL = () => (
+    <ConfirmModal
+      isOpen={isDeleteModalOpen}
+      title="Delete customer profile"
+      description="Are you sure you want to delete this customer profile? This action cannot be undone."
+      confirmLabel="Delete"
+      cancelLabel="Cancel"
+      onConfirm={handleConfirmDelete}
+      onCancel={handleCloseDeleteModal}
+      isConfirming={isDeleting}
+    />
+  );
+
   return (
     <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] shadow-sm overflow-hidden">
       {PROFILES_TABLE()}
       {PAGINATION_SECTION()}
+      {CONFIRM_DELETE_MODAL()}
     </div>
   );
 }

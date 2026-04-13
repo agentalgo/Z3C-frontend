@@ -30,6 +30,8 @@ export const HTTP_ERROR_MESSAGES = {
 /**
  * Generic network error handler: shows an error toast and logs to console.
  * For HTTP 400, parses the response body and shows the server's "message" if present.
+ * For HTTP 401 with reason PERMISSIONS_UPDATED, dispatches a "permissions:updated" window
+ * event so the permissions middleware can silently refresh the token and reload the page.
  * @param {Response|Error|unknown} errorOrResponse - Fetch Response (with status) or Error instance.
  * @param {string} [fallbackMessage] - Message to use when status/error message cannot be determined.
  * @returns {Promise<void>}
@@ -39,6 +41,22 @@ export const handleNetworkError = async (errorOrResponse, fallbackMessage = 'Som
 
   if (errorOrResponse?.status !== undefined) {
     const status = errorOrResponse.status;
+
+    // For 401, check whether this is a PERMISSIONS_UPDATED signal from the server.
+    // If so, hand off to the permissions middleware via a window event and bail out silently.
+    if (status === 401 && typeof errorOrResponse.json === 'function') {
+      try {
+        const data = await errorOrResponse.json();
+        if (data?.error?.reason === 'PERMISSIONS_UPDATED') {
+          window.dispatchEvent(new CustomEvent('permissions:updated'));
+          return;
+        }
+      } catch (_) {
+        // Response body is not JSON or missing the expected shape — fall through to the
+        // generic 401 message below.
+      }
+    }
+
     // For 400, use server message from response body (e.g. validation errors)
     if (status === 400 && typeof errorOrResponse.json === 'function') {
       try {
