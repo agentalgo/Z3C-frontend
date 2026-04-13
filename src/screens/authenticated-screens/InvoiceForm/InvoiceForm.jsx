@@ -200,7 +200,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         _lineItems(apiData.lineItems.map(item => ({
           description: item.description || '',
           productCode: item.productCode || '',
-          quantity: item.quantity || 1,
+          quantity: 1,
           // API returns price and discount_amount in cents, so we need to convert it to SAR
           price: item.price ? item.price / 100 : 0,
           discount_amount: item.discount_amount ? item.discount_amount / 100 : 0,
@@ -421,7 +421,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         return {
           description: item.description,
           productCode: item.productCode,
-          quantity: Number(item.quantity) || 0,
+          quantity: 1,
           price: useCents ? price * 100 || 0 : price,
           discount_amount: useCents ? discountAmount * 100 || 0 : discountAmount,
           discount_percentage: Number(item.discount_percentage) || 0,
@@ -1467,14 +1467,13 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                     </td>
                     <td className="px-4 py-3">
                       <input
-                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white cursor-not-allowed opacity-70"
                         type="number"
                         min="0"
                         step="1"
                         value={item.quantity}
-                        onChange={(e) =>
-                          handleChangeLineItem(index, 'quantity', e.target.value)
-                        }
+                        onChange={() => {}}
+                        disabled
                       />
                     </td>
                     <td className="px-4 py-3">

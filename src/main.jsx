@@ -12,6 +12,11 @@ import 'material-symbols/outlined.css';
 import './styles/index.css';
 import Screens from './screens/Screens';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { initPermissionsMiddleware } from './requests/permissions-middleware';
+
+// Register the permissions-update middleware before the React tree mounts so that
+// any API call made during initialisation is also covered.
+initPermissionsMiddleware();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -64,7 +64,7 @@ function Screens() {
               ? '/user-management'
               : zatcaReportsPerms.read
                 ? '/zatca-reports'
-                : (auditPerms.read || user?.isAdmin === true)
+                : auditPerms.read
                   ? '/audit-logging'
                   : '/login';
 
@@ -81,7 +81,7 @@ function Screens() {
 
               <Route path="/zatca-reports" element={<ZatcaReports />} />
 
-              {(auditPerms.read || user?.isAdmin === true) && (
+              {auditPerms.read && (
                 <Route path="/audit-logging" element={<AuditLogging />} />
               )}
 

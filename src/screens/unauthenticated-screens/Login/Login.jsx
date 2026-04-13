@@ -7,7 +7,7 @@ import { LoginRequest, VerifyOtpRequest } from '../../../requests';
 
 // Utils
 import { showToast, validateSubmissionData, encodeString } from '../../../utils';
-import { auth, loginInfo } from '../../../atoms';
+import { auth, loginInfo, refreshToken } from '../../../atoms';
 
 function Login() {
   const INITIAL_FORM_DATA = {
@@ -33,6 +33,7 @@ function Login() {
 
   const setAuth = useSetAtom(auth);
   const setLoginInfo = useSetAtom(loginInfo);
+  const setRefreshToken = useSetAtom(refreshToken);
 
   // Clear error when user changes email or password
   useEffect(() => {
@@ -97,11 +98,13 @@ function Login() {
       VerifyOtpRequest(payload)
         .then((result) => {
           const accessToken = result?.data?.accessToken;
+          const newRefreshToken = result?.data?.refreshToken;
           const user = result?.data?.user;
           const encodedToken = encodeString(accessToken);
           const encodedUser = encodeString(JSON.stringify(user));
           setAuth(encodedToken);
           setLoginInfo(encodedUser);
+          if (newRefreshToken) setRefreshToken(encodeString(newRefreshToken));
           showToast('OTP verified successful', 'success');
         })
         .catch((err) => {

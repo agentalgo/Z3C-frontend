@@ -42,3 +42,4 @@ export { default as DashboardKpiStatsRequest } from './dashboard-kpi-stats.reque
 export { default as DashboardSubmissionTrendsRequest } from './dashboard-submission-trends.request';
 export { default as DashboardRecentSubmissionsRequest } from './dashboard-recent-submissions.request';
 export { default as PermissionsFetchRequest } from './permissions-fetch.request';
+export { default as RefreshTokenRequest } from './refresh-token.request';
