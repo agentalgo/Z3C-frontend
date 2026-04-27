@@ -10,7 +10,7 @@ import { Sidebar, Header } from '../components';
 import { parseLoginInfo, getNormalizedModulePermissions } from '../utils';
 
 // Unauthenticated Screens
-import { Login, ForgotResetPassword } from './unauthenticated-screens';
+import { Login, ForgotResetPassword, AzureOidcComplete } from './unauthenticated-screens';
 
 // Authenticated Screens
 import {
@@ -149,6 +149,7 @@ function Screens() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotResetPassword />} />
         <Route path="/reset-password" element={<Navigate to="/forgot-password" replace />} />
+        <Route path="/auth/azure/complete" element={<AzureOidcComplete />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </div>

@@ -6,7 +6,7 @@ import { useSetAtom } from 'jotai';
 import { LoginRequest, VerifyOtpRequest } from '../../../requests';
 
 // Utils
-import { showToast, validateSubmissionData, encodeString } from '../../../utils';
+import { showToast, validateSubmissionData, encodeString, BASE_URL } from '../../../utils';
 import { auth, loginInfo, refreshToken } from '../../../atoms';
 
 function Login() {
@@ -260,6 +260,25 @@ function Login() {
     </Fragment>
   );
 
+  const MICROSOFT_SIGN_IN_BUTTON = () => (
+    <Fragment>
+      <div className="mt-3">
+        <a
+          href={`${BASE_URL}/auth/azure/login`}
+          className="w-full flex items-center justify-center gap-2 border border-slate-300 rounded-md py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 21 21" aria-hidden="true">
+            <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+            <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+            <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+            <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+          </svg>
+          Sign in with Microsoft
+        </a>
+      </div>
+    </Fragment>
+  );
+
   const FORM_FOOTER = () => (
     <Fragment>
       <p className="text-sm mt-6 text-center text-slate-600">
@@ -292,6 +311,7 @@ function Login() {
           )}
           {FORM_FIELDS()}
           {SUBMIT_BUTTON()}
+          {MICROSOFT_SIGN_IN_BUTTON()}
           {FORM_FOOTER()}
         </form>
       </div>
