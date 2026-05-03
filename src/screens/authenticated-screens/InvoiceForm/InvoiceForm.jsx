@@ -150,7 +150,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       0
     );
     const subtotal = (totalCents / 100).toFixed(2);
-    const vatPercentage = Number(formData.data.vat) || 15;
+    const vatPercentage = Number(formData.data.vat);
     const vatCents = Math.round(taxableCents * (vatPercentage / 100));
     const vatAmount = (vatCents / 100).toFixed(2);
     const grandTotal = ((totalCents + vatCents) / 100).toFixed(2);
@@ -191,7 +191,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           postalZone: customer.postalZone || '',
           countryCode: customer.countryCode || 'SA',
           note: apiData.note || '',
-          vat: apiData.vat || 15,
+          vat: apiData.vat,
           status: apiData.status || '',
         },
       }));
@@ -326,6 +326,11 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         errors.discount_percentage = 'Discount percentage cannot exceed 100%';
       }
 
+      // If taxExempt is true, taxExemptReason is required
+      if (item.taxExempt && (!item.taxExemptReason || item.taxExemptReason.trim() === '')) {
+        errors.taxExemptReason = 'Tax exempt reason is required when tax exempt is selected';
+      }
+
       if (!itemValid || Object.keys(errors).length > 0) {
         allValid = false;
         lineItemErrors[index] = errors;
@@ -411,7 +416,8 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       paymentType: formData.data.paymentType || 'CASH',
       paymentTerms: formData.data.paymentTerms,
       deliveryDate: formData.data.deliveryDate,
-      vat: Number(formData.data.vat) || 15,
+      invoiceType: formData.data.invoiceType || 'B2B',
+      vat: Number(formData.data.vat),
       note: formData.data.note,
       currency: 'SAR',
       grandTotal: totals.grandTotal,
@@ -1619,7 +1625,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                 <span className="text-lg font-bold dark:text-white">{totals.subtotal} SAR</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-primary uppercase">VAT ({formData.data.vat || 15}%)</span>
+                <span className="text-[10px] font-bold text-primary uppercase">VAT ({formData.data.vat}%)</span>
                 <span className="text-lg font-bold dark:text-white">{totals.vatAmount} SAR</span>
               </div>
               <div className="flex flex-col">
