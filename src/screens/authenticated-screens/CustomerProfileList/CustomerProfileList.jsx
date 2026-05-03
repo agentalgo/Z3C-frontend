@@ -13,7 +13,7 @@ import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
 import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions, showToast } from '../../../utils';
 
-const INVOICE_TYPE_FILTERS = ['B2B', 'SIMPLIFIED', 'CREDIT_NOTE', 'DEBIT_NOTE'];
+const INVOICE_TYPE_FILTERS = ['B2B', 'B2C', 'B2G', 'CREDIT_NOTE', 'DEBIT_NOTE'];
 
 function CustomerProfileList() {
   const navigate = useNavigate();
@@ -357,14 +357,12 @@ function CustomerProfilesTableContent({
         cell: ({ getValue }) => {
           const isActive = getValue();
           return (
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-              isActive
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
-                : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                isActive ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'
-              }`}></span>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${isActive
+              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
+              : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
+              }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-600 dark:bg-green-400' : 'bg-red-600 dark:bg-red-400'
+                }`}></span>
               {isActive ? 'Active' : 'Inactive'}
             </span>
           );
@@ -475,22 +473,20 @@ function CustomerProfilesTableContent({
 
   const PROFILES_TABLE = () => (
     <div className="overflow-x-auto">
-              <table className="w-full text-left min-w-[1000px]">
+      <table className="w-full text-left min-w-[1000px]">
         <thead className="bg-[#f8f9fc] dark:bg-[#1a253a] text-[#4c669a] dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className={`px-6 py-4 ${
-                    header.column.getCanSort()
-                      ? 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800'
-                      : ''
-                  } transition-colors ${header.id === 'select' ? 'w-12' : ''} ${
-                    header.id === 'actions'
+                  className={`px-6 py-4 ${header.column.getCanSort()
+                    ? 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800'
+                    : ''
+                    } transition-colors ${header.id === 'select' ? 'w-12' : ''} ${header.id === 'actions'
                       ? 'sticky right-0 bg-[#f8f9fc] dark:bg-[#1a253a] z-20 w-32 text-right'
                       : ''
-                  }`}
+                    }`}
                   onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
                 >
                   <div className="flex items-center gap-2">
@@ -525,13 +521,11 @@ function CustomerProfilesTableContent({
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
-                    className={`px-6 py-4 text-sm text-[#0d121b] dark:text-white ${
-                      cell.column.id === 'select' ? 'w-12' : ''
-                    } ${
-                      cell.column.id === 'actions'
+                    className={`px-6 py-4 text-sm text-[#0d121b] dark:text-white ${cell.column.id === 'select' ? 'w-12' : ''
+                      } ${cell.column.id === 'actions'
                         ? 'sticky right-0 bg-white dark:bg-[#161f30] z-10 w-32 text-right'
                         : ''
-                    }`}
+                      }`}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
@@ -596,11 +590,10 @@ function CustomerProfilesTableContent({
               <button
                 key={pageNum}
                 onClick={() => table.setPageIndex(pageNum - 1)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  pagination.pageIndex + 1 === pageNum
-                    ? 'bg-primary text-white'
-                    : 'border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${pagination.pageIndex + 1 === pageNum
+                  ? 'bg-primary text-white'
+                  : 'border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
               >
                 {pageNum}
               </button>

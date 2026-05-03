@@ -17,7 +17,7 @@ const INITIAL_FORM_DATA = {
     // Top-level profile fields (from customer-profile-payload.txt)
     name: '',
     defaultTemplate: '',
-    invoiceType: '',
+    invoiceType: 'B2B',
     paymentTerms: '',
 
     // Bank details (nested in payload -> flattened for the form)
@@ -280,12 +280,13 @@ function CustomerProfileForm() {
           </label>
           <Select
             instanceId="customer-profile-invoice-type"
-            isClearable
+            isClearable={false}
             options={[
               { value: 'B2B', label: 'B2B' },
-              { value: 'SIMPLIFIED', label: 'SIMPLIFIED' },
-              { value: 'CREDIT_NOTE', label: 'CREDIT_NOTE' },
-              { value: 'DEBIT_NOTE', label: 'DEBIT_NOTE' },
+              { value: 'B2C', label: 'B2C' },
+              { value: 'B2G', label: 'B2G' },
+              { value: 'CREDIT_NOTE', label: 'CREDIT_NOTE', isDisabled: true },
+              { value: 'DEBIT_NOTE', label: 'DEBIT_NOTE', isDisabled: true },
             ]}
             value={
               formData.data.invoiceType

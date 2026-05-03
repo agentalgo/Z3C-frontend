@@ -18,7 +18,7 @@ const INITIAL_FORM_DATA = {
   data: {
     status: '',
     invoiceNumber: '',
-    invoiceType: '',
+    invoiceType: 'B2B',
     customerId: null,
     referenceNumber: '',
     paymentType: '',
@@ -1020,14 +1020,18 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
         <div className="flex flex-col gap-2">
           <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Invoice Type</label>
-          <input
+          <select
             name="invoiceType"
-            type="text"
-            readOnly
-            value={formData.data.invoiceType || ''}
-            placeholder="—"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-gray-50 dark:bg-[#1a2332] text-sm text-[#0d121b] dark:text-white cursor-not-allowed dark:border-[#2a3447]"
-          />
+            value={formData.data.invoiceType || 'B2B'}
+            onChange={handleChangeFormData}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white pr-8 text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors appearance-none dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
+          >
+            <option value="B2B">B2B</option>
+            <option value="B2C">B2C</option>
+            <option value="B2G">B2G</option>
+            <option value="CREDIT_NOTE" disabled>CREDIT_NOTE</option>
+            <option value="DEBIT_NOTE" disabled>DEBIT_NOTE</option>
+          </select>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -1472,7 +1476,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                         min="0"
                         step="1"
                         value={item.quantity}
-                        onChange={() => {}}
+                        onChange={() => { }}
                         disabled
                       />
                     </td>
@@ -1576,19 +1580,19 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       { value: 'create', label: id ? 'Update' : 'Create' },
       ...(canCheckComplianceAction
         ? [
-            {
-              value: 'create-check-compliance',
-              label: id ? 'Update and Check Compliance' : 'Create and Check Compliance',
-            },
-          ]
+          {
+            value: 'create-check-compliance',
+            label: id ? 'Update and Check Compliance' : 'Create and Check Compliance',
+          },
+        ]
         : []),
       ...(canSubmitToZatca
         ? [
-            {
-              value: 'create-report-zatca',
-              label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA',
-            },
-          ]
+          {
+            value: 'create-report-zatca',
+            label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA',
+          },
+        ]
         : []),
       {
         value: 'print-report-pdf',
