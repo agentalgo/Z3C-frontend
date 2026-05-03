@@ -27,7 +27,7 @@ const STATUS_FILTER_OPTIONS = [
   'PENDING_CLEARANCE', 'CLEARANCE_QUEUED', 'CLEARANCE_PROCESSING',
   'CLEARED', 'ACCEPTED', 'REJECTED', 'FINALIZED', 'REPORTED',
 ];
-const INVOICE_TYPE_FILTER_OPTIONS = ['B2B', 'SIMPLIFIED', 'CREDIT_NOTE', 'DEBIT_NOTE'];
+const INVOICE_TYPE_FILTER_OPTIONS = ['B2B', 'B2C', 'B2G', 'CREDIT_NOTE', 'DEBIT_NOTE'];
 const PAYMENT_TYPE_FILTER_OPTIONS = ['CASH', 'CREDIT_CARD', 'BANK_TRANSFER', 'CHECK', 'BANK_CARD', 'OTHER'];
 
 function InvoiceList() {
@@ -162,7 +162,7 @@ function InvoiceList() {
               </span>
             </button>
 
-            {isActionsOpen && (              
+            {isActionsOpen && (
               <div className="absolute right-0 mt-2 z-30 w-48 bg-white dark:bg-[#161f30] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] shadow-lg z-20">
                 <div className="py-1">
                   <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#0d121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -564,7 +564,7 @@ function InvoicesTableContent({
       showToast(error?.message || 'Failed to download invoice PDF', 'error');
     }
   };
-  
+
   const columns = useMemo(
     () => [
       {
@@ -812,11 +812,11 @@ function InvoicesTableContent({
       const extractMessages = (arr) =>
         Array.isArray(arr)
           ? arr.map((m) => ({
-              code: m.code || '',
-              category: m.category || '',
-              message: m.message || '',
-              status: m.status || '',
-            }))
+            code: m.code || '',
+            category: m.category || '',
+            message: m.message || '',
+            status: m.status || '',
+          }))
           : [];
       return {
         status: vr.status || '',
@@ -895,11 +895,10 @@ function InvoicesTableContent({
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
-                    className={`px-6 py-4 text-sm text-[#0d121b] dark:text-white ${cell.column.id === 'select' ? 'w-12' : ''} ${
-                      cell.column.id === 'actions'
-                        ? 'sticky right-0 bg-white dark:bg-[#161f30] z-20 w-32 text-right'
-                        : ''
-                    }`}
+                    className={`px-6 py-4 text-sm text-[#0d121b] dark:text-white ${cell.column.id === 'select' ? 'w-12' : ''} ${cell.column.id === 'actions'
+                      ? 'sticky right-0 bg-white dark:bg-[#161f30] z-20 w-32 text-right'
+                      : ''
+                      }`}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
@@ -1016,11 +1015,10 @@ function InvoicesTableContent({
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-[#4c669a] dark:text-gray-400">Status</span>
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-              structured.valid
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
-                : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
-            }`}
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${structured.valid
+              ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+              : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+              }`}
           >
             {structured.valid ? 'Valid' : 'Invalid'}
           </span>
