@@ -303,15 +303,14 @@ function AuditLogging() {
   const [detailsModal, _detailsModal] = useState(null);
   const [reloadKey, _reloadKey] = useState(0);
 
-  // Fetch users list once per mount for the filter dropdown.
-  // Stored in a ref so it never gets recreated on re-renders.
-  const usersPromiseRef = useRef(null);
-  if (usersPromiseRef.current === null) {
+  // Fetch users list for the filter dropdown.
+  // Re-fetch if authValue (token) changes, e.g., after a token refresh.
+  const usersPromise = useMemo(() => {
     const token = decodeString(authValue);
-    usersPromiseRef.current = token
+    return token
       ? UserListRequest(token, { limit: 200 })
       : Promise.resolve({ data: [] });
-  }
+  }, [authValue]);
 
   const auditPromise = useMemo(() => {
     const decodedToken = decodeString(authValue);
@@ -474,7 +473,7 @@ function AuditLogging() {
           <div className="w-full">
             <Suspense fallback={<div className="h-[42px] rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-[#f8f9fc] dark:bg-[#1a253a]" />}>
               <UserFilterAsync
-                usersPromise={usersPromiseRef.current}
+                usersPromise={usersPromise}
                 selectedUserId={selectedUserId}
                 _selectedUserId={_selectedUserId}
                 onApply={() => _pagination((prev) => ({ ...prev, pageIndex: 0 }))}
@@ -542,7 +541,7 @@ function AuditLogging() {
           <Suspense fallback={<TableLoadingSkeleton />}>
             <AuditTableContent
               auditPromise={auditPromise}
-              usersPromise={usersPromiseRef.current}
+              usersPromise={usersPromise}
               pagination={pagination}
               sorting={sorting}
               _sorting={_sorting}
