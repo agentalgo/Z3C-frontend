@@ -1,4 +1,6 @@
-import { BASE_URL, showToast } from '../utils';
+import { BASE_URL, showToast, decodeString, encodeString } from '../utils';
+import { getDefaultStore } from 'jotai';
+import { auth, refreshToken, isRefreshingToken } from '../atoms';
 
 /**
  * Default headers for all API requests.
@@ -46,10 +48,63 @@ export const handleNetworkError = async (errorOrResponse, fallbackMessage = 'Som
     // If so, hand off to the permissions middleware via a window event and bail out silently.
     if (status === 401 && typeof errorOrResponse.json === 'function') {
       try {
-        const data = await errorOrResponse.json();
+        const resClone = errorOrResponse.clone();
+        const data = await resClone.json();
+        
         if (data?.error?.reason === 'PERMISSIONS_UPDATED') {
           window.dispatchEvent(new CustomEvent('permissions:updated'));
           return;
+        }
+
+        if (data?.error?.code === 'UnauthorizedException') {
+          // Avoid intercepting the refresh token request itself
+          if (errorOrResponse.url && errorOrResponse.url.includes('/auth/refresh-token')) {
+            // Let it fall through to generic error message
+          } else {
+            const store = getDefaultStore();
+            const isRefreshing = store.get(isRefreshingToken);
+
+            if (!isRefreshing) {
+              store.set(isRefreshingToken, true);
+
+              const currentTokenStr = store.get(auth);
+              const currentRefreshTokenStr = store.get(refreshToken);
+
+              if (currentTokenStr && currentRefreshTokenStr) {
+                const currentToken = decodeString(currentTokenStr);
+                const currentRefreshToken = decodeString(currentRefreshTokenStr);
+
+                try {
+                  const { default: RefreshTokenRequest } = await import('./refresh-token.request');
+                  const newTokens = await RefreshTokenRequest(currentToken, JSON.stringify({ refreshToken: currentRefreshToken }));
+                  
+                  const accessToken = newTokens?.data?.accessToken || newTokens?.accessToken;
+                  const newRefresh = newTokens?.data?.refreshToken || newTokens?.refreshToken;
+
+                  if (accessToken) store.set(auth, encodeString(accessToken));
+                  if (newRefresh) store.set(refreshToken, encodeString(newRefresh));
+                  
+                  // Return silently to avoid showing the 401 error toast to the user
+                  // during successful auto-refresh. The failed request might still throw,
+                  // but we won't show the toast here.
+                  return;
+                } catch (refreshErr) {
+                  // If refresh fails, clear tokens to log out the user
+                  store.set(auth, null);
+                  store.set(refreshToken, null);
+                } finally {
+                  store.set(isRefreshingToken, false);
+                }
+              } else {
+                store.set(auth, null);
+                store.set(refreshToken, null);
+                store.set(isRefreshingToken, false);
+              }
+            } else {
+              // It is already refreshing, so we just return silently to not spam toasts
+              return;
+            }
+          }
         }
       } catch (_) {
         // Response body is not JSON or missing the expected shape — fall through to the
