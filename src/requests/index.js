@@ -3,6 +3,8 @@
 export { fetchPaginatedData } from './mockData.request';
 export { default as LoginRequest } from './login.request';
 export { default as LogoutRequest } from './logout.request';
+export { default as LdapLoginRequest } from './ldap-login.request';
+export { default as LdapLogoutRequest } from './ldap-logout.request';
 export { default as ForgotPasswordRequest } from './forgot-password.request';
 export { default as ResetPasswordRequest } from './reset-password.request';
 export { default as VerifyOtpRequest } from './verify-otp.request';
