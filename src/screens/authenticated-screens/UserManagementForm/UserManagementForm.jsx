@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { UserCreateRequest, UserDetailRequest, UserUpdateRequest } from '../../../requests';
+import { UserCreateRequest, UserDetailRequest, UserUpdateRequest, LdapLookupRequest } from '../../../requests';
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
@@ -60,6 +60,25 @@ const INITIAL_FORM_DATA = {
     password: { isRequired: true, regex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/ },
     username: { isRequired: true, label: "User Name" },
     email: { isRequired: true, regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/ },
+  },
+  errors: {},
+};
+
+const AD_INITIAL_FORM_DATA = {
+  data: {
+    authProvider: 'ad',
+    username: '',
+    email: '',
+    adUserId: '',
+    password: '',
+    confirmPassword: '',
+    permissions: getEmptyPermissions(),
+    role: 'Admin',
+    isActive: true,
+    isAdmin: false,
+  },
+  validations: {
+    adUserId: { isRequired: true, label: "AD Username", regex: /^[A-Za-z0-9._-]{3,}$/ },
   },
   errors: {},
 };
@@ -119,6 +138,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
   const [isShowPassword, _isShowPassword] = useState(false);
   const [isReadOnly, _isReadOnly] = useState(true);
   const [isShowConfirmPassword, _isShowConfirmPassword] = useState(false);
+  const [adLookup, _adLookup] = useState({ status: 'idle', data: null, error: null }); // idle | loading | found | error
 
   useEffect(() => {
     if (userData?.data) {
@@ -158,12 +178,13 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           password: '',
           confirmPassword: '',
         },
-        validations: {
-          ...old.validations,
-          password: { isRequired: false, label: "Password" },
-          confirmPassword: { isRequired: false, label: "Confirm Password" },
-          ...(isAd ? { adUserId: { isRequired: true, label: "AD Username", regex: /^[A-Za-z0-9._-]{3,}$/ } } : {}),
-        }
+        validations: isAd
+          ? {}
+          : {
+              ...old.validations,
+              password: { isRequired: false, label: "Password" },
+              confirmPassword: { isRequired: false, label: "Confirm Password" },
+            },
       }));
     } else if (userData?.isError) {
       _formData({ ...INITIAL_FORM_DATA });
@@ -174,35 +195,34 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
 
   // *********** Handlers ***********
   const handleChangeFormData = (e) => {
+    if (e.target.name === 'adUserId') {
+      _adLookup({ status: 'idle', data: null, error: null });
+    }
     _formData(old => ({
       ...old,
       data: {
         ...old.data,
         [e.target.name]: e.target.value,
       },
-    }))
+    }));
   };
 
   const handleChangeAuthProvider = (value) => {
-    _formData(old => ({
-      ...old,
-      data: {
-        ...old.data,
-        authProvider: value,
-        password: '',
-        confirmPassword: '',
-        adUserId: '',
-      },
-      validations: {
-        username: { isRequired: true, label: "User Name" },
-        email: { isRequired: true, regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/ },
-        ...(value === 'ad'
-          ? { adUserId: { isRequired: true, label: "AD Username", regex: /^[A-Za-z0-9._-]{3,}$/ } }
-          : { password: { isRequired: true, regex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/ } }
-        ),
-      },
-      errors: {},
-    }));
+    _adLookup({ status: 'idle', data: null, error: null });
+    if (value === 'ad') {
+      _formData({ ...AD_INITIAL_FORM_DATA });
+    } else {
+      _formData({ ...INITIAL_FORM_DATA });
+    }
+  };
+
+  const handleAdUserIdBlur = () => {
+    const sam = formData.data.adUserId?.trim();
+    if (!sam || sam.length < 3) return;
+    _adLookup({ status: 'loading', data: null, error: null });
+    LdapLookupRequest(decodedToken, sam)
+      .then((data) => _adLookup({ status: 'found', data, error: null }))
+      .catch((err) => _adLookup({ status: 'error', data: null, error: err.message || 'AD lookup failed' }));
   };
 
   const handleToggleIsActive = (e) => {
@@ -285,6 +305,11 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
 
     const isAd = formData.data.authProvider === 'ad';
 
+    if (isAd && !id && adLookup.status !== 'found') {
+      showToast('Please verify the AD username first — tab out of the field to look up the account', 'error');
+      return;
+    }
+
     if (!isAd) {
       if (formData.data.password && formData.data.password !== formData.data.confirmPassword) {
         showToast('Passwords do not match', 'error');
@@ -308,8 +333,6 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
       if (isAd) {
         payload = {
           authProvider: 'ad',
-          username: formData.data.username,
-          email: formData.data.email,
           adUserId: formData.data.adUserId,
           isActive: !!formData.data.isActive,
         };
@@ -404,59 +427,116 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[#0d121b] dark:text-white">User Name *</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.data.username}
-              onChange={handleChangeFormData}
-              placeholder="Enter username"
-              readOnly={isReadOnly}
-              onFocus={() => _isReadOnly(false)}
-              onBlur={() => _isReadOnly(true)}
-              className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-            />
-            {formData.errors.username && (
-              <span className="text-xs text-tomato">{formData.errors.username}</span>
-            )}
-          </div>
+        {/* Username + Email: shown for local users always; shown read-only for AD edit; hidden in AD create */}
+        {(!isAd || id) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-[#0d121b] dark:text-white">
+                User Name {isAd ? <span className="font-normal text-[#9ca3af]">(from AD)</span> : '*'}
+              </label>
+              <input
+                type="text"
+                name="username"
+                value={formData.data.username}
+                onChange={isAd ? undefined : handleChangeFormData}
+                placeholder="Enter username"
+                readOnly={isAd || isReadOnly}
+                onFocus={isAd ? undefined : () => _isReadOnly(false)}
+                onBlur={isAd ? undefined : () => _isReadOnly(true)}
+                className={`px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors ${isAd ? 'bg-[#f8f9fc] dark:bg-[#1a253a] text-[#9ca3af] cursor-default' : 'bg-white dark:bg-[#161f30]'}`}
+              />
+              {formData.errors.username && (
+                <span className="text-xs text-tomato">{formData.errors.username}</span>
+              )}
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[#0d121b] dark:text-white">Email *</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.data.email}
-              onChange={handleChangeFormData}
-              placeholder="Enter email"
-              readOnly={isReadOnly}
-              onFocus={() => _isReadOnly(false)}
-              onBlur={() => _isReadOnly(true)}
-              className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-            />
-            {formData.errors.email && (
-              <span className="text-xs text-tomato">{formData.errors.email}</span>
-            )}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-[#0d121b] dark:text-white">
+                Email {isAd ? <span className="font-normal text-[#9ca3af]">(from AD)</span> : '*'}
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.data.email}
+                onChange={isAd ? undefined : handleChangeFormData}
+                placeholder="Enter email"
+                readOnly={isAd || isReadOnly}
+                onFocus={isAd ? undefined : () => _isReadOnly(false)}
+                onBlur={isAd ? undefined : () => _isReadOnly(true)}
+                className={`px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors ${isAd ? 'bg-[#f8f9fc] dark:bg-[#1a253a] text-[#9ca3af] cursor-default' : 'bg-white dark:bg-[#161f30]'}`}
+              />
+              {formData.errors.email && (
+                <span className="text-xs text-tomato">{formData.errors.email}</span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* AD Username — only in AD mode */}
+        {/* AD Username — AD create mode only (read-only display in AD edit mode) */}
         {isAd && (
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[#0d121b] dark:text-white">AD Username (sAMAccountName) *</label>
-            <input
-              type="text"
-              name="adUserId"
-              value={formData.data.adUserId}
-              onChange={handleChangeFormData}
-              placeholder="e.g. jdoe"
-              readOnly={isReadOnly}
-              onFocus={() => _isReadOnly(false)}
-              onBlur={() => _isReadOnly(true)}
-              className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors md:w-1/2"
-            />
+            <label className="text-sm font-medium text-[#0d121b] dark:text-white">
+              AD Username (sAMAccountName) *
+            </label>
+            {id ? (
+              <div className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-[#f8f9fc] dark:bg-[#1a253a] text-sm text-[#9ca3af] md:w-1/2">
+                {formData.data.adUserId || '—'}
+              </div>
+            ) : (
+              <>
+                <div className="relative md:w-1/2">
+                  <input
+                    type="text"
+                    name="adUserId"
+                    value={formData.data.adUserId}
+                    onChange={handleChangeFormData}
+                    onBlur={handleAdUserIdBlur}
+                    placeholder="e.g. jdoe"
+                    readOnly={isReadOnly}
+                    onFocus={() => _isReadOnly(false)}
+                    className={`w-full px-4 py-2.5 pr-10 rounded-lg border text-sm focus:ring-2 focus:ring-primary focus:border-primary transition-colors bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white ${
+                      adLookup.status === 'found'
+                        ? 'border-green-400 dark:border-green-500'
+                        : adLookup.status === 'error'
+                        ? 'border-red-400 dark:border-red-500'
+                        : 'border-[#e7ebf3] dark:border-[#2a3447]'
+                    }`}
+                  />
+                  {/* Status icon inside the input */}
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-base pointer-events-none">
+                    {adLookup.status === 'loading' && (
+                      <span className="material-symbols-outlined text-[#4c669a] animate-spin" style={{ fontSize: '18px' }}>sync</span>
+                    )}
+                    {adLookup.status === 'found' && (
+                      <span className="material-symbols-outlined text-green-500" style={{ fontSize: '18px' }}>check_circle</span>
+                    )}
+                    {adLookup.status === 'error' && (
+                      <span className="material-symbols-outlined text-red-500" style={{ fontSize: '18px' }}>error</span>
+                    )}
+                  </span>
+                </div>
+
+                {/* Hint / status text below the input */}
+                {adLookup.status === 'idle' && (
+                  <p className="text-xs text-[#4c669a] dark:text-gray-400">
+                    Enter the user's Windows login name and tab out to verify the account in AD.
+                  </p>
+                )}
+                {adLookup.status === 'error' && (
+                  <p className="text-xs text-red-500">{adLookup.error}</p>
+                )}
+                {/* {adLookup.status === 'found' && adLookup.data && !adLookup.data.resolvedRole && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    ⚠ This account is not in any ZATCA group — login will be rejected until they are added to one.
+                  </p>
+                )} */}
+                {adLookup.status === 'found' && adLookup.data?.alreadyProvisioned && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    ⚠ This account is already provisioned — saving will result in a conflict error.
+                  </p>
+                )}
+              </>
+            )}
             {formData.errors.adUserId && (
               <span className="text-xs text-tomato">{formData.errors.adUserId}</span>
             )}
