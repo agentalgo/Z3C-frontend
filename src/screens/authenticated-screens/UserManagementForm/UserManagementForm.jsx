@@ -525,11 +525,11 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
                 {adLookup.status === 'error' && (
                   <p className="text-xs text-red-500">{adLookup.error}</p>
                 )}
-                {adLookup.status === 'found' && adLookup.data && !adLookup.data.resolvedRole && (
+                {/* {adLookup.status === 'found' && adLookup.data && !adLookup.data.resolvedRole && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
                     ⚠ This account is not in any ZATCA group — login will be rejected until they are added to one.
                   </p>
-                )}
+                )} */}
                 {adLookup.status === 'found' && adLookup.data?.alreadyProvisioned && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
                     ⚠ This account is already provisioned — saving will result in a conflict error.
