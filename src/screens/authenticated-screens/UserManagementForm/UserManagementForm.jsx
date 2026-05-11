@@ -64,6 +64,25 @@ const INITIAL_FORM_DATA = {
   errors: {},
 };
 
+const AD_INITIAL_FORM_DATA = {
+  data: {
+    authProvider: 'ad',
+    username: '',
+    email: '',
+    adUserId: '',
+    password: '',
+    confirmPassword: '',
+    permissions: getEmptyPermissions(),
+    role: 'Admin',
+    isActive: true,
+    isAdmin: false,
+  },
+  validations: {
+    adUserId: { isRequired: true, label: "AD Username", regex: /^[A-Za-z0-9._-]{3,}$/ },
+  },
+  errors: {},
+};
+
 function UserManagementForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -158,12 +177,13 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           password: '',
           confirmPassword: '',
         },
-        validations: {
-          ...old.validations,
-          password: { isRequired: false, label: "Password" },
-          confirmPassword: { isRequired: false, label: "Confirm Password" },
-          ...(isAd ? { adUserId: { isRequired: true, label: "AD Username", regex: /^[A-Za-z0-9._-]{3,}$/ } } : {}),
-        }
+        validations: isAd
+          ? {}
+          : {
+              ...old.validations,
+              password: { isRequired: false, label: "Password" },
+              confirmPassword: { isRequired: false, label: "Confirm Password" },
+            },
       }));
     } else if (userData?.isError) {
       _formData({ ...INITIAL_FORM_DATA });
@@ -184,25 +204,11 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
   };
 
   const handleChangeAuthProvider = (value) => {
-    _formData(old => ({
-      ...old,
-      data: {
-        ...old.data,
-        authProvider: value,
-        password: '',
-        confirmPassword: '',
-        adUserId: '',
-      },
-      validations: {
-        username: { isRequired: true, label: "User Name" },
-        email: { isRequired: true, regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/ },
-        ...(value === 'ad'
-          ? { adUserId: { isRequired: true, label: "AD Username", regex: /^[A-Za-z0-9._-]{3,}$/ } }
-          : { password: { isRequired: true, regex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/ } }
-        ),
-      },
-      errors: {},
-    }));
+    if (value === 'ad') {
+      _formData({ ...AD_INITIAL_FORM_DATA });
+    } else {
+      _formData({ ...INITIAL_FORM_DATA });
+    }
   };
 
   const handleToggleIsActive = (e) => {
@@ -308,8 +314,6 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
       if (isAd) {
         payload = {
           authProvider: 'ad',
-          username: formData.data.username,
-          email: formData.data.email,
           adUserId: formData.data.adUserId,
           isActive: !!formData.data.isActive,
         };
@@ -404,59 +408,79 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[#0d121b] dark:text-white">User Name *</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.data.username}
-              onChange={handleChangeFormData}
-              placeholder="Enter username"
-              readOnly={isReadOnly}
-              onFocus={() => _isReadOnly(false)}
-              onBlur={() => _isReadOnly(true)}
-              className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-            />
-            {formData.errors.username && (
-              <span className="text-xs text-tomato">{formData.errors.username}</span>
-            )}
-          </div>
+        {/* Username + Email: shown for local users always; shown read-only for AD edit; hidden in AD create */}
+        {(!isAd || id) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-[#0d121b] dark:text-white">
+                User Name {isAd ? <span className="font-normal text-[#9ca3af]">(from AD)</span> : '*'}
+              </label>
+              <input
+                type="text"
+                name="username"
+                value={formData.data.username}
+                onChange={isAd ? undefined : handleChangeFormData}
+                placeholder="Enter username"
+                readOnly={isAd || isReadOnly}
+                onFocus={isAd ? undefined : () => _isReadOnly(false)}
+                onBlur={isAd ? undefined : () => _isReadOnly(true)}
+                className={`px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors ${isAd ? 'bg-[#f8f9fc] dark:bg-[#1a253a] text-[#9ca3af] cursor-default' : 'bg-white dark:bg-[#161f30]'}`}
+              />
+              {formData.errors.username && (
+                <span className="text-xs text-tomato">{formData.errors.username}</span>
+              )}
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[#0d121b] dark:text-white">Email *</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.data.email}
-              onChange={handleChangeFormData}
-              placeholder="Enter email"
-              readOnly={isReadOnly}
-              onFocus={() => _isReadOnly(false)}
-              onBlur={() => _isReadOnly(true)}
-              className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-            />
-            {formData.errors.email && (
-              <span className="text-xs text-tomato">{formData.errors.email}</span>
-            )}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-[#0d121b] dark:text-white">
+                Email {isAd ? <span className="font-normal text-[#9ca3af]">(from AD)</span> : '*'}
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.data.email}
+                onChange={isAd ? undefined : handleChangeFormData}
+                placeholder="Enter email"
+                readOnly={isAd || isReadOnly}
+                onFocus={isAd ? undefined : () => _isReadOnly(false)}
+                onBlur={isAd ? undefined : () => _isReadOnly(true)}
+                className={`px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors ${isAd ? 'bg-[#f8f9fc] dark:bg-[#1a253a] text-[#9ca3af] cursor-default' : 'bg-white dark:bg-[#161f30]'}`}
+              />
+              {formData.errors.email && (
+                <span className="text-xs text-tomato">{formData.errors.email}</span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* AD Username — only in AD mode */}
+        {/* AD Username — AD create mode only (read-only in edit since it cannot change) */}
         {isAd && (
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-[#0d121b] dark:text-white">AD Username (sAMAccountName) *</label>
-            <input
-              type="text"
-              name="adUserId"
-              value={formData.data.adUserId}
-              onChange={handleChangeFormData}
-              placeholder="e.g. jdoe"
-              readOnly={isReadOnly}
-              onFocus={() => _isReadOnly(false)}
-              onBlur={() => _isReadOnly(true)}
-              className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors md:w-1/2"
-            />
+            <label className="text-sm font-medium text-[#0d121b] dark:text-white">
+              AD Username (sAMAccountName) *
+            </label>
+            {id ? (
+              <div className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-[#f8f9fc] dark:bg-[#1a253a] text-sm text-[#9ca3af] md:w-1/2">
+                {formData.data.adUserId || '—'}
+              </div>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  name="adUserId"
+                  value={formData.data.adUserId}
+                  onChange={handleChangeFormData}
+                  placeholder="e.g. jdoe"
+                  readOnly={isReadOnly}
+                  onFocus={() => _isReadOnly(false)}
+                  onBlur={() => _isReadOnly(true)}
+                  className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors md:w-1/2"
+                />
+                <p className="text-xs text-[#4c669a] dark:text-gray-400">
+                  Enter the user's Windows login name. Username, email, and role will be resolved automatically from AD on save.
+                </p>
+              </>
+            )}
             {formData.errors.adUserId && (
               <span className="text-xs text-tomato">{formData.errors.adUserId}</span>
             )}
