@@ -516,48 +516,24 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
                   </span>
                 </div>
 
-                {/* Hint text when idle */}
+                {/* Hint / status text below the input */}
                 {adLookup.status === 'idle' && (
                   <p className="text-xs text-[#4c669a] dark:text-gray-400">
                     Enter the user's Windows login name and tab out to verify the account in AD.
                   </p>
                 )}
-
-                {/* Error state */}
                 {adLookup.status === 'error' && (
                   <p className="text-xs text-red-500">{adLookup.error}</p>
                 )}
-
-                {/* Preview card on success */}
-                {adLookup.status === 'found' && adLookup.data && (
-                  <div className={`rounded-lg border px-4 py-3 text-sm space-y-1.5 md:w-1/2 ${
-                    adLookup.data.alreadyProvisioned
-                      ? 'border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20'
-                      : 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20'
-                  }`}>
-                    <div className="flex items-center gap-1.5 font-semibold text-[#0d121b] dark:text-white">
-                      <span className="material-symbols-outlined text-green-500" style={{ fontSize: '16px' }}>person_check</span>
-                      Found in Active Directory
-                    </div>
-                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-[#4c669a] dark:text-gray-300">
-                      <span className="font-medium text-[#0d121b] dark:text-white">Name</span>
-                      <span>{adLookup.data.displayName}</span>
-                      <span className="font-medium text-[#0d121b] dark:text-white">Email</span>
-                      <span>{adLookup.data.email}</span>
-                      <span className="font-medium text-[#0d121b] dark:text-white">ZATCA Role</span>
-                      <span>
-                        {adLookup.data.resolvedRole
-                          ? <span className="inline-flex items-center gap-1 text-green-700 dark:text-green-400 font-medium"><span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>{adLookup.data.resolvedRole}</span>
-                          : <span className="text-amber-600 dark:text-amber-400 font-medium">⚠ Not in any ZATCA group — login will be rejected</span>
-                        }
-                      </span>
-                    </div>
-                    {adLookup.data.alreadyProvisioned && (
-                      <p className="text-xs text-amber-700 dark:text-amber-300 pt-1 border-t border-amber-200 dark:border-amber-700 mt-1">
-                        ⚠ This account is already provisioned in the application. Saving will result in a conflict error.
-                      </p>
-                    )}
-                  </div>
+                {adLookup.status === 'found' && adLookup.data && !adLookup.data.resolvedRole && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    ⚠ This account is not in any ZATCA group — login will be rejected until they are added to one.
+                  </p>
+                )}
+                {adLookup.status === 'found' && adLookup.data?.alreadyProvisioned && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    ⚠ This account is already provisioned — saving will result in a conflict error.
+                  </p>
                 )}
               </>
             )}
