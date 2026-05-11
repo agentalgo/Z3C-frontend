@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { UserCreateRequest, UserDetailRequest, UserUpdateRequest } from '../../../requests';
+import { UserCreateRequest, UserDetailRequest, UserUpdateRequest, LdapLookupRequest } from '../../../requests';
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
@@ -138,6 +138,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
   const [isShowPassword, _isShowPassword] = useState(false);
   const [isReadOnly, _isReadOnly] = useState(true);
   const [isShowConfirmPassword, _isShowConfirmPassword] = useState(false);
+  const [adLookup, _adLookup] = useState({ status: 'idle', data: null, error: null }); // idle | loading | found | error
 
   useEffect(() => {
     if (userData?.data) {
@@ -194,21 +195,34 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
 
   // *********** Handlers ***********
   const handleChangeFormData = (e) => {
+    if (e.target.name === 'adUserId') {
+      _adLookup({ status: 'idle', data: null, error: null });
+    }
     _formData(old => ({
       ...old,
       data: {
         ...old.data,
         [e.target.name]: e.target.value,
       },
-    }))
+    }));
   };
 
   const handleChangeAuthProvider = (value) => {
+    _adLookup({ status: 'idle', data: null, error: null });
     if (value === 'ad') {
       _formData({ ...AD_INITIAL_FORM_DATA });
     } else {
       _formData({ ...INITIAL_FORM_DATA });
     }
+  };
+
+  const handleAdUserIdBlur = () => {
+    const sam = formData.data.adUserId?.trim();
+    if (!sam || sam.length < 3) return;
+    _adLookup({ status: 'loading', data: null, error: null });
+    LdapLookupRequest(decodedToken, sam)
+      .then((data) => _adLookup({ status: 'found', data, error: null }))
+      .catch((err) => _adLookup({ status: 'error', data: null, error: err.message || 'AD lookup failed' }));
   };
 
   const handleToggleIsActive = (e) => {
@@ -290,6 +304,11 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     if (e) e.preventDefault();
 
     const isAd = formData.data.authProvider === 'ad';
+
+    if (isAd && !id && adLookup.status !== 'found') {
+      showToast('Please verify the AD username first — tab out of the field to look up the account', 'error');
+      return;
+    }
 
     if (!isAd) {
       if (formData.data.password && formData.data.password !== formData.data.confirmPassword) {
@@ -453,7 +472,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           </div>
         )}
 
-        {/* AD Username — AD create mode only (read-only in edit since it cannot change) */}
+        {/* AD Username — AD create mode only (read-only display in AD edit mode) */}
         {isAd && (
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-[#0d121b] dark:text-white">
@@ -465,20 +484,81 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
               </div>
             ) : (
               <>
-                <input
-                  type="text"
-                  name="adUserId"
-                  value={formData.data.adUserId}
-                  onChange={handleChangeFormData}
-                  placeholder="e.g. jdoe"
-                  readOnly={isReadOnly}
-                  onFocus={() => _isReadOnly(false)}
-                  onBlur={() => _isReadOnly(true)}
-                  className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors md:w-1/2"
-                />
-                <p className="text-xs text-[#4c669a] dark:text-gray-400">
-                  Enter the user's Windows login name. Username, email, and role will be resolved automatically from AD on save.
-                </p>
+                <div className="relative md:w-1/2">
+                  <input
+                    type="text"
+                    name="adUserId"
+                    value={formData.data.adUserId}
+                    onChange={handleChangeFormData}
+                    onBlur={handleAdUserIdBlur}
+                    placeholder="e.g. jdoe"
+                    readOnly={isReadOnly}
+                    onFocus={() => _isReadOnly(false)}
+                    className={`w-full px-4 py-2.5 pr-10 rounded-lg border text-sm focus:ring-2 focus:ring-primary focus:border-primary transition-colors bg-white dark:bg-[#161f30] text-[#0d121b] dark:text-white ${
+                      adLookup.status === 'found'
+                        ? 'border-green-400 dark:border-green-500'
+                        : adLookup.status === 'error'
+                        ? 'border-red-400 dark:border-red-500'
+                        : 'border-[#e7ebf3] dark:border-[#2a3447]'
+                    }`}
+                  />
+                  {/* Status icon inside the input */}
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-base pointer-events-none">
+                    {adLookup.status === 'loading' && (
+                      <span className="material-symbols-outlined text-[#4c669a] animate-spin" style={{ fontSize: '18px' }}>sync</span>
+                    )}
+                    {adLookup.status === 'found' && (
+                      <span className="material-symbols-outlined text-green-500" style={{ fontSize: '18px' }}>check_circle</span>
+                    )}
+                    {adLookup.status === 'error' && (
+                      <span className="material-symbols-outlined text-red-500" style={{ fontSize: '18px' }}>error</span>
+                    )}
+                  </span>
+                </div>
+
+                {/* Hint text when idle */}
+                {adLookup.status === 'idle' && (
+                  <p className="text-xs text-[#4c669a] dark:text-gray-400">
+                    Enter the user's Windows login name and tab out to verify the account in AD.
+                  </p>
+                )}
+
+                {/* Error state */}
+                {adLookup.status === 'error' && (
+                  <p className="text-xs text-red-500">{adLookup.error}</p>
+                )}
+
+                {/* Preview card on success */}
+                {adLookup.status === 'found' && adLookup.data && (
+                  <div className={`rounded-lg border px-4 py-3 text-sm space-y-1.5 md:w-1/2 ${
+                    adLookup.data.alreadyProvisioned
+                      ? 'border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20'
+                      : 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20'
+                  }`}>
+                    <div className="flex items-center gap-1.5 font-semibold text-[#0d121b] dark:text-white">
+                      <span className="material-symbols-outlined text-green-500" style={{ fontSize: '16px' }}>person_check</span>
+                      Found in Active Directory
+                    </div>
+                    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-[#4c669a] dark:text-gray-300">
+                      <span className="font-medium text-[#0d121b] dark:text-white">Name</span>
+                      <span>{adLookup.data.displayName}</span>
+                      <span className="font-medium text-[#0d121b] dark:text-white">Email</span>
+                      <span>{adLookup.data.email}</span>
+                      <span className="font-medium text-[#0d121b] dark:text-white">ZATCA Role</span>
+                      <span>
+                        {adLookup.data.resolvedRole
+                          ? <span className="inline-flex items-center gap-1 text-green-700 dark:text-green-400 font-medium"><span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>{adLookup.data.resolvedRole}</span>
+                          : <span className="text-amber-600 dark:text-amber-400 font-medium">⚠ Not in any ZATCA group — login will be rejected</span>
+                        }
+                      </span>
+                    </div>
+                    {adLookup.data.alreadyProvisioned && (
+                      <p className="text-xs text-amber-700 dark:text-amber-300 pt-1 border-t border-amber-200 dark:border-amber-700 mt-1">
+                        ⚠ This account is already provisioned in the application. Saving will result in a conflict error.
+                      </p>
+                    )}
+                  </div>
+                )}
               </>
             )}
             {formData.errors.adUserId && (
