@@ -1,13 +1,13 @@
 // Packages
 import { useMemo } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { NavLink } from 'react-router-dom';
 
 // APIs
-import { LogoutRequest } from '../../requests';
+import { LogoutRequest, LdapLogoutRequest } from '../../requests';
 
 // Utils
-import { auth, loginInfo } from '../../atoms';
+import { auth, loginInfo, refreshToken } from '../../atoms';
 import { decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../utils';
 
 const navigation = [
@@ -24,6 +24,8 @@ const navigation = [
 function Sidebar() {
   const [token, _token] = useAtom(auth);
   const loginInfoValue = useAtomValue(loginInfo);
+  const setLoginInfo = useSetAtom(loginInfo);
+  const setRefreshToken = useSetAtom(refreshToken);
   const decodedToken = useMemo(() => decodeString(token), [token]);
   const user = useMemo(() => parseLoginInfo(loginInfoValue), [loginInfoValue]);
 
@@ -37,14 +39,23 @@ function Sidebar() {
     });
   }, [user]);
 
+  const clearAllAuthAtoms = () => {
+    _token(null);
+    setLoginInfo(null);
+    setRefreshToken(null);
+  };
+
   const handleLogout = () => {
+    const isAdUser = user?.authProvider === 'ad';
+    const logoutFn = isAdUser ? LdapLogoutRequest : LogoutRequest;
+
     if (decodedToken) {
-      LogoutRequest(decodedToken)
+      logoutFn(decodedToken)
         .finally(() => {
-          _token(null);
+          clearAllAuthAtoms();
         });
     } else {
-      _token(null);
+      clearAllAuthAtoms();
     }
   };
 

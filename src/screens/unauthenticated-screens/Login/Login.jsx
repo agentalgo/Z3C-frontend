@@ -3,7 +3,7 @@ import { Fragment, useState, useEffect } from 'react';
 import { useSetAtom } from 'jotai';
 
 // APIs
-import { LoginRequest, VerifyOtpRequest } from '../../../requests';
+import { LoginRequest, VerifyOtpRequest, LdapLoginRequest } from '../../../requests';
 
 // Utils
 import { showToast, validateSubmissionData, encodeString } from '../../../utils';
@@ -13,11 +13,13 @@ function Login() {
   const INITIAL_FORM_DATA = {
     data: {
       email: '',
+      username: '',
       password: '',
       otp: '',
     },
     validations: {
       email: { isRequired: true, label: 'Email' },
+      username: { isRequired: true, label: 'Username' },
       password: { isRequired: true, label: 'Password' },
       otp: { isRequired: true, label: 'OTP' },
     },
@@ -30,15 +32,16 @@ function Login() {
   const [isLoading, _isLoading] = useState(false);
   const [showPassword, _showPassword] = useState(false);
   const [error, _error] = useState(null);
+  const [isAdMode, _isAdMode] = useState(false);
 
   const setAuth = useSetAtom(auth);
   const setLoginInfo = useSetAtom(loginInfo);
   const setRefreshToken = useSetAtom(refreshToken);
 
-  // Clear error when user changes email or password
+  // Clear error when user changes email, username or password
   useEffect(() => {
     if (error) _error(null);
-  }, [formData.data.email, formData.data.password]);
+  }, [formData.data.email, formData.data.username, formData.data.password]);
 
   // *********** Handlers ***********
 
@@ -56,10 +59,9 @@ function Login() {
   const handleValidateForm = () => {
     const validationsToUse = showOtpCard
       ? { otp: formData.validations.otp }
-      : {
-        email: formData.validations.email,
-        password: formData.validations.password,
-      };
+      : isAdMode
+        ? { username: formData.validations.username, password: formData.validations.password }
+        : { email: formData.validations.email, password: formData.validations.password };
 
     const { allValid, errors } = validateSubmissionData(
       formData.data,
@@ -90,7 +92,32 @@ function Login() {
     _isLoading(true);
     _error(null);
 
-    if (showOtpCard) {
+    if (isAdMode) {
+      const payload = JSON.stringify({
+        username: formData.data.username,
+        password: formData.data.password,
+      });
+      LdapLoginRequest(payload)
+        .then((result) => {
+          const accessToken = result?.data?.accessToken ?? result?.accessToken;
+          const newRefreshToken = result?.data?.refreshToken ?? result?.refreshToken;
+          const user = result?.data?.user ?? result?.user;
+          const encodedToken = encodeString(accessToken);
+          const encodedUser = encodeString(JSON.stringify(user));
+          setAuth(encodedToken);
+          setLoginInfo(encodedUser);
+          if (newRefreshToken) setRefreshToken(encodeString(newRefreshToken));
+          showToast('Signed in successfully', 'success');
+        })
+        .catch((err) => {
+          const message = err?.message ?? 'AD login failed. Please try again.';
+          _error(message);
+          showToast(message, 'error');
+        })
+        .finally(() => {
+          _isLoading(false);
+        });
+    } else if (showOtpCard) {
       const payload = JSON.stringify({
         tempToken: tempToken,
         otpCode: formData.data.otp,
@@ -142,6 +169,13 @@ function Login() {
     _showPassword((prev) => !prev);
   };
 
+  const handleToggleMode = (adMode) => {
+    _isAdMode(adMode);
+    _showOtpCard(false);
+    _error(null);
+    _formData({ ...INITIAL_FORM_DATA });
+  };
+
   // *********** Render Functions ***********
 
   const HERO_LEFT = () => (
@@ -162,6 +196,68 @@ function Login() {
     <Fragment>
       <div className="mb-8">
         <h2 className="text-3xl font-semibold text-slate-900">Sign in</h2>
+      </div>
+    </Fragment>
+  );
+
+  const MODE_TOGGLE = () => (
+    <Fragment>
+      <div className="flex rounded-lg border border-slate-200 overflow-hidden mb-6">
+        <button
+          type="button"
+          onClick={() => handleToggleMode(false)}
+          className={`flex-1 py-2 text-sm font-medium transition-colors ${
+            !isAdMode
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          Email Login
+        </button>
+        <button
+          type="button"
+          onClick={() => handleToggleMode(true)}
+          className={`flex-1 py-2 text-sm font-medium transition-colors ${
+            isAdMode
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          Sign in with Windows
+        </button>
+      </div>
+    </Fragment>
+  );
+
+  const USERNAME_FIELD = () => (
+    <Fragment>
+      <div>
+        <label className="text-slate-900 text-sm font-medium mb-2 block">
+          Username
+        </label>
+        <div className="relative flex items-center">
+          <input
+            name="username"
+            type="text"
+            required
+            className="w-full text-sm text-slate-900 border border-slate-300 pr-8 px-4 py-3 rounded-md outline-blue-600"
+            placeholder="Enter AD username"
+            value={formData.data.username}
+            onChange={handleChangeFormData}
+          />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="#bbb"
+            stroke="#bbb"
+            className="w-[18px] h-[18px] absolute right-4"
+            viewBox="0 0 24 24"
+          >
+            <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
+          </svg>
+        </div>
+        {formData.errors.username && (
+          <span className="text-xs text-tomato">{formData.errors.username}</span>
+        )}
       </div>
     </Fragment>
   );
@@ -272,10 +368,11 @@ function Login() {
 
   const FORM_FIELDS = () => (
     <Fragment>
+      {MODE_TOGGLE()}
       <div className="space-y-6">
-        {EMAIL_FIELD()}
+        {isAdMode ? USERNAME_FIELD() : EMAIL_FIELD()}
         {PASSWORD_FIELD()}
-        {FORGOT_LINK()}
+        {!isAdMode && FORGOT_LINK()}
       </div>
     </Fragment>
   );
@@ -292,7 +389,7 @@ function Login() {
           )}
           {FORM_FIELDS()}
           {SUBMIT_BUTTON()}
-          {FORM_FOOTER()}
+          {!isAdMode && FORM_FOOTER()}
         </form>
       </div>
     </Fragment>
@@ -362,7 +459,7 @@ function Login() {
   const HERO_RIGHT = () => (
     <Fragment>
       <div className="pb-4">
-        {showOtpCard ? VERIFY_OTP_FORM_CARD() : LOGIN_FORM_CARD()}
+        {showOtpCard && !isAdMode ? VERIFY_OTP_FORM_CARD() : LOGIN_FORM_CARD()}
       </div>
     </Fragment>
   );

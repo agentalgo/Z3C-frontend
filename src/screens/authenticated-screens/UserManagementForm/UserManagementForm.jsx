@@ -45,8 +45,10 @@ const getAllPermissions = () =>
 
 const INITIAL_FORM_DATA = {
   data: {
+    authProvider: 'local',
     username: '',
     email: '',
+    adUserId: '',
     password: '',
     confirmPassword: '',
     permissions: getEmptyPermissions(),
@@ -121,12 +123,15 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
   useEffect(() => {
     if (userData?.data) {
       const apiData = userData.data;
+      const isAd = apiData.authProvider === 'ad';
       _formData(old => ({
         ...old,
         data: {
           ...old.data,
+          authProvider: apiData.authProvider || 'local',
           username: apiData.username || '',
           email: apiData.email || '',
+          adUserId: apiData.adUserId || '',
           permissions: (() => {
             if (apiData.permissions && typeof apiData.permissions === 'object') {
               return PERMISSION_MODULES.reduce((acc, module) => {
@@ -157,6 +162,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           ...old.validations,
           password: { isRequired: false, label: "Password" },
           confirmPassword: { isRequired: false, label: "Confirm Password" },
+          ...(isAd ? { adUserId: { isRequired: true, label: "AD Username", regex: /^[A-Za-z0-9._-]{3,}$/ } } : {}),
         }
       }));
     } else if (userData?.isError) {
@@ -175,6 +181,28 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
         [e.target.name]: e.target.value,
       },
     }))
+  };
+
+  const handleChangeAuthProvider = (value) => {
+    _formData(old => ({
+      ...old,
+      data: {
+        ...old.data,
+        authProvider: value,
+        password: '',
+        confirmPassword: '',
+        adUserId: '',
+      },
+      validations: {
+        username: { isRequired: true, label: "User Name" },
+        email: { isRequired: true, regex: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/ },
+        ...(value === 'ad'
+          ? { adUserId: { isRequired: true, label: "AD Username", regex: /^[A-Za-z0-9._-]{3,}$/ } }
+          : { password: { isRequired: true, regex: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/ } }
+        ),
+      },
+      errors: {},
+    }));
   };
 
   const handleToggleIsActive = (e) => {
@@ -255,44 +283,59 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
   const handleSubmitForm = (e) => {
     if (e) e.preventDefault();
 
-    if (formData.data.password && formData.data.password !== formData.data.confirmPassword) {
-      showToast('Passwords do not match', 'error');
-      return;
-    }
+    const isAd = formData.data.authProvider === 'ad';
 
-    const hasAnyPermission = PERMISSION_MODULES.some((module) => {
-      const mp = formData.data.permissions[module];
-      return mp && (mp.read || mp.create || mp.update || mp.delete);
-    });
-    if (!hasAnyPermission) {
-      showToast('Please grant at least one permission', 'error');
-      return;
+    if (!isAd) {
+      if (formData.data.password && formData.data.password !== formData.data.confirmPassword) {
+        showToast('Passwords do not match', 'error');
+        return;
+      }
+
+      const hasAnyPermission = PERMISSION_MODULES.some((module) => {
+        const mp = formData.data.permissions[module];
+        return mp && (mp.read || mp.create || mp.update || mp.delete);
+      });
+      if (!hasAnyPermission) {
+        showToast('Please grant at least one permission', 'error');
+        return;
+      }
     }
 
     if (handleValidateForm()) {
       _isLoading(true);
 
-      const payload = {
-        username: formData.data.username,
-        email: formData.data.email,
-        isActive: !!formData.data.isActive,
-        isAdmin: !!formData.data.isAdmin,
-        role: formData.data.role || 'Admin',
-        permissions: PERMISSION_MODULES.reduce((acc, module) => {
-          const mp = formData.data.permissions[module] || {};
-          const isReadOnlyModule = READ_ONLY_MODULES.includes(module);
-          acc[module] = {
-            read: !!mp.read,
-            create: isReadOnlyModule ? false : !!mp.create,
-            update: isReadOnlyModule ? false : !!mp.update,
-            delete: isReadOnlyModule ? false : !!mp.delete,
-          };
-          return acc;
-        }, {}),
-      };
-
-      if (formData.data.password) {
-        payload.password = formData.data.password;
+      let payload;
+      if (isAd) {
+        payload = {
+          authProvider: 'ad',
+          username: formData.data.username,
+          email: formData.data.email,
+          adUserId: formData.data.adUserId,
+          isActive: !!formData.data.isActive,
+        };
+      } else {
+        payload = {
+          authProvider: 'local',
+          username: formData.data.username,
+          email: formData.data.email,
+          isActive: !!formData.data.isActive,
+          isAdmin: !!formData.data.isAdmin,
+          role: formData.data.role || 'Admin',
+          permissions: PERMISSION_MODULES.reduce((acc, module) => {
+            const mp = formData.data.permissions[module] || {};
+            const isReadOnlyModule = READ_ONLY_MODULES.includes(module);
+            acc[module] = {
+              read: !!mp.read,
+              create: isReadOnlyModule ? false : !!mp.create,
+              update: isReadOnlyModule ? false : !!mp.update,
+              delete: isReadOnlyModule ? false : !!mp.delete,
+            };
+            return acc;
+          }, {}),
+        };
+        if (formData.data.password) {
+          payload.password = formData.data.password;
+        }
       }
 
       const request = id
@@ -326,232 +369,264 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     </div>
   );
 
-  const USER_DETAILS_SECTION = () => (
-    <section className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  const USER_DETAILS_SECTION = () => {
+    const isAd = formData.data.authProvider === 'ad';
+
+    return (
+      <section className="space-y-6">
+        {/* Login Type — read-only in edit mode */}
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">User Name *</label>
-          <input
-            type="text"
-            name="username"
-            value={formData.data.username}
-            onChange={handleChangeFormData}
-            placeholder="Enter username"
-            readOnly={isReadOnly}
-            onFocus={() => _isReadOnly(false)}
-            onBlur={() => _isReadOnly(true)}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.username && (
-            <span className="text-xs text-tomato">{formData.errors.username}</span>
+          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Login Type</label>
+          {id ? (
+            <div className="flex items-center gap-2">
+              <span className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-[#f8f9fc] dark:bg-[#1a253a] text-sm text-[#4c669a] dark:text-gray-400 w-full md:w-48">
+                {isAd ? 'AD (Active Directory)' : 'Local'}
+              </span>
+              <span className="text-xs text-[#9ca3af]">Login type cannot be changed after creation.</span>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              {['local', 'ad'].map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => handleChangeAuthProvider(type)}
+                  className={`px-5 py-2 rounded-lg border text-sm font-semibold transition-colors ${
+                    formData.data.authProvider === type
+                      ? 'bg-primary text-white border-primary shadow-sm'
+                      : 'bg-white dark:bg-[#161f30] text-[#4c669a] dark:text-gray-300 border-[#e7ebf3] dark:border-[#2a3447] hover:border-primary'
+                  }`}
+                >
+                  {type === 'local' ? 'Local' : 'AD (Active Directory)'}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Email *</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.data.email}
-            onChange={handleChangeFormData}
-            placeholder="Enter email"
-            readOnly={isReadOnly}
-            onFocus={() => _isReadOnly(false)}
-            onBlur={() => _isReadOnly(true)}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.email && (
-            <span className="text-xs text-tomato">{formData.errors.email}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Temporarily hidden role selector
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-[#0d121b] dark:text-white">Role</label>
-        <Select
-          name="role"
-          classNamePrefix="react-select"
-          className="text-sm"
-          onChange={handleChangeRole}
-          options={USER_ROLES.map((role) => ({
-            value: role,
-            label: role,
-          }))}
-          value={formData.data.role ? {
-            value: formData.data.role,
-            label: formData.data.role,
-          } : {
-            value: 'Admin',
-            label: 'Admin',
-          }}
-        />
-      </div>
-      */}
-
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Permissions *</label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => handleToggleAllPermissions(true)}
-              className="text-xs font-semibold text-primary hover:underline"
-            >
-              Grant All
-            </button>
-            <span className="text-xs text-[#4c669a]">·</span>
-            <button
-              type="button"
-              onClick={() => handleToggleAllPermissions(false)}
-              className="text-xs font-semibold text-[#4c669a] hover:text-[#0d121b] dark:hover:text-white hover:underline"
-            >
-              Revoke All
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-[#f8f9fc] dark:bg-[#1a253a]">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider w-48">
-                  Module
-                </th>
-                {CRUD_ACTIONS.map((action) => (
-                  <th key={action} className="px-4 py-3 text-center text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">
-                    {action.charAt(0).toUpperCase() + action.slice(1)}
-                  </th>
-                ))}
-                <th className="px-4 py-3 text-center text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">
-                  All
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#e7ebf3] dark:divide-[#2a3447]">
-              {PERMISSION_MODULES.map((module) => {
-                const mp = formData.data.permissions[module] || {};
-                const moduleActions = READ_ONLY_MODULES.includes(module) ? ['read'] : CRUD_ACTIONS;
-                const allChecked = moduleActions.every((a) => !!mp[a]);
-                const someChecked = moduleActions.some((a) => !!mp[a]);
-
-                return (
-                  <tr key={module} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-[#0d121b] dark:text-white">
-                      {MODULE_LABELS[module]}
-                    </td>
-                    {CRUD_ACTIONS.map((action) => (
-                      <td key={action} className="px-4 py-3 text-center">
-                        {READ_ONLY_MODULES.includes(module) && action !== 'read' ? (
-                          <span className="text-[11px] text-[#9ca3af] italic">N/A</span>
-                        ) : (
-                          <input
-                            type="checkbox"
-                            checked={!!mp[action]}
-                            onChange={() => handleTogglePermission(module, action)}
-                            className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
-                          />
-                        )}
-                      </td>
-                    ))}
-                    <td className="px-4 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        checked={allChecked}
-                        ref={(el) => {
-                          if (el) el.indeterminate = someChecked && !allChecked;
-                        }}
-                        onChange={(e) => handleToggleModuleAll(module, e.target.checked)}
-                        className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Password *</label>
-          <div className="relative">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-[#0d121b] dark:text-white">User Name *</label>
             <input
-              type={isShowPassword ? 'text' : 'password'}
-              name="password"
-              value={formData.data.password}
+              type="text"
+              name="username"
+              value={formData.data.username}
               onChange={handleChangeFormData}
-              placeholder="••••••••"
+              placeholder="Enter username"
               readOnly={isReadOnly}
               onFocus={() => _isReadOnly(false)}
               onBlur={() => _isReadOnly(true)}
-              className="w-full px-4 py-2.5 pr-10 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-            />          
+              className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+            />
+            {formData.errors.username && (
+              <span className="text-xs text-tomato">{formData.errors.username}</span>
+            )}
           </div>
-          {formData.errors.password && (
-            <span className="text-xs text-tomato">
-              {
-                formData.errors.password?.includes('valid')
-                  ? 'Password should be alphanumeric with special characters'
-                  : formData.errors.password
-              }
-            </span>
-          )}
-        </div>
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Confirm Password *</label>
-          <div className="relative">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-[#0d121b] dark:text-white">Email *</label>
             <input
-              type={isShowConfirmPassword ? 'text' : 'password'}
-              name="confirmPassword"
-              value={formData.data.confirmPassword}
+              type="email"
+              name="email"
+              value={formData.data.email}
               onChange={handleChangeFormData}
-              placeholder="••••••••"
-              autoComplete="off"
-              className="w-full px-4 py-2.5 pr-10 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-            />        
+              placeholder="Enter email"
+              readOnly={isReadOnly}
+              onFocus={() => _isReadOnly(false)}
+              onBlur={() => _isReadOnly(true)}
+              className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+            />
+            {formData.errors.email && (
+              <span className="text-xs text-tomato">{formData.errors.email}</span>
+            )}
           </div>
-          {formData.errors.confirmPassword && (
-            <span className="text-xs text-tomato">{formData.errors.confirmPassword}</span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="isActive"
-            name="isActive"
-            checked={formData.data.isActive}
-            onChange={handleToggleIsActive}
-            className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
-          />
-          <label htmlFor="isActive" className="text-sm font-medium text-[#0d121b] dark:text-white cursor-pointer">
-            Is Active
-          </label>
         </div>
 
-        {/* Temporarily hidden isAdmin control
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="isAdmin"
-            name="isAdmin"
-            checked={formData.data.isAdmin}
-            onChange={handleToggleIsAdmin}
-            className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
-          />
-          <label htmlFor="isAdmin" className="text-sm font-medium text-[#0d121b] dark:text-white cursor-pointer">
-            Is Admin
-          </label>
+        {/* AD Username — only in AD mode */}
+        {isAd && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-[#0d121b] dark:text-white">AD Username (sAMAccountName) *</label>
+            <input
+              type="text"
+              name="adUserId"
+              value={formData.data.adUserId}
+              onChange={handleChangeFormData}
+              placeholder="e.g. jdoe"
+              readOnly={isReadOnly}
+              onFocus={() => _isReadOnly(false)}
+              onBlur={() => _isReadOnly(true)}
+              className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors md:w-1/2"
+            />
+            {formData.errors.adUserId && (
+              <span className="text-xs text-tomato">{formData.errors.adUserId}</span>
+            )}
+          </div>
+        )}
+
+        {/* Permissions — hidden in AD create mode; read-only in AD edit mode */}
+        {(!isAd || id) && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-[#0d121b] dark:text-white">
+                Permissions {isAd ? <span className="font-normal text-[#9ca3af]">(AD-managed, read-only)</span> : '*'}
+              </label>
+              {!isAd && (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleAllPermissions(true)}
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    Grant All
+                  </button>
+                  <span className="text-xs text-[#4c669a]">·</span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleAllPermissions(false)}
+                    className="text-xs font-semibold text-[#4c669a] hover:text-[#0d121b] dark:hover:text-white hover:underline"
+                  >
+                    Revoke All
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {isAd && (
+              <p className="text-xs text-[#4c669a] dark:text-gray-400 bg-[#f0f4ff] dark:bg-[#1a253a] rounded-lg px-4 py-2.5 border border-[#c7d5f5] dark:border-[#2a3447]">
+                Role and permissions are determined by this user's AD group membership (Admin, Manager, Accountant, or Viewer) on first login.
+              </p>
+            )}
+
+            <div className={`rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] overflow-hidden${isAd ? ' opacity-60 pointer-events-none' : ''}`}>
+              <table className="w-full text-sm">
+                <thead className="bg-[#f8f9fc] dark:bg-[#1a253a]">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider w-48">
+                      Module
+                    </th>
+                    {CRUD_ACTIONS.map((action) => (
+                      <th key={action} className="px-4 py-3 text-center text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">
+                        {action.charAt(0).toUpperCase() + action.slice(1)}
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-center text-xs font-bold text-[#4c669a] dark:text-gray-400 uppercase tracking-wider">
+                      All
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#e7ebf3] dark:divide-[#2a3447]">
+                  {PERMISSION_MODULES.map((module) => {
+                    const mp = formData.data.permissions[module] || {};
+                    const moduleActions = READ_ONLY_MODULES.includes(module) ? ['read'] : CRUD_ACTIONS;
+                    const allChecked = moduleActions.every((a) => !!mp[a]);
+                    const someChecked = moduleActions.some((a) => !!mp[a]);
+
+                    return (
+                      <tr key={module} className="hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors">
+                        <td className="px-4 py-3 text-sm font-medium text-[#0d121b] dark:text-white">
+                          {MODULE_LABELS[module]}
+                        </td>
+                        {CRUD_ACTIONS.map((action) => (
+                          <td key={action} className="px-4 py-3 text-center">
+                            {READ_ONLY_MODULES.includes(module) && action !== 'read' ? (
+                              <span className="text-[11px] text-[#9ca3af] italic">N/A</span>
+                            ) : (
+                              <input
+                                type="checkbox"
+                                checked={!!mp[action]}
+                                onChange={isAd ? undefined : () => handleTogglePermission(module, action)}
+                                readOnly={isAd}
+                                className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 accent-primary"
+                              />
+                            )}
+                          </td>
+                        ))}
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={allChecked}
+                            ref={(el) => {
+                              if (el) el.indeterminate = someChecked && !allChecked;
+                            }}
+                            onChange={isAd ? undefined : (e) => handleToggleModuleAll(module, e.target.checked)}
+                            readOnly={isAd}
+                            className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 accent-primary"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Password fields — local mode only */}
+        {!isAd && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-[#0d121b] dark:text-white">Password *</label>
+              <div className="relative">
+                <input
+                  type={isShowPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.data.password}
+                  onChange={handleChangeFormData}
+                  placeholder="••••••••"
+                  readOnly={isReadOnly}
+                  onFocus={() => _isReadOnly(false)}
+                  onBlur={() => _isReadOnly(true)}
+                  className="w-full px-4 py-2.5 pr-10 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                />
+              </div>
+              {formData.errors.password && (
+                <span className="text-xs text-tomato">
+                  {formData.errors.password?.includes('valid')
+                    ? 'Password should be alphanumeric with special characters'
+                    : formData.errors.password}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-[#0d121b] dark:text-white">Confirm Password *</label>
+              <div className="relative">
+                <input
+                  type={isShowConfirmPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={formData.data.confirmPassword}
+                  onChange={handleChangeFormData}
+                  placeholder="••••••••"
+                  autoComplete="off"
+                  className="w-full px-4 py-2.5 pr-10 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                />
+              </div>
+              {formData.errors.confirmPassword && (
+                <span className="text-xs text-tomato">{formData.errors.confirmPassword}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isActive"
+              name="isActive"
+              checked={formData.data.isActive}
+              onChange={handleToggleIsActive}
+              className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
+            />
+            <label htmlFor="isActive" className="text-sm font-medium text-[#0d121b] dark:text-white cursor-pointer">
+              Is Active
+            </label>
+          </div>
         </div>
-        */}
-      </div>
-    </section>
-  );
+      </section>
+    );
+  };
 
   const FORM_ACTIONS = () => (
     <div className="flex gap-3 pt-6">
