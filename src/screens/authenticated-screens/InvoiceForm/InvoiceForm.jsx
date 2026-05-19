@@ -49,7 +49,7 @@ const INITIAL_FORM_DATA = {
   validations: {
     referenceNumber: { isRequired: true, label: 'Reference Number' },
     customerId: { isRequired: true, label: 'Customer' },
-    paymentTerms: { isRequired: true, label: 'Payment Terms' },
+    paymentTerms: { isRequired: false, label: 'Payment Terms' },
     // deliveryDate: { isRequired: true, label: 'Delivery Date' },
     vat: { isRequired: true, isNumber: true, label: 'VAT' }
   },
@@ -303,7 +303,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
     const validationData = {
       description: { isRequired: true },
-      productCode: { isRequired: true },
+      productCode: { isRequired: false },
       quantity: { isRequired: true, isNumber: true },
       price: { isRequired: true, isNumber: true },
     };
@@ -414,7 +414,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
       referenceNumber: formData.data.referenceNumber,
       customerId: String(formData.data.customerId || ''),
       paymentType: formData.data.paymentType || 'CASH',
-      paymentTerms: formData.data.paymentTerms,
+      paymentTerms: formData.data.paymentTerms || undefined,
       deliveryDate: formData.data.deliveryDate,
       invoiceType: formData.data.invoiceType || 'B2B',
       vat: Number(formData.data.vat),
@@ -426,7 +426,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         const discountAmount = Number(item.discount_amount) || 0;
         return {
           description: item.description,
-          productCode: item.productCode,
+          productCode: item.productCode || undefined,
           quantity: 1,
           price: useCents ? price * 100 || 0 : price,
           discount_amount: useCents ? discountAmount * 100 || 0 : discountAmount,
@@ -1076,7 +1076,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Payment Terms *</label>
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Payment Terms</label>
           <input
             name="paymentTerms"
             type="text"
