@@ -348,6 +348,14 @@ function CustomersTableContent({
         ),
       },
       {
+        accessorKey: 'crn',
+        header: 'CR#',
+        enableSorting: true,
+        cell: ({ getValue }) => (
+          <span className="font-mono text-xs">{getValue() || '—'}</span>
+        ),
+      },
+      {
         accessorKey: 'isActive',
         header: 'Status',
         enableSorting: true,

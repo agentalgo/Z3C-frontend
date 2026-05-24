@@ -31,6 +31,7 @@ const INITIAL_FORM_DATA = {
     email: '',
     phone: '',
     customerVAT: '',
+    crn: '',
     streetName: '',
     streetNameAr: '',
     address: '',
@@ -179,6 +180,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           email: customer.email || '',
           phone: customer.phone || '',
           customerVAT: customer.customerVAT || '',
+          crn: customer.crn || '',
           address: customer.address || '',
           addressAr: customer.addressAr || '',
           streetName: customer.streetName || '',
@@ -240,6 +242,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           email: customer.email || '',
           phone: customer.phone || '',
           customerVAT: customer.customerVAT || '',
+          crn: customer.crn || '',
           streetName: customer.streetName || '',
           streetNameAr: customer.streetNameAr || '',
           address: customer.address || '',
@@ -264,6 +267,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           email: '',
           phone: '',
           customerVAT: '',
+          crn: '',
           streetName: '',
           streetNameAr: '',
           address: '',
@@ -1226,6 +1230,20 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             value={formData.data.customerVAT}
             onChange={handleChangeFormData}
             placeholder="300000000000003"
+            disabled={!!formData.data.customerId}
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
+          />
+        </div>
+
+        {/* CR# */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">CR# (Commercial Registration)</label>
+          <input
+            name="crn"
+            type="text"
+            value={formData.data.crn}
+            onChange={handleChangeFormData}
+            placeholder="1010884359"
             disabled={!!formData.data.customerId}
             className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
           />
