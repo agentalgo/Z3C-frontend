@@ -20,6 +20,7 @@ const INITIAL_FORM_DATA = {
     email: '',
     phone: '',
     customerVAT: '',
+    crn: '',
     address: '',
     addressAr: '',
     streetName: '',
@@ -129,6 +130,7 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
           email: apiData.email || '',
           phone: apiData.phone || '',
           customerVAT: apiData.customerVAT || '',
+          crn: apiData.crn || '',
           address: apiData.address || '',
           addressAr: apiData.addressAr || '',
           streetName: apiData.streetName || '',
@@ -252,6 +254,7 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
         postalZone: formData.data.postalZone,
         countryCode: formData.data.countryCode,
         customerVAT: formData.data.customerVAT,
+        crn: formData.data.crn || undefined,
         registrationName: formData.data.registrationName,
         registrationNameAr: formData.data.registrationNameAr,
         email: formData.data.email,
@@ -404,6 +407,18 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
           {formData.errors.customerVAT && (
             <span className="text-xs text-tomato">{formData.errors.customerVAT}</span>
           )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-[#0d121b] dark:text-white">CR# (Commercial Registration)</label>
+          <input
+            type="text"
+            name="crn"
+            value={formData.data.crn || ''}
+            onChange={handleChangeFormData}
+            placeholder="1010884359"
+            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+          />
         </div>
       </div>
     </section >
