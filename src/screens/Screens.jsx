@@ -27,6 +27,8 @@ import {
   UserManagementForm,
   ZatcaReports,
   AuditLogging,
+  NotificationRecipientList,
+  NotificationRecipientForm,
 } from './authenticated-screens';
 
 function Screens() {
@@ -52,6 +54,7 @@ function Screens() {
     const customerProfilePerms = getPerms('profile');
     const zatcaReportsPerms = getPerms('zatcaReporting');
     const auditPerms = getPerms('audit');
+    const notificationRecipientPerms = getPerms('notificationRecipient');
     const defaultAuthorizedPath = dashboardPerms.read
       ? '/dashboard'
       : customerPerms.read
@@ -132,6 +135,16 @@ function Screens() {
                     <Route path="/user-management/new" element={<UserManagementForm />} />
                   )}
                   <Route path="/user-management/:id" element={<UserManagementForm />} />
+                </>
+              )}
+
+              {notificationRecipientPerms.read && (
+                <>
+                  <Route path="/notification-recipients" element={<NotificationRecipientList />} />
+                  {notificationRecipientPerms.create && (
+                    <Route path="/notification-recipients/new" element={<NotificationRecipientForm />} />
+                  )}
+                  <Route path="/notification-recipients/:id" element={<NotificationRecipientForm />} />
                 </>
               )}
 
