@@ -46,3 +46,8 @@ export { default as DashboardSubmissionTrendsRequest } from './dashboard-submiss
 export { default as DashboardRecentSubmissionsRequest } from './dashboard-recent-submissions.request';
 export { default as PermissionsFetchRequest } from './permissions-fetch.request';
 export { default as RefreshTokenRequest } from './refresh-token.request';
+export { default as NotificationRecipientListRequest } from './notification-recipient-list.request';
+export { default as NotificationRecipientCreateRequest } from './notification-recipient-create.request';
+export { default as NotificationRecipientDetailRequest } from './notification-recipient-detail.request';
+export { default as NotificationRecipientUpdateRequest } from './notification-recipient-update.request';
+export { default as NotificationRecipientDeleteRequest } from './notification-recipient-delete.request';

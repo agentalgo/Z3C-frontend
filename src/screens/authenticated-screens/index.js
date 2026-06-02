@@ -11,3 +11,5 @@ export { default as UserManagementList } from './UserManagementList/UserManageme
 export { default as UserManagementForm } from './UserManagementForm/UserManagementForm';
 export { default as ZatcaReports } from './ZatcaReports/ZatcaReports';
 export { default as AuditLogging } from './AuditLogging/AuditLogging';
+export { default as NotificationRecipientList } from './NotificationRecipientList/NotificationRecipientList';
+export { default as NotificationRecipientForm } from './NotificationRecipientForm/NotificationRecipientForm';

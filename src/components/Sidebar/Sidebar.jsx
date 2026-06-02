@@ -19,6 +19,7 @@ const navigation = [
   { label: 'User Management', icon: 'manage_accounts', path: '/user-management', permissionKey: 'user' },
   { label: 'Zatca Reports', icon: 'summarize', path: '/zatca-reports', permissionKey: 'zatcaReporting' },
   { label: 'Audit Logging', icon: 'history', path: '/audit-logging', permissionKey: 'audit' },
+  { label: 'Notification Recipients', icon: 'mark_email_unread', path: '/notification-recipients', permissionKey: 'notificationRecipient' },
 ];
 
 function Sidebar() {

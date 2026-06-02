@@ -12,7 +12,7 @@ import { Footer, ErrorFallback } from '../../../components';
 import { showToast, validateSubmissionData, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
 import { auth, loginInfo } from '../../../atoms';
 
-const PERMISSION_MODULES = ['invoice', 'customer', 'profile', 'companyProfile', 'user', 'dashboard', 'zatcaReporting', 'audit'];
+const PERMISSION_MODULES = ['invoice', 'customer', 'profile', 'companyProfile', 'user', 'dashboard', 'zatcaReporting', 'audit', 'notificationRecipient'];
 const READ_ONLY_MODULES = ['dashboard', 'zatcaReporting', 'audit'];
 const MODULE_LABELS = {
   invoice: 'Invoice',
@@ -23,6 +23,7 @@ const MODULE_LABELS = {
   audit: 'Audit Log',
   user: 'User Management',
   dashboard: 'Dashboard',
+  notificationRecipient: 'Notification Recipients',
 };
 const CRUD_ACTIONS = ['read', 'create', 'update', 'delete'];
 const USER_ROLES = ["Admin", "Manager", "Accountant", "Viewer"];
