@@ -10,7 +10,7 @@ COPY . .
 ARG VITE_BASE_URL=http://localhost:5000/api/v1
 ENV VITE_BASE_URL=${VITE_BASE_URL}
 
-RUN npm run build
+RUN npm run build:obfuscate
 
 FROM nginx:1.27-alpine
 
