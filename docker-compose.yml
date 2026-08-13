@@ -9,4 +9,6 @@ services:
         VITE_BASE_URL: ${VITE_BASE_URL}
     ports:
       - "${FRONTEND_PORT}:80"
+    environment:
+      CSP_CONNECT_SRC: ${CSP_CONNECT_SRC:-http://10.192.100.50:5000}
     restart: unless-stopped
