@@ -12,6 +12,6 @@ server {
   add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ${CSP_CONNECT_SRC}; frame-ancestors 'none'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" always;
 
   location / {
-    try_files $$uri $$uri/ /index.html;
+    try_files $uri $uri/ /index.html;
   }
 }
