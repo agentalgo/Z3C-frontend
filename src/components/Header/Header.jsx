@@ -8,6 +8,7 @@ import { loginInfo } from '../../atoms';
 // Utils
 import { useTheme } from '../../contexts/ThemeContext';
 import { decodeString } from '../../utils';
+import EnvironmentBadge from './EnvironmentBadge';
 
 function Header() {
   const { theme, toggleTheme } = useTheme();
@@ -43,6 +44,7 @@ function Header() {
 
   const ACTIONS_SECTION = () => (
     <div className="flex items-center gap-4">
+      <EnvironmentBadge />
       <button
         type="button"
         onClick={(e) => {

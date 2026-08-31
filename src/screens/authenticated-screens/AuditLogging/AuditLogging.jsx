@@ -11,7 +11,7 @@ import { AuditListRequest, UserListRequest } from '../../../requests';
 // Utils
 import { auth } from '../../../atoms';
 import { Footer, ErrorFallback } from '../../../components';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, formatDateTime, formatDateTimeTooltip } from '../../../utils';
 
 const DETAILS_TRUNCATE_LEN = 80;
 const DETAILS_SEP = ' · ';
@@ -253,22 +253,13 @@ function getMergedDetails(row) {
   return parts.join(DETAILS_SEP);
 }
 
+// Kept as a named wrapper because this screen also uses it outside the table (CSV
+// export, detail panel). It previously produced en-GB day-first output
+// (27/08/2026 22:37:20), which disagreed with every other listing; it now
+// delegates to the shared helper so all timestamps read YYYY-MM-DD HH:mm:ss in the
+// viewer's timezone.
 function formatTimestamp(value) {
-  if (!value) return '-';
-  try {
-    const d = new Date(value);
-    return d.toLocaleString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    }).replace(',', '');
-  } catch {
-    return String(value);
-  }
+  return formatDateTime(value, '-');
 }
 
 function toISOStartOfDay(date) {
@@ -716,7 +707,12 @@ function AuditTableContent({ auditPromise, usersPromise, pagination, sorting, _s
         header: 'Timestamp',
         enableSorting: true,
         cell: ({ getValue }) => (
-          <span className="text-sm text-[#0d121b] dark:text-white">{formatTimestamp(getValue())}</span>
+          <span
+            className="text-sm text-[#0d121b] dark:text-white"
+            title={formatDateTimeTooltip(getValue())}
+          >
+            {formatTimestamp(getValue())}
+          </span>
         ),
       },
       {

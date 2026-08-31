@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 
 // APIs
-import { UserCreateRequest, UserDetailRequest, UserUpdateRequest, LdapLookupRequest } from '../../../requests';
+import { UserCreateRequest, UserDetailRequest, UserUpdateRequest, UserPasswordUpdateRequest, LdapLookupRequest } from '../../../requests';
 
 // Utils
 import { Footer, ErrorFallback } from '../../../components';
@@ -52,6 +52,9 @@ const INITIAL_FORM_DATA = {
     adUserId: '',
     password: '',
     confirmPassword: '',
+    // Only used when changing your OWN password: the API requires proof of the
+    // existing one, and this form is also reachable for your own account.
+    currentPassword: '',
     permissions: getEmptyPermissions(),
     role: 'Admin',
     isActive: true,
@@ -73,6 +76,9 @@ const AD_INITIAL_FORM_DATA = {
     adUserId: '',
     password: '',
     confirmPassword: '',
+    // Only used when changing your OWN password: the API requires proof of the
+    // existing one, and this form is also reachable for your own account.
+    currentPassword: '',
     permissions: getEmptyPermissions(),
     role: 'Admin',
     isActive: true,
@@ -134,6 +140,16 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
   const userData = userPromise ? use(userPromise) : null;
   const loginInfoValue = useAtomValue(loginInfo);
   const userPerms = useMemo(() => getNormalizedModulePermissions(parseLoginInfo(loginInfoValue), 'user'), [loginInfoValue]);
+
+  // Editing your OWN account is a materially different case: the API requires the
+  // current password before it will change your own, and doing so invalidates
+  // every session for the account (permissionsVersion is bumped), which signs you
+  // out. The login payload stores the id as `id`.
+  const currentUserId = useMemo(() => {
+    const me = parseLoginInfo(loginInfoValue);
+    return me?.id ?? me?._id ?? null;
+  }, [loginInfoValue]);
+  const isSelfEdit = Boolean(id && currentUserId && String(currentUserId) === String(id));
   const [formData, _formData] = useState({ ...INITIAL_FORM_DATA });
   const [isLoading, _isLoading] = useState(false);
   const [isShowPassword, _isShowPassword] = useState(false);
@@ -178,6 +194,7 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
             : !!apiData.isAdmin,
           password: '',
           confirmPassword: '',
+          currentPassword: '',
         },
         validations: isAd
           ? {}
@@ -312,6 +329,13 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
     }
 
     if (!isAd) {
+      if (formData.data.password && isSelfEdit && !formData.data.currentPassword) {
+        // Caught here rather than left to the API, which would reject it only
+        // AFTER the profile fields had already been saved.
+        showToast('Enter your current password to change your own password', 'error');
+        return;
+      }
+
       if (formData.data.password && formData.data.password !== formData.data.confirmPassword) {
         showToast('Passwords do not match', 'error');
         return;
@@ -357,10 +381,18 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
             return acc;
           }, {}),
         };
-        if (formData.data.password) {
+        // On CREATE the password belongs in the body — CreateUserDto accepts it.
+        // On UPDATE it must not be sent: UpdateUserDto omits `password`, and the
+        // global ValidationPipe runs with forbidNonWhitelisted, so including it
+        // failed the whole request with "property password should not exist".
+        // A supplied password is applied separately, below, via the dedicated
+        // endpoint that enforces the current-password rule.
+        if (!id && formData.data.password) {
           payload.password = formData.data.password;
         }
       }
+
+      const wantsPasswordChange = Boolean(id && !isAd && formData.data.password);
 
       const request = id
         ? UserUpdateRequest(decodedToken, id, JSON.stringify(payload))
@@ -368,7 +400,26 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
 
       request
         .then(() => {
-          showToast(id ? 'User updated successfully!' : 'User created successfully!', 'success');
+          if (!wantsPasswordChange) return null;
+
+          // Sent only when changing your own password; an administrator resetting
+          // another account neither knows nor needs it, and the API ignores it.
+          const body = { newPassword: formData.data.password };
+          if (isSelfEdit) body.currentPassword = formData.data.currentPassword;
+
+          return UserPasswordUpdateRequest(decodedToken, id, JSON.stringify(body));
+        })
+        .then(() => {
+          if (wantsPasswordChange && isSelfEdit) {
+            // Changing your own password bumps permissionsVersion, which revokes
+            // every token for the account — this session included. Say so rather
+            // than letting the next request fail mysteriously.
+            showToast('Password changed. Please sign in again.', 'success');
+          } else if (wantsPasswordChange) {
+            showToast('User and password updated successfully!', 'success');
+          } else {
+            showToast(id ? 'User updated successfully!' : 'User created successfully!', 'success');
+          }
           navigate('/user-management');
         })
         .catch((err) => {
@@ -643,11 +694,39 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
           </div>
         )}
 
+        {/* Current password — only when changing your OWN password.
+            An administrator resetting another account does not need it, so
+            showing it there would imply a requirement that does not exist. */}
+        {!isAd && isSelfEdit && formData.data.password && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-[#0d121b] dark:text-white">
+                Current Password *
+              </label>
+              <input
+                type="password"
+                name="currentPassword"
+                value={formData.data.currentPassword}
+                onChange={handleChangeFormData}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                className="w-full px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+              />
+              <span className="text-xs text-[#4c669a] dark:text-[#a0aec0]">
+                Required to change your own password. Doing so signs you out of all
+                sessions.
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Password fields — local mode only */}
         {!isAd && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-[#0d121b] dark:text-white">Password *</label>
+              <label className="text-sm font-medium text-[#0d121b] dark:text-white">
+                {id ? 'Password' : 'Password *'}
+              </label>
               <div className="relative">
                 <input
                   type={isShowPassword ? 'text' : 'password'}
@@ -671,7 +750,9 @@ function UserManagementFormContent({ id, userPromise, decodedToken, navigate }) 
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-[#0d121b] dark:text-white">Confirm Password *</label>
+              <label className="text-sm font-medium text-[#0d121b] dark:text-white">
+                {id ? 'Confirm Password' : 'Confirm Password *'}
+              </label>
               <div className="relative">
                 <input
                   type={isShowConfirmPassword ? 'text' : 'password'}

@@ -51,3 +51,5 @@ export { default as NotificationRecipientCreateRequest } from './notification-re
 export { default as NotificationRecipientDetailRequest } from './notification-recipient-detail.request';
 export { default as NotificationRecipientUpdateRequest } from './notification-recipient-update.request';
 export { default as NotificationRecipientDeleteRequest } from './notification-recipient-delete.request';
+export { default as ZatcaEnvironmentRequest } from './zatca-environment.request';
+export { default as UserPasswordUpdateRequest } from './user-password-update.request';

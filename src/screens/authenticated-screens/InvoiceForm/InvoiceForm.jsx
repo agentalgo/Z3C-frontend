@@ -432,8 +432,17 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           description: item.description,
           productCode: item.productCode || undefined,
           quantity: 1,
-          price: useCents ? price * 100 || 0 : price,
-          discount_amount: useCents ? discountAmount * 100 || 0 : discountAmount,
+          // Math.round is required, not cosmetic. The API takes price in halalas
+          // and validates it with @IsInt(), but binary floating point cannot hold
+          // most two-decimal values exactly: 311.22 * 100 is 31122.000000000004
+          // and 19.99 * 100 is 1998.9999999999998, both of which the API rejects
+          // with "price must be an integer number". Round numbers such as 100 or
+          // 8.61 happen to multiply cleanly, which is why this only failed for
+          // some prices. Every other * 100 in this file already rounds.
+          price: useCents ? Math.round(price * 100) || 0 : price,
+          discount_amount: useCents
+            ? Math.round(discountAmount * 100) || 0
+            : discountAmount,
           discount_percentage: Number(item.discount_percentage) || 0,
           taxExempt: !!item.taxExempt,
           taxExemptReason: item.taxExemptReason || '',

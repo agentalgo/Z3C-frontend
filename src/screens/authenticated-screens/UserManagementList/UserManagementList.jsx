@@ -11,7 +11,7 @@ import { UserListRequest } from '../../../requests';
 // Utils
 import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback } from '../../../components';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions, formatDateTime, formatDateTimeTooltip } from '../../../utils';
 
 const USER_ROLE_FILTERS = ['Admin', 'Accountant', 'Manager', 'Viewer'];
 
@@ -315,7 +315,9 @@ function UsersTableContent({
         header: 'Created At',
         enableSorting: true,
         cell: ({ getValue }) => (
-          <span className="text-xs">{getValue()}</span>
+          <span className="text-xs" title={formatDateTimeTooltip(getValue())}>
+            {formatDateTime(getValue())}
+          </span>
         ),
       },
       {
@@ -323,7 +325,9 @@ function UsersTableContent({
         header: 'Updated At',
         enableSorting: true,
         cell: ({ getValue }) => (
-          <span className="text-xs">{getValue()}</span>
+          <span className="text-xs" title={formatDateTimeTooltip(getValue())}>
+            {formatDateTime(getValue())}
+          </span>
         ),
       },
       {

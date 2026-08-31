@@ -11,7 +11,7 @@ import { NotificationRecipientListRequest, NotificationRecipientDeleteRequest } 
 // Utils
 import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions, showToast } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions, showToast, formatDateTime, formatDateTimeTooltip } from '../../../utils';
 
 function NotificationRecipientList() {
   const navigate = useNavigate();
@@ -259,7 +259,11 @@ function RecipientsTableContent({
         accessorKey: 'createdAt',
         header: 'Created At',
         enableSorting: true,
-        cell: ({ getValue }) => <span className="text-xs">{getValue()}</span>,
+        cell: ({ getValue }) => (
+          <span className="text-xs" title={formatDateTimeTooltip(getValue())}>
+            {formatDateTime(getValue())}
+          </span>
+        ),
       },
       {
         id: 'actions',

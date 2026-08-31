@@ -11,7 +11,7 @@ import { CustomerProfileDeleteRequest, CustomerProfileListRequest } from '../../
 // Utils
 import { auth, loginInfo } from '../../../atoms';
 import { Footer, ErrorFallback, ConfirmModal } from '../../../components';
-import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions, showToast } from '../../../utils';
+import { DEFAULT_PAGE_SIZE, PAGINATION_PAGE_SIZES, decodeString, parseLoginInfo, getNormalizedModulePermissions, showToast, formatDateTime, formatDateTimeTooltip } from '../../../utils';
 
 const INVOICE_TYPE_FILTERS = ['B2B', 'B2C', 'B2G', 'CREDIT_NOTE', 'DEBIT_NOTE'];
 
@@ -396,7 +396,9 @@ function CustomerProfilesTableContent({
         header: 'Created At',
         enableSorting: true,
         cell: ({ getValue }) => (
-          <span className="text-xs">{getValue()}</span>
+          <span className="text-xs" title={formatDateTimeTooltip(getValue())}>
+            {formatDateTime(getValue())}
+          </span>
         ),
       },
       {
@@ -404,7 +406,9 @@ function CustomerProfilesTableContent({
         header: 'Updated At',
         enableSorting: true,
         cell: ({ getValue }) => (
-          <span className="text-xs">{getValue()}</span>
+          <span className="text-xs" title={formatDateTimeTooltip(getValue())}>
+            {formatDateTime(getValue())}
+          </span>
         ),
       },
       {
