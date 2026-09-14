@@ -14,7 +14,8 @@ RUN npm run build:obfuscate
 
 FROM nginx:1.27-alpine
 
-ENV CSP_CONNECT_SRC=http://10.192.100.50:5000
+ENV CSP_CONNECT_SRC=http://localhost:5555
+ENV API_UPSTREAM=http://host.docker.internal:5555
 
 COPY nginx.conf.template /etc/nginx/default.conf.template
 COPY docker-entrypoint.d/15-csp-envsubst.sh /docker-entrypoint.d/15-csp-envsubst.sh

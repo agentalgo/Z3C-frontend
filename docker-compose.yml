@@ -6,9 +6,14 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_BASE_URL: ${VITE_BASE_URL}
+        VITE_BASE_URL: ${VITE_BASE_URL:-/api/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "${FRONTEND_PORT}:80"
+      - "${FRONTEND_PORT:-8080}:80"
     environment:
-      CSP_CONNECT_SRC: ${CSP_CONNECT_SRC:-http://10.192.100.50:5000}
+      # Extra connect-src hosts (space-separated). 'self' already covers /api/.
+      CSP_CONNECT_SRC: ${CSP_CONNECT_SRC:-http://localhost:5555}
+      # Backend URL from inside this container. Host Nest: host.docker.internal.
+      API_UPSTREAM: ${API_UPSTREAM:-http://host.docker.internal:5555}
     restart: unless-stopped
