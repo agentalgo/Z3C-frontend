@@ -7,7 +7,7 @@ RUN rm -f package-lock.json && npm install
 
 COPY . .
 
-ARG VITE_BASE_URL=http://localhost:5000/api/v1
+ARG VITE_BASE_URL=/api/v1
 ENV VITE_BASE_URL=${VITE_BASE_URL}
 
 RUN npm run build:obfuscate

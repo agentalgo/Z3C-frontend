@@ -1,5 +1,7 @@
 // BASE_URL is read from .env (VITE_BASE_URL). See .env.example. Do not use import.meta.env.BASE_URL — that is Vite's app base path.
-export const BASE_URL = import.meta.env.VITE_BASE_URL ?? 'http://localhost:5555/api/v1';
+// Empty string is treated as unset: `??` would keep "" and POST /auth/login hits SPA nginx (405).
+// Default `/api/v1` is same-origin so host nginx can proxy /api/ to the backend.
+export const BASE_URL = import.meta.env.VITE_BASE_URL || '/api/v1';
 
 export const ENCODER = "Z@tca_da$hb0arD_2026";
 
