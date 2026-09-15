@@ -81,10 +81,12 @@ function CustomerForm() {
     <Fragment>
       <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
         <Suspense fallback={
-          <div className="p-8 flex items-center justify-center">
-            <div className="flex items-center gap-2 text-[#4c669a]">
-              <span className="material-symbols-outlined animate-spin">sync</span>
-              Loading customer details...
+          <div className="breeze-page flex-1">
+            <div className="breeze-form-card px-6 py-10">
+              <div className="flex items-center justify-center gap-2 text-[var(--z3c-subtle)]">
+                <span className="material-symbols-outlined animate-spin">sync</span>
+                Loading customer details...
+              </div>
             </div>
           </div>
         }>
@@ -100,7 +102,7 @@ function CustomerForm() {
   );
 
   return (
-    <div id="customer-form">
+    <div id="customer-form" className="flex min-h-0 flex-1 flex-col">
       {CONTENT()}
     </div>
   );
@@ -282,398 +284,319 @@ function CustomerFormContent({ id, customerPromise, decodedToken, navigate }) {
     }
   };
 
-  // *********** Render Functions ***********
-  const PAGE_HEADER = () => (
-    <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-[#0d121b] dark:text-white text-3xl font-black leading-tight">
-          {id ? 'Edit Customer' : 'Create Customer'}
-        </h1>
+  const inputClassName = (name) =>
+    `breeze-form-input${formData.errors[name] ? ' breeze-form-input--invalid' : ''}`;
+
+  const FIELD = ({ label, name, required, hint, children }) => (
+    <div className="breeze-form-field">
+      <label className="breeze-field__label" htmlFor={`customer-${name}`}>
+        {label}
+        {required ? <span className="breeze-form-required" aria-hidden="true"> *</span> : null}
+      </label>
+      {children}
+      {hint && !formData.errors[name] ? <p className="breeze-form-hint">{hint}</p> : null}
+      {formData.errors[name] ? (
+        <span className="breeze-field__error" id={`customer-${name}-error`}>
+          {formData.errors[name]}
+        </span>
+      ) : null}
+    </div>
+  );
+
+  const TEXT_FIELD = ({ label, name, required, type = 'text', placeholder, dir, maxLength, inputMode, hint }) => (
+    FIELD({
+      label,
+      name,
+      required,
+      hint,
+      children: (
+        <input
+          id={`customer-${name}`}
+          type={type}
+          name={name}
+          value={formData.data[name] || ''}
+          onChange={handleChangeFormData}
+          placeholder={placeholder}
+          dir={dir}
+          maxLength={maxLength}
+          inputMode={inputMode}
+          aria-invalid={Boolean(formData.errors[name])}
+          aria-describedby={formData.errors[name] ? `customer-${name}-error` : undefined}
+          className={inputClassName(name)}
+        />
+      ),
+    })
+  );
+
+  const SECTION_HEADER = ({ icon, title, lede }) => (
+    <div className="breeze-form-section__header">
+      <span className="breeze-form-section__badge" aria-hidden="true">
+        <span className="material-symbols-outlined">{icon}</span>
+      </span>
+      <div>
+        <h3 className="breeze-form-section__title">{title}</h3>
+        {lede ? <p className="breeze-form-section__lede">{lede}</p> : null}
       </div>
     </div>
   );
 
-  const BASIC_INFO_SECTION = () => (
-    <section className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Registered Name *</label>
-          <input
-            type="text"
-            name="registrationName"
-            value={formData.data.registrationName || ''}
-            onChange={handleChangeFormData}
-            placeholder="Ahmed Al-Saud Trading Co."
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.registrationName && (
-            <span className="text-xs text-tomato">{formData.errors.registrationName}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Registered Name (Arabic)</label>
-          <input
-            type="text"
-            name="registrationNameAr"
-            value={formData.data.registrationNameAr || ''}
-            onChange={handleChangeFormData}
-            placeholder="شركة أحمد السعود"
-            dir="rtl"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.registrationNameAr && (
-            <span className="text-xs text-tomato">{formData.errors.registrationNameAr}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Email</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.data.email || ''}
-            onChange={handleChangeFormData}
-            placeholder="ahmed@customer.sa"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.email && (
-            <span className="text-xs text-tomato">{formData.errors.email}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Phone</label>
-          <input
-            type="text"
-            name="phone"
-            value={formData.data.phone || ''}
-            onChange={handleChangeFormData}
-            placeholder="+966 11 234 5678"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.phone && (
-            <span className="text-xs text-tomato">{formData.errors.phone}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Customer Profile (Optional)</label>
-          <AsyncSelect
-            cacheOptions
-            defaultOptions
-            isClearable
-            loadOptions={loadCustomerProfileOptions}
-            onChange={handleCustomerProfileChange}
-            value={selectedCustomerProfile}
-            placeholder="Select or search customer profile..."
-            classNames={{
-              control: (state) =>
-                `!px-2 !py-0.5 !rounded-lg !border !bg-white dark:!bg-[#161f30] !shadow-none hover:!border-primary focus:!border-primary !transition-colors ${
-                  state.isFocused
-                    ? '!border-primary !ring-1 !ring-primary'
-                    : '!border-[#e7ebf3] dark:!border-[#2a3447]'
-                }`,
-              menu: () =>
-                '!bg-white dark:!bg-[#161f30] !border !border-[#e7ebf3] dark:!border-[#2a3447] !rounded-lg !shadow-lg !mt-1 !z-50',
-              option: (state) =>
-                `!px-4 !py-2 !cursor-pointer !text-sm ${
-                  state.isSelected
-                    ? '!bg-primary !text-white'
-                    : state.isFocused
-                      ? '!bg-gray-50 dark:!bg-gray-800 !text-[#0d121b] dark:!text-white'
-                      : '!text-[#0d121b] dark:!text-white'
-                }`,
-              input: () => '!text-sm !text-[#0d121b] dark:!text-white',
-              singleValue: () => '!text-sm !text-[#0d121b] dark:!text-white',
-              placeholder: () => '!text-sm !text-[#4c669a]',
-            }}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Customer VAT *</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={15}
-            name="customerVAT"
-            value={formData.data.customerVAT || ''}
-            onChange={handleChangeFormData}
-            placeholder="330000000000003"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.customerVAT && (
-            <span className="text-xs text-tomato">{formData.errors.customerVAT}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">CR# (Commercial Registration)</label>
-          <input
-            type="text"
-            name="crn"
-            value={formData.data.crn || ''}
-            onChange={handleChangeFormData}
-            placeholder="1010884359"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-        </div>
+  // *********** Render Functions ***********
+  const PAGE_HEADER = () => (
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <button
+          type="button"
+          onClick={() => navigate('/customer')}
+          className="breeze-link breeze-page__back"
+        >
+          <span className="material-symbols-outlined">arrow_back</span>
+          Customers
+        </button>
+        <h2 className="breeze-page__title">
+          {id ? 'Edit Customer' : 'Create Customer'}
+        </h2>
+        <p className="breeze-page__lede">
+          {id
+            ? 'Update bilingual legal name, tax identifiers, and ZATCA address details'
+            : 'Register a buyer with bilingual legal name, VAT, and ZATCA address details'}
+        </p>
       </div>
-    </section >
+    </div>
   );
 
-  const ADDRESS_DETAILS_SECTION = () => (
-    <section className="space-y-6">
-      <div className="flex items-center gap-2 pb-2">
-        <button className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-[#0d121b] dark:text-white text-sm font-medium rounded-lg">
-          Address Details
-        </button>
+  const IDENTITY_SECTION = () => (
+    <section className="breeze-form-section">
+      {SECTION_HEADER({
+        icon: 'badge',
+        title: 'Identity & contact',
+        lede: 'Legal registered name in English and Arabic, plus primary contact details.',
+      })}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
+        {TEXT_FIELD({
+          label: 'Registered Name',
+          name: 'registrationName',
+          required: true,
+          placeholder: 'Ahmed Al-Saud Trading Co.',
+        })}
+        {TEXT_FIELD({
+          label: 'Registered Name (Arabic)',
+          name: 'registrationNameAr',
+          required: true,
+          placeholder: 'شركة أحمد السعود',
+          dir: 'rtl',
+        })}
+        {TEXT_FIELD({
+          label: 'Email',
+          name: 'email',
+          required: true,
+          type: 'email',
+          placeholder: 'ahmed@customer.sa',
+        })}
+        {TEXT_FIELD({
+          label: 'Phone',
+          name: 'phone',
+          placeholder: '+966 11 234 5678',
+        })}
       </div>
+    </section>
+  );
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Row 1 */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Full Address</label>
-          <input
-            type="text"
-            name="address"
-            value={formData.data.address || ''}
-            onChange={handleChangeFormData}
-            placeholder="Building 1234, Prince Sultan Street, Riyadh"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.address && (
-            <span className="text-xs text-tomato">{formData.errors.address}</span>
-          )}
-        </div>
+  const TAX_SECTION = () => (
+    <section className="breeze-form-section">
+      {SECTION_HEADER({
+        icon: 'receipt_long',
+        title: 'Tax & registration',
+        lede: 'VAT number, commercial registration, and optional billing profile.',
+      })}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
+        {TEXT_FIELD({
+          label: 'Customer VAT',
+          name: 'customerVAT',
+          required: true,
+          placeholder: '330000000000003',
+          maxLength: 15,
+          inputMode: 'numeric',
+          hint: '15 digits, must start and end with 3',
+        })}
+        {TEXT_FIELD({
+          label: 'CR# (Commercial Registration)',
+          name: 'crn',
+          placeholder: '1010884359',
+        })}
+        {FIELD({
+          label: 'Customer Profile',
+          name: 'customerProfileId',
+          children: (
+            <AsyncSelect
+              inputId="customer-customerProfileId"
+              cacheOptions
+              defaultOptions
+              isClearable
+              loadOptions={loadCustomerProfileOptions}
+              onChange={handleCustomerProfileChange}
+              value={selectedCustomerProfile}
+              placeholder="Select or search customer profile..."
+              classNamePrefix="breeze-rs"
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              menuPosition="fixed"
+              styles={{
+                menuPortal: (base) => ({ ...base, zIndex: 60 }),
+              }}
+            />
+          ),
+        })}
+      </div>
+    </section>
+  );
 
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Full Address (Arabic)</label>
-          <input
-            type="text"
-            name="addressAr"
-            value={formData.data.addressAr || ''}
-            onChange={handleChangeFormData}
-            placeholder="مبنى 1234، شارع الأمير سلطان، الرياض"
-            dir="rtl"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.addressAr && (
-            <span className="text-xs text-tomato">{formData.errors.addressAr}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Street Name</label>
-          <input
-            type="text"
-            name="streetName"
-            value={formData.data.streetName || ''}
-            onChange={handleChangeFormData}
-            placeholder="Prince Sultan Street"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.streetName && (
-            <span className="text-xs text-tomato">{formData.errors.streetName}</span>
-          )}
-        </div>
-
-        {/* Row 2 */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Street Name (Arabic)</label>
-          <input
-            type="text"
-            name="streetNameAr"
-            value={formData.data.streetNameAr || ''}
-            onChange={handleChangeFormData}
-            placeholder="شارع الأمير سلطان"
-            dir="rtl"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.streetNameAr && (
-            <span className="text-xs text-tomato">{formData.errors.streetNameAr}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Building Number *</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={4}
-            name="buildingNumber"
-            value={formData.data.buildingNumber || ''}
-            onChange={handleChangeFormData}
-            placeholder="1234"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.buildingNumber && (
-            <span className="text-xs text-tomato">{formData.errors.buildingNumber}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">City Subdivision Name</label>
-          <input
-            type="text"
-            name="citySubDivisionName"
-            value={formData.data.citySubDivisionName || ''}
-            onChange={handleChangeFormData}
-            placeholder="District 5"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.citySubDivisionName && (
-            <span className="text-xs text-tomato">{formData.errors.citySubDivisionName}</span>
-          )}
-        </div>
-
-        {/* Row 3 */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">City Subdivision Name (Arabic)</label>
-          <input
-            type="text"
-            name="citySubDivisionNameAr"
-            value={formData.data.citySubDivisionNameAr || ''}
-            onChange={handleChangeFormData}
-            placeholder="الحي الخامس"
-            dir="rtl"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.citySubDivisionNameAr && (
-            <span className="text-xs text-tomato">{formData.errors.citySubDivisionNameAr}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">City Name *</label>
-          <input
-            type="text"
-            name="cityName"
-            value={formData.data.cityName || ''}
-            onChange={handleChangeFormData}
-            placeholder="Riyadh"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.cityName && (
-            <span className="text-xs text-tomato">{formData.errors.cityName}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">City Name (Arabic)</label>
-          <input
-            type="text"
-            name="cityNameAr"
-            value={formData.data.cityNameAr || ''}
-            onChange={handleChangeFormData}
-            placeholder="الرياض"
-            dir="rtl"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.cityNameAr && (
-            <span className="text-xs text-tomato">{formData.errors.cityNameAr}</span>
-          )}
-        </div>
-
-        {/* Row 4 */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Postal Zone *</label>
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={5}
-            name="postalZone"
-            value={formData.data.postalZone || ''}
-            onChange={handleChangeFormData}
-            placeholder="12345"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.postalZone && (
-            <span className="text-xs text-tomato">{formData.errors.postalZone}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-[#0d121b] dark:text-white">Country Code *</label>
-          <input
-            type="text"
-            maxLength={2}
-            name="countryCode"
-            value={formData.data.countryCode || ''}
-            onChange={handleChangeFormData}
-            placeholder="SA"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
-          />
-          {formData.errors.countryCode && (
-            <span className="text-xs text-tomato">{formData.errors.countryCode}</span>
-          )}
-        </div>
+  const ADDRESS_SECTION = () => (
+    <section className="breeze-form-section">
+      {SECTION_HEADER({
+        icon: 'location_on',
+        title: 'Address details',
+        lede: 'ZATCA-compliant bilingual street address, city, postal zone, and country.',
+      })}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
+        {TEXT_FIELD({
+          label: 'Full Address',
+          name: 'address',
+          required: true,
+          placeholder: 'Building 1234, Prince Sultan Street, Riyadh',
+        })}
+        {TEXT_FIELD({
+          label: 'Full Address (Arabic)',
+          name: 'addressAr',
+          required: true,
+          placeholder: 'مبنى 1234، شارع الأمير سلطان، الرياض',
+          dir: 'rtl',
+        })}
+        {TEXT_FIELD({
+          label: 'Street Name',
+          name: 'streetName',
+          required: true,
+          placeholder: 'Prince Sultan Street',
+        })}
+        {TEXT_FIELD({
+          label: 'Street Name (Arabic)',
+          name: 'streetNameAr',
+          required: true,
+          placeholder: 'شارع الأمير سلطان',
+          dir: 'rtl',
+        })}
+        {TEXT_FIELD({
+          label: 'Building Number',
+          name: 'buildingNumber',
+          required: true,
+          placeholder: '1234',
+          maxLength: 4,
+          inputMode: 'numeric',
+          hint: 'Exactly 4 digits',
+        })}
+        {TEXT_FIELD({
+          label: 'City Subdivision Name',
+          name: 'citySubDivisionName',
+          placeholder: 'District 5',
+        })}
+        {TEXT_FIELD({
+          label: 'City Subdivision Name (Arabic)',
+          name: 'citySubDivisionNameAr',
+          placeholder: 'الحي الخامس',
+          dir: 'rtl',
+        })}
+        {TEXT_FIELD({
+          label: 'City Name',
+          name: 'cityName',
+          required: true,
+          placeholder: 'Riyadh',
+        })}
+        {TEXT_FIELD({
+          label: 'City Name (Arabic)',
+          name: 'cityNameAr',
+          required: true,
+          placeholder: 'الرياض',
+          dir: 'rtl',
+        })}
+        {TEXT_FIELD({
+          label: 'Postal Zone',
+          name: 'postalZone',
+          required: true,
+          placeholder: '12345',
+          maxLength: 5,
+          inputMode: 'numeric',
+          hint: 'Exactly 5 digits',
+        })}
+        {TEXT_FIELD({
+          label: 'Country Code',
+          name: 'countryCode',
+          required: true,
+          placeholder: 'SA',
+          maxLength: 2,
+          hint: 'ISO 2-letter code, e.g. SA',
+        })}
       </div>
     </section>
   );
 
   const FORM_ACTIONS = () => (
-    <div className="flex gap-3 pt-6">
+    <div className="breeze-form-actions">
+      <button
+        type="button"
+        onClick={() => navigate('/customer')}
+        className="breeze-btn breeze-btn--outline breeze-btn--inline w-full sm:w-auto"
+      >
+        Cancel
+      </button>
       {(!id || customerPerms.update) && (
         <button
           type="submit"
           disabled={isLoading || customerData?.isError}
-          onClick={handleSubmitForm}
-          className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed min-w-[100px]"
+          className="breeze-btn breeze-btn--primary breeze-btn--inline w-full sm:w-auto min-w-[140px]"
         >
-          {isLoading ? 'SAVING...' : 'SAVE'}
+          {isLoading ? (
+            <Fragment>
+              <span className="breeze-btn__spinner" aria-hidden="true" />
+              Saving...
+            </Fragment>
+          ) : (
+            <Fragment>
+              <span className="material-symbols-outlined text-[18px]">save</span>
+              {id ? 'Save changes' : 'Create customer'}
+            </Fragment>
+          )}
         </button>
       )}
-      <button
-        type="button"
-        onClick={() => navigate('/customer')}
-        className="px-6 py-2.5 bg-red-500 text-white text-sm font-bold rounded-lg hover:bg-red-600 transition-colors"
-      >
-        CANCEL
-      </button>
-    </div>
-  );
-
-  const FORM_CONTENT = () => (
-    <div className="p-6 space-y-8">
-      {BASIC_INFO_SECTION()}
-      {ADDRESS_DETAILS_SECTION()}
-      {FORM_ACTIONS()}
     </div>
   );
 
   const CUSTOMER_FORM = () => (
-    <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] overflow-hidden">
-      {FORM_CONTENT()}
-    </div>
-  );
-
-  const MAIN_GRID = () => (
-    <div className="grid grid-cols-1 gap-8">
-      <div className="lg:col-span-12">
-        {CUSTOMER_FORM()}
-      </div>
-    </div>
-  );
-
-  const MAIN_CONTENT = () => (
-    <div className="p-8 space-y-8">
-      {PAGE_HEADER()}
-      {MAIN_GRID()}
+    <div className="breeze-form-card">
+      <form className="breeze-form" onSubmit={handleSubmitForm} noValidate>
+        {customerData?.isError && (
+          <div className="breeze-alert" role="alert">
+            <span className="material-symbols-outlined">error</span>
+            <span>Unable to load this customer. You can go back to the list and try again.</span>
+          </div>
+        )}
+        {IDENTITY_SECTION()}
+        {TAX_SECTION()}
+        {ADDRESS_SECTION()}
+        {FORM_ACTIONS()}
+      </form>
     </div>
   );
 
   const CONTENT = () => (
     <Fragment>
-      {MAIN_CONTENT()}
+      <div className="breeze-page flex-1">
+        {PAGE_HEADER()}
+        {CUSTOMER_FORM()}
+      </div>
       <Footer />
     </Fragment>
   );
 
   return (
-    <div>
+    <div className="flex min-h-0 flex-1 flex-col">
       {CONTENT()}
     </div>
   );
