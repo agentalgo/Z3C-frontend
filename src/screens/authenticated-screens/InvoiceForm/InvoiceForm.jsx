@@ -68,6 +68,27 @@ const INITIAL_LINE_ITEM = {
   taxExemptReason: '',
 };
 
+const SELECT_MENU_STYLES = {
+  menuPortal: (base) => ({ ...base, zIndex: 60 }),
+};
+
+const INVOICE_TYPE_OPTIONS = [
+  { value: 'B2B', label: 'B2B' },
+  { value: 'B2C', label: 'B2C' },
+  { value: 'B2G', label: 'B2G' },
+  { value: 'CREDIT_NOTE', label: 'CREDIT_NOTE', disabled: true },
+  { value: 'DEBIT_NOTE', label: 'DEBIT_NOTE', disabled: true },
+];
+
+const PAYMENT_TYPE_OPTIONS = [
+  { value: '', label: 'Select payment type...' },
+  { value: 'CASH', label: 'CASH' },
+  { value: 'CREDIT_CARD', label: 'CREDIT CARD' },
+  { value: 'BANK_TRANSFER', label: 'BANK TRANSFER' },
+  { value: 'CHECK', label: 'CHECK' },
+  { value: 'BANK_CARD', label: 'BANK CARD' },
+];
+
 function InvoiceForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -89,10 +110,12 @@ function InvoiceForm() {
     <Fragment>
       <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
         <Suspense fallback={
-          <div className="p-8 flex items-center justify-center">
-            <div className="flex items-center gap-2 text-[#4c669a]">
-              <span className="material-symbols-outlined animate-spin">sync</span>
-              Loading invoice details...
+          <div className="breeze-page flex-1">
+            <div className="breeze-form-card px-6 py-10">
+              <div className="flex items-center justify-center gap-2 text-[var(--z3c-subtle)]">
+                <span className="material-symbols-outlined animate-spin">sync</span>
+                Loading invoice details...
+              </div>
             </div>
           </div>
         }>
@@ -108,7 +131,7 @@ function InvoiceForm() {
   );
 
   return (
-    <div id="invoice-form">
+    <div id="invoice-form" className="flex min-h-0 flex-1 flex-col">
       {CONTENT()}
     </div>
   );
@@ -139,7 +162,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     return Math.max(0, discountedPriceCents * qty) / 100;
   };
 
-  const [lineItems, _lineItems] = useState([]);
+  const [lineItems, _lineItems] = useState([{ ...INITIAL_LINE_ITEM }]);
 
   const totals = useMemo(() => {
     const totalCents = lineItems.reduce(
@@ -198,7 +221,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
         },
       }));
 
-      if (apiData.lineItems) {
+      if (apiData.lineItems?.length) {
         _lineItems(apiData.lineItems.map(item => ({
           description: item.description || '',
           productCode: item.productCode || '',
@@ -210,10 +233,12 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
           taxExempt: item.taxExempt || false,
           taxExemptReason: item.taxExemptReason || '',
         })));
+      } else {
+        _lineItems([{ ...INITIAL_LINE_ITEM }]);
       }
     } else if (invoiceData?.isError) {
       _formData({ ...INITIAL_FORM_DATA });
-      _lineItems([]);
+      _lineItems([{ ...INITIAL_LINE_ITEM }]);
     }
   }, [invoiceData]);
 
@@ -986,618 +1011,500 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   };
 
   const handleRemoveLineItem = (index) => {
-    _lineItems((old) => old.filter((_, i) => i !== index));
+    _lineItems((old) => (old.length <= 1 ? old : old.filter((_, i) => i !== index)));
   };
 
   // *********** Render Functions ***********
+  const inputClassName = (name, extra = '') =>
+    `breeze-form-input${formData.errors[name] ? ' breeze-form-input--invalid' : ''}${extra ? ` ${extra}` : ''}`;
+
+  const FIELD = ({ label, name, required, hint, children }) => (
+    <div className="breeze-form-field">
+      <label className="breeze-field__label" htmlFor={`invoice-${name}`}>
+        {label}
+        {required ? <span className="breeze-form-required" aria-hidden="true"> *</span> : null}
+      </label>
+      {children}
+      {hint && !formData.errors[name] ? <p className="breeze-form-hint">{hint}</p> : null}
+      {formData.errors[name] ? (
+        <span className="breeze-field__error" id={`invoice-${name}-error`}>
+          {formData.errors[name]}
+        </span>
+      ) : null}
+    </div>
+  );
+
+  const TEXT_FIELD = ({
+    label,
+    name,
+    required,
+    type = 'text',
+    placeholder,
+    dir,
+    disabled,
+    min,
+    max,
+    step,
+    hint,
+  }) =>
+    FIELD({
+      label,
+      name,
+      required,
+      hint,
+      children: (
+        <input
+          id={`invoice-${name}`}
+          type={type}
+          name={name}
+          value={formData.data[name] ?? ''}
+          onChange={disabled ? undefined : handleChangeFormData}
+          placeholder={placeholder}
+          dir={dir}
+          disabled={disabled}
+          min={min}
+          max={max}
+          step={step}
+          aria-invalid={Boolean(formData.errors[name])}
+          aria-describedby={formData.errors[name] ? `invoice-${name}-error` : undefined}
+          className={inputClassName(name)}
+        />
+      ),
+    });
+
+  const SELECT_FIELD = ({ label, name, required, children }) => (
+    FIELD({ label, name, required, children })
+  );
+
+  const SECTION_HEADER = ({ icon, title, lede, action }) => (
+    <div className="breeze-form-section__header flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-3 min-w-0">
+        <span className="breeze-form-section__badge" aria-hidden="true">
+          <span className="material-symbols-outlined">{icon}</span>
+        </span>
+        <div className="min-w-0">
+          <h3 className="breeze-form-section__title">{title}</h3>
+          {lede ? <p className="breeze-form-section__lede">{lede}</p> : null}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+
   const PAGE_HEADER = () => (
-    <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-[#0d121b] dark:text-white text-3xl font-black leading-tight">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <button
+          type="button"
+          onClick={() => navigate('/invoices')}
+          className="breeze-link breeze-page__back"
+        >
+          <span className="material-symbols-outlined">arrow_back</span>
+          Invoices
+        </button>
+        <h2 className="breeze-page__title">
           {id ? 'Edit Invoice' : 'Create Invoice'}
-        </h1>
-        <p className="text-[#4c669a] dark:text-gray-400 text-base font-normal">
-          {id ? 'Update and manage your compliant tax invoice.' : 'Create compliant tax invoices or bulk process via XML/PDF.'}
+        </h2>
+        <p className="breeze-page__lede">
+          {id
+            ? 'Update and manage your compliant tax invoice'
+            : 'Create a Phase 2 compliant tax invoice'}
         </p>
       </div>
     </div>
   );
 
   const INVOICE_DETAILS_SECTION = () => (
-    <section>
-      <h3 className="text-[#0d121b] dark:text-white text-base font-bold mb-4 flex items-center gap-2">
-        <span className="size-2 rounded-full bg-primary"></span> Invoice Details / تفاصيل الفاتورة
-      </h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Row 1 */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Invoice Number</label>
-          <input
-            name="invoiceNumber"
-            type="text"
-            disabled={true}
-            value={formData.data.invoiceNumber}
-            onChange={() => { }}
-            // onChange={handleChangeFormData}
-            placeholder="Auto-generated field"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          />
-          {formData.errors.invoiceNumber && (
-            <span className="text-xs text-tomato">{formData.errors.invoiceNumber}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Invoice Type</label>
-          <select
-            name="invoiceType"
-            value={formData.data.invoiceType || 'B2B'}
-            onChange={handleChangeFormData}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white pr-8 text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors appearance-none dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          >
-            <option value="B2B">B2B</option>
-            <option value="B2C">B2C</option>
-            <option value="B2G">B2G</option>
-            <option value="CREDIT_NOTE" disabled>CREDIT_NOTE</option>
-            <option value="DEBIT_NOTE" disabled>DEBIT_NOTE</option>
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Reference Number *</label>
-          <input
-            name="referenceNumber"
-            type="text"
-            value={formData.data.referenceNumber}
-            onChange={handleChangeFormData}
-            placeholder="REF-00000"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          />
-          {formData.errors.referenceNumber && (
-            <span className="text-xs text-tomato">{formData.errors.referenceNumber}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Payment Type</label>
-          <select
-            name="paymentType"
-            value={formData.data.paymentType}
-            onChange={handleChangeFormData}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white pr-8 text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors appearance-none dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          >
-            <option value="">Select payment type...</option>
-            <option value="CASH">CASH</option>
-            <option value="CREDIT_CARD">CREDIT CARD</option>
-            <option value="BANK_TRANSFER">BANK TRANSFER</option>
-            <option value="CHECK">CHECK</option>
-            <option value="BANK_CARD">BANK CARD</option>
-          </select>
-          {formData.errors.paymentType && (
-            <span className="text-xs text-tomato">{formData.errors.paymentType}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Payment Terms</label>
-          <input
-            name="paymentTerms"
-            type="text"
-            value={formData.data.paymentTerms}
-            onChange={handleChangeFormData}
-            placeholder="e.g. Net 30"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          />
-          {formData.errors.paymentTerms && (
-            <span className="text-xs text-tomato">{formData.errors.paymentTerms}</span>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Delivery Date</label>
-          <input
-            name="deliveryDate"
-            type="date"
-            value={formData.data.deliveryDate}
-            onChange={handleChangeFormData}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Currency</label>
-          <input
-            type="text"
-            value="SAR"
-            disabled
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-gray-50 text-sm text-[#0d121b] dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white cursor-not-allowed"
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Note</label>
-          <input
-            name="note"
-            type="text"
-            value={formData.data.note}
-            onChange={handleChangeFormData}
-            placeholder="Internal note"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">VAT (%) *</label>
-          <input
-            name="vat"
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            value={formData.data.vat}
-            onChange={handleChangeFormData}
-            placeholder="15"
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white"
-          />
-          {formData.errors.vat && (
-            <span className="text-xs text-tomato">{formData.errors.vat}</span>
-          )}
-        </div>
+    <section className="breeze-form-section">
+      {SECTION_HEADER({
+        icon: 'receipt_long',
+        title: 'Invoice details',
+        lede: 'Reference, payment, delivery date, and VAT for this tax invoice.',
+      })}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
+        {TEXT_FIELD({
+          label: 'Invoice Number',
+          name: 'invoiceNumber',
+          placeholder: 'Auto-generated field',
+          disabled: true,
+        })}
+        {SELECT_FIELD({
+          label: 'Invoice Type',
+          name: 'invoiceType',
+          children: (
+            <select
+              id="invoice-invoiceType"
+              name="invoiceType"
+              value={formData.data.invoiceType || 'B2B'}
+              onChange={handleChangeFormData}
+              className="breeze-select"
+            >
+              {INVOICE_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value} disabled={option.disabled}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ),
+        })}
+        {TEXT_FIELD({
+          label: 'Reference Number',
+          name: 'referenceNumber',
+          required: true,
+          placeholder: 'REF-00000',
+        })}
+        {SELECT_FIELD({
+          label: 'Payment Type',
+          name: 'paymentType',
+          children: (
+            <select
+              id="invoice-paymentType"
+              name="paymentType"
+              value={formData.data.paymentType}
+              onChange={handleChangeFormData}
+              className={`breeze-select${formData.errors.paymentType ? ' breeze-form-input--invalid' : ''}`}
+            >
+              {PAYMENT_TYPE_OPTIONS.map((option) => (
+                <option key={option.value || 'empty'} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ),
+        })}
+        {TEXT_FIELD({
+          label: 'Payment Terms',
+          name: 'paymentTerms',
+          placeholder: 'e.g. Net 30',
+        })}
+        {TEXT_FIELD({
+          label: 'Delivery Date',
+          name: 'deliveryDate',
+          type: 'date',
+        })}
+        {FIELD({
+          label: 'Currency',
+          name: 'currency',
+          children: (
+            <input
+              id="invoice-currency"
+              type="text"
+              value="SAR"
+              disabled
+              className="breeze-form-input"
+            />
+          ),
+        })}
+        {TEXT_FIELD({
+          label: 'Note',
+          name: 'note',
+          placeholder: 'Internal note',
+        })}
+        {TEXT_FIELD({
+          label: 'VAT (%)',
+          name: 'vat',
+          required: true,
+          type: 'number',
+          min: '0',
+          max: '100',
+          step: '0.01',
+          placeholder: '15',
+        })}
       </div>
     </section>
   );
 
-  const BUYER_INFO_SECTION = () => (
-    <section>
-      <h3 className="text-[#0d121b] dark:text-white text-base font-bold mb-4 flex items-center gap-2">
-        <span className="size-2 rounded-full bg-primary"></span> Buyer Information / معلومات المشتري
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Registered Name (AsyncSelect) */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Registered Name *</label>
-          <AsyncSelect
-            cacheOptions
-            defaultOptions
-            loadOptions={loadCustomerOptions}
-            onChange={handleCustomerChange}
-            value={
-              formData.data.registrationName
-                ? { label: formData.data.registrationName, value: formData.data.registrationName }
-                : null
-            }
-            placeholder="Select or search customer..."
-            classNames={{
-              control: (state) =>
-                `!px-2 !py-0.5 !rounded-lg !border !bg-white dark:!bg-[#161f30] !shadow-none hover:!border-primary focus:!border-primary !transition-colors ${state.isFocused ? '!border-primary !ring-1 !ring-primary' : '!border-[#e7ebf3] dark:!border-[#2a3447]'
-                }`,
-              menu: () => '!bg-white dark:!bg-[#161f30] !border !border-[#e7ebf3] dark:!border-[#2a3447] !rounded-lg !shadow-lg !mt-1 !z-50',
-              option: (state) =>
-                `!px-4 !py-2 !cursor-pointer !text-sm ${state.isSelected
-                  ? '!bg-primary !text-white'
-                  : state.isFocused
-                    ? '!bg-gray-50 dark:!bg-gray-800 !text-[#0d121b] dark:!text-white'
-                    : '!text-[#0d121b] dark:!text-white'
-                }`,
-              input: () => '!text-sm !text-[#0d121b] dark:!text-white',
-              singleValue: () => '!text-sm !text-[#0d121b] dark:!text-white',
-              placeholder: () => '!text-sm !text-[#4c669a]',
-            }}
-          />
-          {formData.errors.customerId && (
-            <span className="text-xs text-tomato">{formData.errors.customerId}</span>
-          )}
-        </div>
+  const BUYER_INFO_SECTION = () => {
+    const isCustomerLocked = Boolean(formData.data.customerId);
 
-        {/* Email */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Email</label>
-          <input
-            name="email"
-            type="email"
-            value={formData.data.email}
-            onChange={handleChangeFormData}
-            placeholder="customer@example.com"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-          {formData.errors.email && (
-            <span className="text-xs text-tomato">{formData.errors.email}</span>
-          )}
+    return (
+      <section className="breeze-form-section">
+        {SECTION_HEADER({
+          icon: 'person',
+          title: 'Buyer information',
+          lede: 'Select a registered customer. Address and tax identifiers fill in automatically.',
+        })}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
+          {FIELD({
+            label: 'Registered Name',
+            name: 'customerId',
+            required: true,
+            children: (
+              <AsyncSelect
+                inputId="invoice-customerId"
+                cacheOptions
+                defaultOptions
+                isClearable
+                loadOptions={loadCustomerOptions}
+                onChange={handleCustomerChange}
+                value={
+                  formData.data.registrationName
+                    ? { label: formData.data.registrationName, value: formData.data.customerId || formData.data.registrationName }
+                    : null
+                }
+                placeholder="Select or search customer..."
+                classNamePrefix="breeze-rs"
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                menuPosition="fixed"
+                styles={SELECT_MENU_STYLES}
+              />
+            ),
+          })}
+          {TEXT_FIELD({
+            label: 'Email',
+            name: 'email',
+            type: 'email',
+            placeholder: 'customer@example.com',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'Phone',
+            name: 'phone',
+            placeholder: '+966 11 234 5678',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'Customer VAT',
+            name: 'customerVAT',
+            placeholder: '300000000000003',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'CR# (Commercial Registration)',
+            name: 'crn',
+            placeholder: '1010884359',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'Registered Name (Arabic)',
+            name: 'registrationNameAr',
+            placeholder: 'شركة أكمي',
+            dir: 'rtl',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'Street Name',
+            name: 'streetName',
+            placeholder: 'Prince Sultan Street',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'Street Name (Arabic)',
+            name: 'streetNameAr',
+            placeholder: 'شارع الأمير سلطان',
+            dir: 'rtl',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'Address',
+            name: 'address',
+            placeholder: 'Building 1234, Prince Sultan Street, Riyadh',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'Address (Arabic)',
+            name: 'addressAr',
+            placeholder: 'مبنى 1234، شارع الأمير سلطان، الرياض',
+            dir: 'rtl',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'Building Number',
+            name: 'buildingNumber',
+            placeholder: '1234',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'District',
+            name: 'citySubdivisionName',
+            placeholder: 'District 5',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'District (Arabic)',
+            name: 'citySubdivisionNameAr',
+            placeholder: 'الحي الخامس',
+            dir: 'rtl',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'City',
+            name: 'cityName',
+            placeholder: 'Riyadh',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'City (Arabic)',
+            name: 'cityNameAr',
+            placeholder: 'الرياض',
+            dir: 'rtl',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'Postal Zone',
+            name: 'postalZone',
+            placeholder: '12345',
+            disabled: isCustomerLocked,
+          })}
+          {TEXT_FIELD({
+            label: 'Country Code',
+            name: 'countryCode',
+            placeholder: 'SA',
+            disabled: isCustomerLocked,
+          })}
         </div>
-
-        {/* Phone */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Phone</label>
-          <input
-            name="phone"
-            type="text"
-            value={formData.data.phone}
-            onChange={handleChangeFormData}
-            placeholder="+966 11 234 5678"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* VAT */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Customer VAT</label>
-          <input
-            name="customerVAT"
-            type="text"
-            value={formData.data.customerVAT}
-            onChange={handleChangeFormData}
-            placeholder="300000000000003"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* CR# */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">CR# (Commercial Registration)</label>
-          <input
-            name="crn"
-            type="text"
-            value={formData.data.crn}
-            onChange={handleChangeFormData}
-            placeholder="1010884359"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* Registration Name Arabic */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Registered Name (AR)</label>
-          <input
-            name="registrationNameAr"
-            type="text"
-            value={formData.data.registrationNameAr}
-            onChange={handleChangeFormData}
-            placeholder="شركة أكمي"
-            dir="rtl"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* Street Name */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Street Name</label>
-          <input
-            name="streetName"
-            type="text"
-            value={formData.data.streetName}
-            onChange={handleChangeFormData}
-            placeholder="Prince Sultan Street"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* Street Name Arabic */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Street Name (AR)</label>
-          <input
-            name="streetNameAr"
-            type="text"
-            value={formData.data.streetNameAr}
-            onChange={handleChangeFormData}
-            placeholder="شارع الأمير سلطان"
-            dir="rtl"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* Address */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Address</label>
-          <input
-            name="address"
-            type="text"
-            value={formData.data.address}
-            onChange={handleChangeFormData}
-            placeholder="Building 1234, Prince Sultan Street, Riyadh"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* Address Arabic */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Address (AR)</label>
-          <input
-            name="addressAr"
-            type="text"
-            value={formData.data.addressAr}
-            onChange={handleChangeFormData}
-            placeholder="مبنى 1234، شارع الأمير سلطان، الرياض"
-            dir="rtl"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* Building Number */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Building Number</label>
-          <input
-            name="buildingNumber"
-            type="text"
-            value={formData.data.buildingNumber}
-            onChange={handleChangeFormData}
-            placeholder="1234"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* City Subdivision */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">District</label>
-          <input
-            name="citySubdivisionName"
-            type="text"
-            value={formData.data.citySubdivisionName}
-            onChange={handleChangeFormData}
-            placeholder="District 5"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* City Subdivision Arabic */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">District (AR)</label>
-          <input
-            name="citySubdivisionNameAr"
-            type="text"
-            value={formData.data.citySubdivisionNameAr}
-            onChange={handleChangeFormData}
-            placeholder="الحي الخامس"
-            dir="rtl"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* City Name */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">City</label>
-          <input
-            name="cityName"
-            type="text"
-            value={formData.data.cityName}
-            onChange={handleChangeFormData}
-            placeholder="Riyadh"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* City Name Arabic */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">City (AR)</label>
-          <input
-            name="cityNameAr"
-            type="text"
-            value={formData.data.cityNameAr}
-            onChange={handleChangeFormData}
-            placeholder="الرياض"
-            dir="rtl"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* Postal Zone */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Postal Zone</label>
-          <input
-            name="postalZone"
-            type="text"
-            value={formData.data.postalZone}
-            onChange={handleChangeFormData}
-            placeholder="12345"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-
-        {/* Country Code */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-[#4c669a] dark:text-gray-400">Country Code</label>
-          <input
-            name="countryCode"
-            type="text"
-            value={formData.data.countryCode}
-            onChange={handleChangeFormData}
-            placeholder="SA"
-            disabled={!!formData.data.customerId}
-            className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] bg-white text-sm text-[#0d121b] focus:ring-2 focus:ring-primary focus:border-primary transition-colors dark:bg-[#161f30] dark:border-[#2a3447] dark:text-white disabled:bg-gray-50 dark:disabled:bg-[#0a0e1a] disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-500"
-          />
-        </div>
-      </div>
-    </section>
-  );
+      </section>
+    );
+  };
 
 
   const LINE_ITEMS_SECTION = () => {
-    const calculateTotal = (item) => {
-      return getItemNetTotal(item).toFixed(2);
-    };
+    const calculateTotal = (item) => getItemNetTotal(item).toFixed(2);
 
     return (
-      <section>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-[#0d121b] dark:text-white text-base font-bold flex items-center gap-2">
-            <span className="size-2 rounded-full bg-primary"></span> Line Items / الأصناف
-          </h3>
-          <button
-            type="button"
-            onClick={handleAddLineItem}
-            className="text-primary text-xs font-bold flex items-center gap-1 hover:underline"
-          >
-            + Add Item
-          </button>
-        </div>
-        <div className="border border-[#e7ebf3] dark:border-[#2a3447] rounded-lg overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-[#f5f6f8] dark:bg-[#161f30] text-[#4c669a] dark:text-gray-400 font-bold uppercase text-[10px]">
-              <tr>
-                <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3 w-28">Product Code</th>
-                <th className="px-4 py-3 w-20">Qty</th>
-                <th className="px-4 py-3 w-28">Price (SAR)</th>
-                <th className="px-4 py-3 w-28">Disc. Amt</th>
-                <th className="px-4 py-3 w-24">Disc. %</th>
-                <th className="px-4 py-3 w-24">Tax Exempt</th>
-                <th className="px-4 py-3 w-32">Exempt Reason</th>
-                <th className="px-4 py-3 w-28 text-right">Total</th>
-                <th className="px-4 py-3 w-16"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#e7ebf3] dark:divide-[#2a3447] dark:text-white">
-              {lineItems.length === 0 ? (
+      <section className="breeze-form-section">
+        {SECTION_HEADER({
+          icon: 'inventory_2',
+          title: 'Line items',
+          lede: 'Add products or services. Quantity is fixed at 1 per line.',
+        })}
+
+        <div className="flex flex-col gap-3">
+          <div className="breeze-line-items lg:overflow-x-auto">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-sm text-gray-400 italic">
-                    No line items added. Click "Add Item" to add one.
-                  </td>
+                  <th>Description</th>
+                  <th>Product Code</th>
+                  <th>Qty</th>
+                  <th>Price (SAR)</th>
+                  <th>Disc. Amt</th>
+                  <th>Disc. %</th>
+                  <th>Tax Exempt</th>
+                  <th>Exempt Reason</th>
+                  <th className="text-end">Total</th>
+                  <th>
+                    <span className="sr-only">Remove</span>
+                  </th>
                 </tr>
-              ) : (
-                lineItems.map((item, index) => (
+              </thead>
+              <tbody>
+                {lineItems.map((item, index) => (
                   <tr key={index}>
-                    <td className="px-4 py-3">
+                    <td data-label="Description" data-span="2">
                       <input
-                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        className="breeze-line-items__input"
                         type="text"
                         value={item.description}
-                        onChange={(e) =>
-                          handleChangeLineItem(index, 'description', e.target.value)
-                        }
+                        onChange={(e) => handleChangeLineItem(index, 'description', e.target.value)}
                         placeholder="Description of product..."
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Product Code">
                       <input
-                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        className="breeze-line-items__input"
                         type="text"
                         value={item.productCode}
-                        onChange={(e) =>
-                          handleChangeLineItem(index, 'productCode', e.target.value)
-                        }
-                        placeholder="Product Code"
+                        onChange={(e) => handleChangeLineItem(index, 'productCode', e.target.value)}
+                        placeholder="SKU"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Qty">
                       <input
-                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white cursor-not-allowed opacity-70"
+                        className="breeze-line-items__input"
                         type="number"
                         min="0"
                         step="1"
                         value={item.quantity}
-                        onChange={() => { }}
                         disabled
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Price (SAR)">
                       <input
-                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        className="breeze-line-items__input"
                         type="number"
                         min="0"
                         step="0.01"
                         value={item.price}
-                        onChange={(e) =>
-                          handleChangeLineItem(index, 'price', e.target.value)
-                        }
+                        onChange={(e) => handleChangeLineItem(index, 'price', e.target.value)}
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Disc. Amt">
                       <input
-                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        className="breeze-line-items__input"
                         type="number"
                         min="0"
                         step="0.01"
                         value={item.discount_amount}
-                        onChange={(e) =>
-                          handleChangeLineItem(index, 'discount_amount', e.target.value)
-                        }
+                        onChange={(e) => handleChangeLineItem(index, 'discount_amount', e.target.value)}
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Disc. %">
                       <input
-                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        className="breeze-line-items__input"
                         type="number"
                         min="0"
                         max="100"
                         step="1"
                         value={item.discount_percentage}
-                        onChange={(e) =>
-                          handleChangeLineItem(index, 'discount_percentage', e.target.value)
-                        }
+                        onChange={(e) => handleChangeLineItem(index, 'discount_percentage', e.target.value)}
                       />
                     </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={item.taxExempt}
-                        onChange={(e) =>
-                          handleChangeLineItem(index, 'taxExempt', e.target.checked)
-                        }
-                        className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
-                      />
+                    <td data-label="Tax Exempt">
+                      <label className="breeze-check">
+                        <input
+                          type="checkbox"
+                          className="breeze-check__box"
+                          checked={item.taxExempt}
+                          onChange={(e) => handleChangeLineItem(index, 'taxExempt', e.target.checked)}
+                          aria-label="Tax exempt"
+                        />
+                      </label>
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Exempt Reason" data-span="2">
                       <input
-                        className="w-full bg-transparent border-none p-0 text-sm focus:ring-0 dark:text-white"
+                        className="breeze-line-items__input"
                         type="text"
                         value={item.taxExemptReason}
-                        onChange={(e) =>
-                          handleChangeLineItem(index, 'taxExemptReason', e.target.value)
-                        }
+                        onChange={(e) => handleChangeLineItem(index, 'taxExemptReason', e.target.value)}
                         placeholder="e.g. Export"
                       />
                     </td>
-                    <td className="px-4 py-3 text-right font-bold">
+                    <td data-label="Total" className="breeze-line-items__total lg:text-end">
                       {calculateTotal(item)}
                     </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveLineItem(index)}
-                        className="text-red-500 hover:text-red-700 dark:hover:text-red-400"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                      </button>
+                    <td data-label="Remove">
+                      {lineItems.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveLineItem(index)}
+                          className="breeze-line-items__remove"
+                          aria-label={`Remove line item ${index + 1}`}
+                        >
+                          <span className="material-symbols-outlined" aria-hidden="true">delete</span>
+                        </button>
+                      ) : null}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button
+            type="button"
+            onClick={handleAddLineItem}
+            className="breeze-btn breeze-btn--outline breeze-btn--inline self-end"
+          >
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+            Add item
+          </button>
         </div>
-        {formData.errors.lineItems && (
-          <span className="text-xs text-tomato mt-2 block">{formData.errors.lineItems}</span>
-        )}
+        {formData.errors.lineItems ? (
+          <span className="breeze-field__error">{formData.errors.lineItems}</span>
+        ) : null}
       </section>
     );
   };
-
-  const FORM_CONTENT = () => (
-    <form
-      className="p-6 space-y-8 max-h-[calc(100vh-320px)] overflow-y-auto"
-      onSubmit={handleSubmitForm}
-    >
-      {INVOICE_DETAILS_SECTION()}
-      {BUYER_INFO_SECTION()}
-      {LINE_ITEMS_SECTION()}
-    </form>
-  );
-
 
   const FOOTER_ACTION_BAR = () => {
     const editModeOptions = [
@@ -1633,161 +1540,131 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
     ];
     const actionOptions = canEditInvoice ? editModeOptions : viewModeOptions;
 
+    const handleActionChange = (option) => {
+      if (!option) return;
+
+      if (option.value === 'cancel') {
+        navigate('/invoices');
+        return;
+      }
+      if (option.value === 'create-report-zatca') {
+        if (id) {
+          handleUpdateAndSubmitToZatca();
+        } else {
+          handleCreateAndSubmitToZatca();
+        }
+        return;
+      }
+      if (option.value === 'create-check-compliance') {
+        if (id) {
+          handleUpdateAndCheckCompliance();
+        } else {
+          handleCreateAndCheckCompliance();
+        }
+        return;
+      }
+      if (option.value === 'print-report-pdf') {
+        if (id) {
+          if (canEditInvoice) {
+            handleUpdateAndPrintInvoice();
+          } else {
+            handlePrintInvoice();
+          }
+        } else {
+          handleCreateAndPrintInvoice();
+        }
+        return;
+      }
+      if (option.value === 'check-compliance') {
+        handleCheckCompliance();
+        return;
+      }
+      handleSubmitForm();
+    };
+
     return (
-      <Fragment>
-        <div className="bg-[#f5f6f8] dark:bg-[#0a0e1a] border-t border-[#e7ebf3] dark:border-[#2a3447] p-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex gap-8">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-[#4c669a] uppercase">Subtotal</span>
-                <span className="text-lg font-bold dark:text-white">{totals.subtotal} SAR</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-primary uppercase">VAT ({formData.data.vat}%)</span>
-                <span className="text-lg font-bold dark:text-white">{totals.vatAmount} SAR</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-[#0d121b] dark:text-gray-300 uppercase">Grand Total</span>
-                <span className="text-2xl font-black text-primary">{totals.grandTotal} SAR</span>
-              </div>
+      <div className="flex flex-col gap-4">
+        <div className="breeze-invoice-footer">
+          <div className="breeze-invoice-totals">
+            <div className="breeze-invoice-totals__item">
+              <p className="breeze-invoice-totals__label">Subtotal</p>
+              <p className="breeze-invoice-totals__value">{totals.subtotal} SAR</p>
             </div>
-
-            {/* Actions Select (react-select, text remains 'Actions') */}
-            <div className="w-full md:w-80">
-              <label className="sr-only">Invoice actions</label>
-              <div className="relative">
-                <Select
-                  instanceId="invoice-actions"
-                  placeholder="Actions"
-                  isSearchable={false}
-                  isClearable={false}
-                  value={null}
-                  onChange={(option) => {
-                    if (!option) return;
-
-                    else if (option.value === 'cancel') {
-                      navigate('/invoices');
-                      return;
-                    }
-                    else if (option.value === 'create-report-zatca') {
-                      if (id) {
-                        handleUpdateAndSubmitToZatca();
-                      } else {
-                        handleCreateAndSubmitToZatca();
-                      }
-                      return;
-                    }
-                    else if (option.value === 'create-check-compliance') {
-                      if (id) {
-                        handleUpdateAndCheckCompliance();
-                      } else {
-                        handleCreateAndCheckCompliance();
-                      }
-                      return;
-                    }
-                    else if (option.value === 'print-report-pdf') {
-                      if (id) {
-                        if (canEditInvoice) {
-                          handleUpdateAndPrintInvoice();
-                        } else {
-                          handlePrintInvoice();
-                        }
-                      } else {
-                        handleCreateAndPrintInvoice();
-                      }
-                      return;
-                    }
-                    else if (option.value === 'check-compliance') {
-                      handleCheckCompliance();
-                      return;
-                    }
-                    else {
-                      handleSubmitForm();
-                    }
-                  }}
-                  isDisabled={isSubmitting || invoiceData?.isError}
-                  options={actionOptions}
-                  classNamePrefix="react-select"
-                  className="react-select-container"
-                  styles={{
-                    control: (base, state) => ({
-                      ...base,
-                      minHeight: '2.5rem',
-                      borderRadius: '0.5rem',
-                      borderColor: '#2563eb',
-                      boxShadow: state.isFocused ? '0 0 0 2px rgba(37, 99, 235, 0.4)' : 'none',
-                      '&:hover': { borderColor: '#2563eb' },
-                      backgroundColor: 'transparent',
-                    }),
-                    placeholder: (base) => ({
-                      ...base,
-                      fontWeight: 700,
-                      fontSize: '0.875rem',
-                      color: '#2563eb',
-                    }),
-                    singleValue: (base) => ({
-                      ...base,
-                      fontWeight: 700,
-                      fontSize: '0.875rem',
-                      color: '#2563eb',
-                    }),
-                    menu: (base) => ({
-                      ...base,
-                      zIndex: 30,
-                      minWidth: '20rem',
-                    }),
-                    option: (base, state) => ({
-                      ...base,
-                      color:
-                        state.data.value === 'cancel'
-                          ? '#f87171' // Tailwind red-400
-                          : base.color,
-                    }),
-                  }}
-                />
-              </div>
+            <div className="breeze-invoice-totals__item">
+              <p className="breeze-invoice-totals__label breeze-invoice-totals__label--vat">
+                VAT ({formData.data.vat}%)
+              </p>
+              <p className="breeze-invoice-totals__value">{totals.vatAmount} SAR</p>
+            </div>
+            <div className="breeze-invoice-totals__item">
+              <p className="breeze-invoice-totals__label">Grand Total</p>
+              <p className="breeze-invoice-totals__value breeze-invoice-totals__value--grand">
+                {totals.grandTotal} SAR
+              </p>
             </div>
           </div>
+          <div className="breeze-invoice-actions">
+            <label className="sr-only" htmlFor="invoice-actions">Invoice actions</label>
+            <Select
+              inputId="invoice-actions"
+              instanceId="invoice-actions"
+              placeholder="Actions"
+              isSearchable={false}
+              isClearable={false}
+              value={null}
+              onChange={handleActionChange}
+              isDisabled={isSubmitting || invoiceData?.isError}
+              options={actionOptions}
+              classNamePrefix="breeze-rs"
+              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+              menuPosition="fixed"
+              styles={{
+                ...SELECT_MENU_STYLES,
+                option: (base, state) => ({
+                  ...base,
+                  color: state.data.value === 'cancel' ? 'var(--z3c-danger)' : base.color,
+                }),
+              }}
+            />
+          </div>
         </div>
-        <div className="mt-4 flex items-center gap-2 text-[11px] text-[#4c669a] dark:text-gray-400 bg-white/50 dark:bg-black/20 p-2 rounded border border-dashed border-[#e7ebf3] dark:border-[#2a3447]">
-          <span className="material-symbols-outlined text-[16px]">info</span>
-          Validation required before submission. Fields must match Phase 2 technical specifications.
-        </div>
-      </Fragment>
+        <p className="breeze-invoice-hint">
+          <span className="material-symbols-outlined" aria-hidden="true">info</span>
+          Validation is required before submission. Fields must match ZATCA Phase 2 technical specifications.
+        </p>
+      </div>
     );
   };
 
-  const MANUAL_ENTRY_FORM = () => (
-    <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447]">
-      {FORM_CONTENT()}
-      {FOOTER_ACTION_BAR()}
-    </div>
-  );
-
-  const MAIN_GRID = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-      <div className="lg:col-span-12">
-        {MANUAL_ENTRY_FORM()}
-      </div>
-    </div>
-  );
-
-  const MAIN_CONTENT = () => (
-    <div className="p-8 space-y-8">
-      {PAGE_HEADER()}
-      {MAIN_GRID()}
+  const INVOICE_FORM = () => (
+    <div className="breeze-form-card">
+      <form className="breeze-form" onSubmit={handleSubmitForm} noValidate>
+        {invoiceData?.isError && (
+          <div className="breeze-alert" role="alert">
+            <span className="material-symbols-outlined">error</span>
+            <span>Unable to load this invoice. You can go back to the list and try again.</span>
+          </div>
+        )}
+        {INVOICE_DETAILS_SECTION()}
+        {BUYER_INFO_SECTION()}
+        {LINE_ITEMS_SECTION()}
+        {FOOTER_ACTION_BAR()}
+      </form>
     </div>
   );
 
   const CONTENT = () => (
     <Fragment>
-      {MAIN_CONTENT()}
+      <div className="breeze-page flex-1">
+        {PAGE_HEADER()}
+        {INVOICE_FORM()}
+      </div>
       <Footer />
     </Fragment>
   );
 
   return (
-    <div>
+    <div className="flex min-h-0 flex-1 flex-col">
       {CONTENT()}
     </div>
   );
