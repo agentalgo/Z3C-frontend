@@ -48,10 +48,12 @@ function NotificationRecipientForm() {
     <Fragment>
       <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
         <Suspense fallback={
-          <div className="p-8 flex items-center justify-center">
-            <div className="flex items-center gap-2 text-[#4c669a]">
-              <span className="material-symbols-outlined animate-spin">sync</span>
-              Loading recipient details...
+          <div className="breeze-page flex-1">
+            <div className="breeze-form-card px-6 py-10">
+              <div className="flex items-center justify-center gap-2 text-[var(--z3c-subtle)]">
+                <span className="material-symbols-outlined animate-spin">sync</span>
+                Loading recipient details...
+              </div>
             </div>
           </div>
         }>
@@ -67,7 +69,7 @@ function NotificationRecipientForm() {
   );
 
   return (
-    <div id="notification-recipient-form">
+    <div id="notification-recipient-form" className="flex min-h-0 flex-1 flex-col">
       {CONTENT()}
     </div>
   );
@@ -95,7 +97,6 @@ function NotificationRecipientFormContent({ id, recipientPromise, decodedToken, 
           isActive: typeof d.isActive === 'boolean' ? d.isActive : true,
         },
         validations: {
-          // email is read-only in edit mode — no need to validate it
           ...(id ? {} : old.validations),
         },
         errors: {},
@@ -122,7 +123,7 @@ function NotificationRecipientFormContent({ id, recipientPromise, decodedToken, 
   };
 
   const handleSubmit = (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
 
     if (!handleValidateForm()) {
       showToast('Please fill in all required fields', 'error');
@@ -152,118 +153,187 @@ function NotificationRecipientFormContent({ id, recipientPromise, decodedToken, 
       .finally(() => _isLoading(false));
   };
 
+  const inputClassName = (name, locked = false) => {
+    const classes = ['breeze-form-input'];
+    if (formData.errors[name]) classes.push('breeze-form-input--invalid');
+    if (locked) classes.push('breeze-form-input--locked');
+    return classes.join(' ');
+  };
+
+  const FIELD = ({ label, name, required, hint, children }) => (
+    <div className="breeze-form-field">
+      <label className="breeze-field__label" htmlFor={`recipient-${name}`}>
+        {label}
+        {required ? <span className="breeze-form-required" aria-hidden="true"> *</span> : null}
+      </label>
+      {children}
+      {hint && !formData.errors[name] ? <p className="breeze-form-hint">{hint}</p> : null}
+      {formData.errors[name] ? (
+        <span className="breeze-field__error" id={`recipient-${name}-error`}>
+          {formData.errors[name]?.includes('valid') ? 'Enter a valid email address' : formData.errors[name]}
+        </span>
+      ) : null}
+    </div>
+  );
+
+  const SECTION_HEADER = ({ icon, title, lede }) => (
+    <div className="breeze-form-section__header">
+      <span className="breeze-form-section__badge" aria-hidden="true">
+        <span className="material-symbols-outlined">{icon}</span>
+      </span>
+      <div>
+        <h3 className="breeze-form-section__title">{title}</h3>
+        {lede ? <p className="breeze-form-section__lede">{lede}</p> : null}
+      </div>
+    </div>
+  );
+
   const PAGE_HEADER = () => (
-    <div className="flex flex-wrap justify-between items-end gap-3 mb-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-[#0d121b] dark:text-white text-3xl font-black leading-tight">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <button
+          type="button"
+          onClick={() => navigate('/notification-recipients')}
+          className="breeze-link breeze-page__back"
+        >
+          <span className="material-symbols-outlined">arrow_back</span>
+          Notification Recipients
+        </button>
+        <h2 className="breeze-page__title">
           {id ? 'Edit Recipient' : 'Add Recipient'}
-        </h1>
-        <p className="text-[#4c669a] text-base">
-          {id ? 'Update recipient details or active status' : 'Add an email address to receive rejection notifications'}
+        </h2>
+        <p className="breeze-page__lede">
+          {id
+            ? 'Update recipient details or active status'
+            : 'Add an email address to receive rejection notifications'}
         </p>
       </div>
     </div>
   );
 
-  const FORM_FIELDS = () => (
-    <section className="space-y-6">
-      {/* Email — read-only in edit mode */}
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-[#0d121b] dark:text-white">
-          Email Address {!id && '*'}
-          {id && <span className="font-normal text-[#9ca3af] ml-1">(cannot be changed)</span>}
-        </label>
-        <input
-          type="email"
-          name="email"
-          value={formData.data.email}
-          onChange={id ? undefined : handleChange}
-          readOnly={!!id}
-          placeholder="recipient@example.com"
-          className={`px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors md:w-1/2 ${id ? 'bg-[#f8f9fc] dark:bg-[#1a253a] text-[#9ca3af] cursor-default' : 'bg-white dark:bg-[#161f30]'}`}
-        />
-        {formData.errors.email && (
-          <span className="text-xs text-tomato">{formData.errors.email?.includes('valid') ? 'Enter a valid email address' : formData.errors.email}</span>
-        )}
+  const RECIPIENT_SECTION = () => (
+    <section className="breeze-form-section">
+      {SECTION_HEADER({
+        icon: 'mail',
+        title: 'Recipient details',
+        lede: 'Email address and optional display name for rejection notifications.',
+      })}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+        {FIELD({
+          label: 'Email Address',
+          name: 'email',
+          required: !id,
+          hint: id ? 'Email cannot be changed after creation.' : undefined,
+          children: (
+            <input
+              id="recipient-email"
+              type="email"
+              name="email"
+              value={formData.data.email}
+              onChange={id ? undefined : handleChange}
+              readOnly={!!id}
+              disabled={!!id}
+              placeholder="recipient@example.com"
+              aria-invalid={Boolean(formData.errors.email)}
+              aria-describedby={formData.errors.email ? 'recipient-email-error' : undefined}
+              className={inputClassName('email', !!id)}
+            />
+          ),
+        })}
+        {FIELD({
+          label: 'Display Name',
+          name: 'name',
+          hint: 'Optional label shown alongside the email address.',
+          children: (
+            <input
+              id="recipient-name"
+              type="text"
+              name="name"
+              value={formData.data.name}
+              onChange={handleChange}
+              placeholder="e.g. Finance Team"
+              className={inputClassName('name')}
+            />
+          ),
+        })}
       </div>
 
-      {/* Name */}
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-[#0d121b] dark:text-white">
-          Display Name <span className="font-normal text-[#9ca3af]">(optional)</span>
-        </label>
-        <input
-          type="text"
-          name="name"
-          value={formData.data.name}
-          onChange={handleChange}
-          placeholder="e.g. Finance Team"
-          className="px-4 py-2.5 rounded-lg border border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#161f30] text-sm text-[#0d121b] dark:text-white focus:ring-2 focus:ring-primary focus:border-primary transition-colors md:w-1/2"
-        />
-      </div>
-
-      {/* Active toggle */}
-      <div className="flex items-center gap-2">
+      <label className="breeze-check w-fit max-w-full">
         <input
           type="checkbox"
           id="isActive"
           name="isActive"
+          className="breeze-check__box"
           checked={formData.data.isActive}
           onChange={handleChange}
-          className="w-4 h-4 rounded border-[#e7ebf3] dark:border-[#2a3447] text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer"
         />
-        <label htmlFor="isActive" className="text-sm font-medium text-[#0d121b] dark:text-white cursor-pointer">
+        <span className="text-sm sm:text-base">
           Active — include in rejection notification emails
-        </label>
-      </div>
+        </span>
+      </label>
     </section>
   );
 
   const FORM_ACTIONS = () => (
-    <div className="flex gap-3 pt-6">
+    <div className="breeze-form-actions">
+      <button
+        type="button"
+        onClick={() => navigate('/notification-recipients')}
+        className="breeze-btn breeze-btn--outline breeze-btn--inline w-full sm:w-auto"
+      >
+        Cancel
+      </button>
       {(!id || recipientPerms.update) && (
         <button
           type="submit"
           disabled={isLoading || recipientData?.isError}
-          onClick={handleSubmit}
-          className="px-6 py-2.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors shadow-md shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="breeze-btn breeze-btn--primary breeze-btn--inline w-full sm:w-auto min-w-[140px]"
         >
-          {isLoading ? 'SAVING...' : 'SAVE'}
+          {isLoading ? (
+            <Fragment>
+              <span className="breeze-btn__spinner" aria-hidden="true" />
+              Saving...
+            </Fragment>
+          ) : (
+            <Fragment>
+              <span className="material-symbols-outlined text-[18px]">save</span>
+              {id ? 'Save changes' : 'Add recipient'}
+            </Fragment>
+          )}
         </button>
       )}
-      <button
-        type="button"
-        onClick={() => navigate('/notification-recipients')}
-        className="px-6 py-2.5 bg-red-500 text-white text-sm font-bold rounded-lg hover:bg-red-600 transition-colors"
-      >
-        CANCEL
-      </button>
     </div>
   );
 
-  const FORM_CARD = () => (
-    <div className="bg-white dark:bg-[#161f30] rounded-xl border border-[#e7ebf3] dark:border-[#2a3447] overflow-hidden">
-      <div className="p-6 space-y-6">
-        {FORM_FIELDS()}
+  const RECIPIENT_FORM = () => (
+    <div className="breeze-form-card">
+      <form className="breeze-form" onSubmit={handleSubmit} noValidate>
+        {recipientData?.isError && (
+          <div className="breeze-alert" role="alert">
+            <span className="material-symbols-outlined">error</span>
+            <span>Unable to load this recipient. You can go back to the list and try again.</span>
+          </div>
+        )}
+        {RECIPIENT_SECTION()}
         {FORM_ACTIONS()}
-      </div>
+      </form>
     </div>
   );
 
-  const MAIN_CONTENT = () => (
-    <div className="p-8 space-y-8">
-      {PAGE_HEADER()}
-      <div className="grid grid-cols-1 gap-8">
-        {FORM_CARD()}
+  const CONTENT = () => (
+    <Fragment>
+      <div className="breeze-page flex-1">
+        {PAGE_HEADER()}
+        {RECIPIENT_FORM()}
       </div>
-    </div>
+      <Footer />
+    </Fragment>
   );
 
   return (
-    <Fragment>
-      {MAIN_CONTENT()}
-      <Footer />
-    </Fragment>
+    <div className="flex min-h-0 flex-1 flex-col">
+      {CONTENT()}
+    </div>
   );
 }
 

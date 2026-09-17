@@ -2,7 +2,6 @@
 import { Fragment, useState, useMemo, Suspense, use, useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useNavigate, useParams } from 'react-router-dom';
-import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import { useAtomValue } from 'jotai';
 
@@ -1450,7 +1449,7 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
                         onChange={(e) => handleChangeLineItem(index, 'discount_percentage', e.target.value)}
                       />
                     </td>
-                    <td data-label="Tax Exempt">
+                    <td data-label="Tax Exempt" className='text-center'>
                       <label className="breeze-check">
                         <input
                           type="checkbox"
@@ -1507,79 +1506,38 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
   };
 
   const FOOTER_ACTION_BAR = () => {
-    const editModeOptions = [
-      { value: 'create', label: id ? 'Update' : 'Create' },
-      ...(canCheckComplianceAction
-        ? [
-          {
-            value: 'create-check-compliance',
-            label: id ? 'Update and Check Compliance' : 'Create and Check Compliance',
-          },
-        ]
-        : []),
-      ...(canSubmitToZatca
-        ? [
-          {
-            value: 'create-report-zatca',
-            label: id ? 'Update and Report to ZATCA' : 'Create and Report to ZATCA',
-          },
-        ]
-        : []),
-      {
-        value: 'print-report-pdf',
-        label: id ? 'Update and Print Pdf' : 'Create and Print Pdf',
-      },
-      { value: 'cancel', label: 'Cancel' },
-    ];
-    const viewModeOptions = [
-      { value: 'print-report-pdf', label: 'Print Pdf' },
-      ...(canCheckComplianceAction
-        ? [{ value: 'check-compliance', label: 'Check Compliance' }]
-        : []),
-      { value: 'cancel', label: 'Cancel' },
-    ];
-    const actionOptions = canEditInvoice ? editModeOptions : viewModeOptions;
+    const actionsDisabled = isSubmitting || invoiceData?.isError;
 
-    const handleActionChange = (option) => {
-      if (!option) return;
+    const handleSendToZatcaAction = () => {
+      if (id) {
+        handleUpdateAndSubmitToZatca();
+      } else {
+        handleCreateAndSubmitToZatca();
+      }
+    };
 
-      if (option.value === 'cancel') {
-        navigate('/invoices');
+    const handleCheckComplianceActionClick = () => {
+      if (!id) {
+        handleCreateAndCheckCompliance();
         return;
       }
-      if (option.value === 'create-report-zatca') {
-        if (id) {
-          handleUpdateAndSubmitToZatca();
+      if (canEditInvoice) {
+        handleUpdateAndCheckCompliance();
+        return;
+      }
+      handleCheckCompliance();
+    };
+
+    const handlePrintInvoiceAction = () => {
+      if (id) {
+        if (canEditInvoice) {
+          handleUpdateAndPrintInvoice();
         } else {
-          handleCreateAndSubmitToZatca();
+          handlePrintInvoice();
         }
-        return;
+      } else {
+        handleCreateAndPrintInvoice();
       }
-      if (option.value === 'create-check-compliance') {
-        if (id) {
-          handleUpdateAndCheckCompliance();
-        } else {
-          handleCreateAndCheckCompliance();
-        }
-        return;
-      }
-      if (option.value === 'print-report-pdf') {
-        if (id) {
-          if (canEditInvoice) {
-            handleUpdateAndPrintInvoice();
-          } else {
-            handlePrintInvoice();
-          }
-        } else {
-          handleCreateAndPrintInvoice();
-        }
-        return;
-      }
-      if (option.value === 'check-compliance') {
-        handleCheckCompliance();
-        return;
-      }
-      handleSubmitForm();
     };
 
     return (
@@ -1604,28 +1562,56 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
             </div>
           </div>
           <div className="breeze-invoice-actions">
-            <label className="sr-only" htmlFor="invoice-actions">Invoice actions</label>
-            <Select
-              inputId="invoice-actions"
-              instanceId="invoice-actions"
-              placeholder="Actions"
-              isSearchable={false}
-              isClearable={false}
-              value={null}
-              onChange={handleActionChange}
-              isDisabled={isSubmitting || invoiceData?.isError}
-              options={actionOptions}
-              classNamePrefix="breeze-rs"
-              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-              menuPosition="fixed"
-              styles={{
-                ...SELECT_MENU_STYLES,
-                option: (base, state) => ({
-                  ...base,
-                  color: state.data.value === 'cancel' ? 'var(--z3c-danger)' : base.color,
-                }),
-              }}
-            />
+            {canEditInvoice ? (
+              <button
+                type="submit"
+                disabled={actionsDisabled}
+                className="breeze-btn breeze-btn--primary"
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">save</span>
+                Save
+              </button>
+            ) : null}
+            {canCheckComplianceAction ? (
+              <button
+                type="button"
+                onClick={handleCheckComplianceActionClick}
+                disabled={actionsDisabled}
+                className="breeze-btn breeze-btn--outline"
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">verified</span>
+                Check Compliance
+              </button>
+            ) : null}
+            {canEditInvoice && canSubmitToZatca ? (
+              <button
+                type="button"
+                onClick={handleSendToZatcaAction}
+                disabled={actionsDisabled}
+                className="breeze-btn breeze-btn--outline"
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">send</span>
+                Send to ZATCA
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={handlePrintInvoiceAction}
+              disabled={actionsDisabled}
+              className="breeze-btn breeze-btn--outline"
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">print</span>
+              Print Invoice
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/invoices')}
+              disabled={isSubmitting}
+              className="breeze-btn breeze-btn--danger-soft"
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">close</span>
+              Cancel
+            </button>
           </div>
         </div>
         <p className="breeze-invoice-hint">
@@ -1638,7 +1624,17 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
 
   const INVOICE_FORM = () => (
     <div className="breeze-form-card">
-      <form className="breeze-form" onSubmit={handleSubmitForm} noValidate>
+      <form
+        className="breeze-form"
+        onSubmit={(e) => {
+          if (!canEditInvoice) {
+            e.preventDefault();
+            return;
+          }
+          handleSubmitForm(e);
+        }}
+        noValidate
+      >
         {invoiceData?.isError && (
           <div className="breeze-alert" role="alert">
             <span className="material-symbols-outlined">error</span>
