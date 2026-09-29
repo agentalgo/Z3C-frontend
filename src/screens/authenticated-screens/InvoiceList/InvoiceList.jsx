@@ -431,8 +431,7 @@ function InvoicesTableContent({
 
   const isInvoiceDeletable = useCallback((invoice) => {
     if (!invoicePerms.delete || !invoice?._id) return false;
-    const statusConfig = INVOICE_STATUSES.find((status) => status.name === invoice.status);
-    return !!statusConfig?.canDelete;
+    return invoice.status === 'DRAFT';
   }, [invoicePerms.delete]);
 
   const handleCloseBulkDeleteModal = () => {
@@ -580,24 +579,40 @@ function InvoicesTableContent({
     () => [
       {
         id: 'select',
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={table.getIsAllRowsSelected()}
-            onChange={table.getToggleAllRowsSelectedHandler()}
-            onClick={(e) => e.stopPropagation()}
-            className="breeze-check__box"
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-            onClick={(e) => e.stopPropagation()}
-            className="breeze-check__box"
-          />
-        ),
+        header: ({ table }) => {
+          const hasSelectableRows = table.getRowModel().rows.some((row) => row.getCanSelect());
+          return (
+            <input
+              type="checkbox"
+              checked={hasSelectableRows && table.getIsAllRowsSelected()}
+              ref={(el) => {
+                if (el) {
+                  el.indeterminate = hasSelectableRows && table.getIsSomeRowsSelected() && !table.getIsAllRowsSelected();
+                }
+              }}
+              disabled={!hasSelectableRows}
+              onChange={table.getToggleAllRowsSelectedHandler()}
+              onClick={(e) => e.stopPropagation()}
+              className="breeze-check__box"
+              aria-label="Select all draft invoices"
+            />
+          );
+        },
+        cell: ({ row }) => {
+          const canSelect = row.getCanSelect();
+          return (
+            <input
+              type="checkbox"
+              checked={row.getIsSelected()}
+              disabled={!canSelect}
+              onChange={row.getToggleSelectedHandler()}
+              onClick={(e) => e.stopPropagation()}
+              className="breeze-check__box"
+              aria-label={canSelect ? 'Select invoice' : 'Only draft invoices can be deleted'}
+              title={canSelect ? undefined : 'Only draft invoices can be deleted'}
+            />
+          );
+        },
         enableSorting: false,
       },
       {
@@ -853,7 +868,7 @@ function InvoicesTableContent({
       rowSelection,
       pagination,
     },
-    enableRowSelection: true,
+    enableRowSelection: (row) => isInvoiceDeletable(row.original),
   });
 
   const handleConfirmBulkDelete = useCallback(() => {
@@ -1052,7 +1067,7 @@ function InvoicesTableContent({
     <ConfirmModal
       isOpen={isBulkDeleteModalOpen}
       title="Delete selected invoices"
-      description="Are you sure you want to delete the selected invoices? Only invoices that can be deleted will be removed. This action cannot be undone."
+      description="Are you sure you want to delete the selected invoices? Only draft invoices can be deleted. This action cannot be undone."
       confirmLabel="Delete"
       cancelLabel="Cancel"
       onConfirm={handleConfirmBulkDelete}

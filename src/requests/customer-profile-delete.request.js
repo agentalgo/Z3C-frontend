@@ -1,13 +1,17 @@
 import { getApiUrl, defaultHeaders, handleNetworkError, HANDLED_RESPONSE_ERROR } from './api.config';
 
-const CustomerProfileDeleteRequest = (token, profileId) => {
+const CustomerProfileDeleteRequest = (token, customerProfileIds) => {
+  const ids = Array.isArray(customerProfileIds) ? customerProfileIds : [customerProfileIds];
+
   const headers = {
     ...defaultHeaders,
-    'Authorization': `Bearer ${token}`
+    'Authorization': `Bearer ${token}`,
   };
-  return fetch(getApiUrl(`/customer-profiles/${profileId}`), { 
+
+  return fetch(getApiUrl('/customer-profiles'), {
     method: 'DELETE',
-    headers: headers,
+    headers,
+    body: JSON.stringify({ customerProfileIds: ids }),
   })
     .then(async (res) => {
       if (!res.ok) {

@@ -1607,10 +1607,10 @@ function InvoiceFormContent({ id, invoicePromise, decodedToken, navigate }) {
               type="button"
               onClick={() => navigate('/invoices')}
               disabled={isSubmitting}
-              className="breeze-btn breeze-btn--danger-soft"
+              className="breeze-btn breeze-btn--outline"
             >
-              <span className="material-symbols-outlined" aria-hidden="true">close</span>
-              Cancel
+              <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+              Back
             </button>
           </div>
         </div>

@@ -445,15 +445,23 @@ function CustomerProfilesTableContent({
       return;
     }
 
+    const customerProfileIds = deletableProfiles.map((profile) => profile._id);
+
     _isDeleting(true);
-    Promise.all(deletableProfiles.map((profile) => CustomerProfileDeleteRequest(decodedToken, profile._id)))
-      .then(() => {
-        showToast(
+    CustomerProfileDeleteRequest(decodedToken, customerProfileIds)
+      .then((response) => {
+        const deactivatedCount = response?.data?.deactivatedCount;
+        const fallbackMessage =
           deletableProfiles.length === 1
             ? 'Customer profile deleted successfully!'
-            : `${deletableProfiles.length} customer profiles deleted successfully!`,
-          'success'
-        );
+            : `${deletableProfiles.length} customer profiles deleted successfully!`;
+        const message = response?.data?.message || response?.message || fallbackMessage;
+        const toastType =
+          deactivatedCount === 0 && deletableProfiles.length > 0 ? 'error' : 'success';
+        showToast(message, toastType);
+
+        if (toastType === 'error') return;
+
         onBulkDeleteComplete?.();
         refreshProfiles?.();
       })

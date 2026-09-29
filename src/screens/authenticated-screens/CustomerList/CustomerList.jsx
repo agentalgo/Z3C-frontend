@@ -420,15 +420,23 @@ function CustomersTableContent({
       return;
     }
 
+    const customerIds = deletableCustomers.map((customer) => customer._id);
+
     _isDeleting(true);
-    Promise.all(deletableCustomers.map((customer) => CustomerDeleteRequest(decodedToken, customer._id)))
-      .then(() => {
-        showToast(
+    CustomerDeleteRequest(decodedToken, customerIds)
+      .then((response) => {
+        const deactivatedCount = response?.data?.deactivatedCount;
+        const fallbackMessage =
           deletableCustomers.length === 1
             ? 'Customer deleted successfully!'
-            : `${deletableCustomers.length} customers deleted successfully!`,
-          'success'
-        );
+            : `${deletableCustomers.length} customers deleted successfully!`;
+        const message = response?.data?.message || response?.message || fallbackMessage;
+        const toastType =
+          deactivatedCount === 0 && deletableCustomers.length > 0 ? 'error' : 'success';
+        showToast(message, toastType);
+
+        if (toastType === 'error') return;
+
         onBulkDeleteComplete?.();
         refreshCustomers?.();
       })
